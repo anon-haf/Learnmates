@@ -34,7 +34,12 @@ const Contribute: React.FC = () => {
         body: formData
       });
       const data = await res.json();
-      setDropboxLink(data.url);
+      if (data.error) {
+        setDropboxLink("");
+        alert("File upload failed: " + data.error);
+      } else {
+        setDropboxLink(data.url);
+      }
     } catch (err) {
       setDropboxLink("");
       alert("File upload failed. Please try again.");
@@ -252,7 +257,7 @@ const Contribute: React.FC = () => {
           
           <form
             onSubmit={e => {
-              if (!dropboxLink) {
+              if (selectedFile && !dropboxLink) {
                 e.preventDefault();
                 alert("Please wait for the file to finish uploading.");
                 return;
@@ -410,9 +415,9 @@ const Contribute: React.FC = () => {
             <div className="text-center">
               <button
                 type="submit"
-                disabled={!hasReadGuidelines || state.submitting || uploading || !dropboxLink}
+                disabled={!hasReadGuidelines || state.submitting || uploading || (!!selectedFile && !dropboxLink)}
                 className={`inline-flex items-center px-8 py-4 rounded-lg font-medium text-white shadow-lg transition-all duration-200 ${
-                  !hasReadGuidelines || state.submitting || uploading || !dropboxLink
+                  !hasReadGuidelines || state.submitting || uploading || (selectedFile && !dropboxLink)
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 hover:shadow-xl'
                 }`}
