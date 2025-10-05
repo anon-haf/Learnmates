@@ -1,11 +1,11 @@
 const { Dropbox } = require('dropbox');
 const formidable = require('formidable-serverless');
 
-export const config = {
+module.exports.config = {
   api: { bodyParser: false }
 };
 
-export default async function handler(req, res) {
+module.exports.default = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
   const form = new formidable.IncomingForm();
