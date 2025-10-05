@@ -13,20 +13,14 @@ module.exports.default = async function handler(req, res) {
     if (err) return res.status(500).json({ error: 'File upload error' });
 
     const file = files.file;
-    if (!file) {
-      // No file uploaded, just return null url
-      return res.status(200).json({ url: null });
-    }
-    try {
-      const dbx = new Dropbox({ accessToken: process.env.DROPBOX_TOKEN, fetch: fetch });
-      const fs = require('fs');
-      const fileBuffer = fs.readFileSync(file.path);
-      const dropboxPath = `/contributions/${Date.now()}_${file.name}`;
-      await dbx.filesUpload({ path: dropboxPath, contents: fileBuffer });
-      const shared = await dbx.sharingCreateSharedLinkWithSettings({ path: dropboxPath });
-      res.status(200).json({ url: shared.url });
-    } catch (error) {
-      res.status(500).json({ error: error.message || 'Dropbox upload failed' });
-    }
+    const dbx = new Dropbox({ accessToken: process.env.DROPBOX_TOKEN, fetch: fetch });
+
+    const fs = require('fs');
+    const fileBuffer = fs.readFileSync(file.path);
+    const dropboxPath = `/contributions/${Date.now()}_${file.name}`;
+    await dbx.filesUpload({ path: dropboxPath, contents: fileBuffer });
+    const shared = await dbx.sharingCreateSharedLinkWithSettings({ path: dropboxPath });
+
+    res.status(200).json({ url: shared.url });
   });
 }
