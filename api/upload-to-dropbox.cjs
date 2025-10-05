@@ -22,7 +22,8 @@ module.exports.default = async function handler(req, res) {
       const shared = await dbx.sharingCreateSharedLinkWithSettings({ path: dropboxPath });
       res.status(200).json({ url: shared.url });
     } catch (error) {
-      res.status(500).json({ error: error.message || 'Dropbox upload failed' });
+      console.error('Dropbox upload error:', error);
+      res.status(500).json({ error: error.message || JSON.stringify(error) || 'Dropbox upload failed' });
     }
   });
 }
