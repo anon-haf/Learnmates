@@ -1,5 +1,5 @@
-import { Dropbox } from 'dropbox';
-import formidable from 'formidable-serverless';
+const { Dropbox } = require('dropbox');
+const formidable = require('formidable-serverless');
 
 export const config = {
   api: { bodyParser: false }
