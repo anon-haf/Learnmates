@@ -14,7 +14,7 @@ module.exports.default = async function handler(req, res) {
 
     const file = files.file;
     try {
-      const dbx = new Dropbox({ accessToken: process.env.DROPBOX_TOKEN, fetch: fetch });
+  const dbx = new Dropbox({ accessToken: "sl.u.AGBnCTAJ39AgqC7STfx5Hf9EcKCNwM5QWpCrzn4aMttZFEFMEPL91-o21RPj7dRNrLf3PAagjgoFEUjpk8tkmf7EYC_5jclwe-liLg5ieDNvTj45gztj8D", fetch: fetch });
       const fs = require('fs');
       const fileBuffer = fs.readFileSync(file.path);
       const dropboxPath = `/contributions/${Date.now()}_${file.name}`;
