@@ -10,6 +10,14 @@ const Contribute: React.FC = () => {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [dropboxLink, setDropboxLink] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
+  const [formValues, setFormValues] = React.useState({
+    name: "",
+    title: "",
+    email: "",
+    type: "video",
+    description: "",
+    message: ""
+  });
 
   // Upload file to Dropbox and get link
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,15 +25,27 @@ const Contribute: React.FC = () => {
     if (!file) return;
     setSelectedFile(file);
     setUploading(true);
+    setDropboxLink("");
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch('/api/upload-to-dropbox', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
-    setDropboxLink(data.url);
+    try {
+      const res = await fetch('/api/upload-to-dropbox', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      setDropboxLink(data.url);
+    } catch (err) {
+      setDropboxLink("");
+      alert("File upload failed. Please try again.");
+    }
     setUploading(false);
+  };
+
+  // Handle input changes for all fields
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormValues(prev => ({ ...prev, [name]: value }));
   };
   if (state.succeeded) {
     return (
@@ -231,26 +251,34 @@ const Contribute: React.FC = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">Submit Your Contribution</h2>
           
           <form
-            onSubmit={handleSubmit}
+            onSubmit={e => {
+              if (!dropboxLink) {
+                e.preventDefault();
+                alert("Please wait for the file to finish uploading.");
+                return;
+              }
+              handleSubmit(e);
+            }}
             encType="multipart/form-data"
             className="space-y-8"
           >
             {/* Basic Information */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                  Title *
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Name *
                 </label>
                 <input
                   type="text"
-                  id="title"
-                  name="title"
+                  id="name"
+                  name="name"
                   required
+                  value={formValues.name}
+                  onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter a descriptive title"
+                  placeholder="Enter your full name"
                 />
               </div>
-              
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address *
@@ -260,6 +288,8 @@ const Contribute: React.FC = () => {
                   id="email"
                   name="email"
                   required
+                  value={formValues.email}
+                  onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="your.email@example.com"
                 />
@@ -275,6 +305,8 @@ const Contribute: React.FC = () => {
               <select
                 id="type"
                 name="type"
+                value={formValues.type}
+                onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="video">Video Content</option>
@@ -286,6 +318,21 @@ const Contribute: React.FC = () => {
 
             {/* Description */}
             <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+                Title *
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                required
+                value={formValues.title}
+                onChange={handleInputChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter a descriptive title"
+              />
+            </div>
+            <div>
               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
                 Description *
               </label>
@@ -293,9 +340,25 @@ const Contribute: React.FC = () => {
                 id="description"
                 name="description"
                 required
+                value={formValues.description}
+                onChange={handleInputChange}
                 rows={6}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Provide a detailed description of your contribution, including subject, topic, and learning objectives..."
+              />
+            </div>
+            <div>
+              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                Additional Message
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                value={formValues.message}
+                onChange={handleInputChange}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Any extra notes or comments..."
               />
             </div>
 
@@ -349,13 +412,13 @@ const Contribute: React.FC = () => {
                 type="submit"
                 disabled={!hasReadGuidelines || state.submitting || uploading || !dropboxLink}
                 className={`inline-flex items-center px-8 py-4 rounded-lg font-medium text-white shadow-lg transition-all duration-200 ${
-                  !hasReadGuidelines || state.submitting
+                  !hasReadGuidelines || state.submitting || uploading || !dropboxLink
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 hover:shadow-xl'
                 }`}
               >
                 <Send className="w-5 h-5 mr-2" />
-                {state.submitting ? 'Submitting...' : 'Submit Contribution'}
+                {state.submitting ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Contribution'}
               </button>
             </div>
           </form>
