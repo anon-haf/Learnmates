@@ -12,9 +12,11 @@ interface Resource {
 
 interface ResourcesProps {
   resources: Resource[];
+  doneResources?: string[];
+  setDoneResources?: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
-const Resources: React.FC<ResourcesProps> = ({ resources }) => {
+const Resources: React.FC<ResourcesProps> = ({ resources, doneResources: externalDoneResources, setDoneResources: externalSetDoneResources }) => {
   if (resources.length === 0) {
     return (
       <motion.div
@@ -39,7 +41,8 @@ const Resources: React.FC<ResourcesProps> = ({ resources }) => {
     );
   }
 
-  const [doneResources, setDoneResources] = React.useState<string[]>(() => {
+  // Support external doneResources state passed from parent (TopicPage) or use local state
+  const [localDoneResources, setLocalDoneResources] = React.useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('doneResources');
       return saved ? JSON.parse(saved) : [];
@@ -47,9 +50,16 @@ const Resources: React.FC<ResourcesProps> = ({ resources }) => {
       return [];
     }
   });
+  // Persist local state to localStorage
   React.useEffect(() => {
-    localStorage.setItem('doneResources', JSON.stringify(doneResources));
-  }, [doneResources]);
+    // Only persist when using internal state
+    if (!externalDoneResources) {
+      localStorage.setItem('doneResources', JSON.stringify(localDoneResources));
+    }
+  }, [localDoneResources, externalDoneResources]);
+
+  const doneResources = externalDoneResources ?? localDoneResources;
+  const setDoneResources = externalSetDoneResources ?? setLocalDoneResources;
   const [expandedResources, setExpandedResources] = React.useState<string[]>([]);
 
   return (
@@ -65,19 +75,10 @@ const Resources: React.FC<ResourcesProps> = ({ resources }) => {
             transition={{ delay: index * 0.1 }}
             className="bg-white rounded-xl shadow-lg p-6"
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{resource.title}</h3>
-                  {resource.description && (
-                    <p className="text-sm text-gray-600">{resource.description}</p>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row items-start justify-between mb-4">
+              {/* Buttons first on mobile, content first on desktop */}
+              <div className="flex items-center space-x-2 mb-3 sm:mb-0 order-1 sm:order-2">
+                {/* action buttons (will be moved above title on small screens) */}
                 <button
                   className={`flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors ${done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}`}
                   onClick={() => setDoneResources((prev) => prev.includes(resource.id) ? prev.filter(id => id !== resource.id) : [...prev, resource.id])}
@@ -122,6 +123,18 @@ const Resources: React.FC<ResourcesProps> = ({ resources }) => {
                   <Flag className="w-4 h-4" />
                 </Link>
               </div>
+              <div className="flex items-center space-x-3 order-2 sm:order-1">
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{resource.title}</h3>
+                  {resource.description && (
+                    <p className="text-sm text-gray-600">{resource.description}</p>
+                  )}
+                </div>
+              </div>
+              
             </div>
             {expanded && (
               <div className="bg-gray-50 rounded-lg p-4">

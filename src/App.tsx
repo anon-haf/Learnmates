@@ -26,6 +26,8 @@ function App() {
               <Route path="/contact" element={<ContactUs />} />
               <Route path="/curriculum" element={<Curriculum />} />
               <Route path="/curriculum/:type" element={<CurriculumPage />} />
+              <Route path="/curriculum/:type/:board" element={<CurriculumPage />} />
+              <Route path="/curriculum/:type/:board/:subject" element={<CurriculumPage />} />
               <Route path="/topic/:id" element={<TopicPage />} />
 
             </Routes>

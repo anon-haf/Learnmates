@@ -48,7 +48,7 @@ const Header: React.FC = () => {
           <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity min-w-0 flex-shrink-0">
             <div className="rounded-lg flex items-center justify-center overflow-hidden min-w-[2.5rem] min-h-[2.5rem] w-10 h-10 flex-shrink-0">
               <img 
-                src="logo.jpeg"
+                src="/logo.png"
                 alt="Learnmates Logo"
                 className="w-full h-full object-contain"
                 style={{ aspectRatio: '1 / 1' }}

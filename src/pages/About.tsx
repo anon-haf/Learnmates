@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Users, Target, Heart, Award, Globe, Gift} from 'lucide-react';
+import { BookOpen, Users, Target, Heart, Award, Globe, Gift ,Layers, PlayCircle} from 'lucide-react';
 
 const About: React.FC = () => {
   const containerVariants = {
@@ -33,10 +33,10 @@ const About: React.FC = () => {
           <BookOpen className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          About <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">EduHub</span>
+          About <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">Learnmates</span>
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          EduHub is a comprehensive educational platform designed to empower students in their IGCSE and A-Level journey. 
+          Learnmates is a comprehensive educational platform designed to empower students in their IGCSE and A-Level journey.
           We believe that quality education should be accessible to everyone, everywhere.
         </p>
       </motion.div>
@@ -90,7 +90,7 @@ const About: React.FC = () => {
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
             <div className="space-y-4 text-gray-700 leading-relaxed">
               <p>
-                EduHub was born from the recognition that students worldwide deserve access to high-quality educational resources, 
+                Learnmates was born from the recognition that students worldwide deserve access to high-quality educational resources, 
                 regardless of their geographical location or economic circumstances.
               </p>
               <p>
@@ -112,19 +112,26 @@ const About: React.FC = () => {
             {
               title: "Interactive Learning",
               description: "Engage with interactive quizzes, videos, and resources provided by your peers that understand first-hand what works best.",
-              icon: <Target className="w-8 h-8" />,
-              color: "from-teal-500 to-teal-600"
+              icon: <PlayCircle className="w-8 h-8" />, 
+              color: "from-purple-500 to-purple-700"
+            },
+            {
+              title: "Modular, Step-by-Step Content",
+              description: "Our modular content guides you through your learning journey step by step, making complex topics easy to master at your own pace.",
+              icon: <Layers className="w-8 h-8" />, 
+              color: "from-blue-500 to-blue-700"
             },
             {
               title: "Community Support",
               description: "Join a supportive community where students are both educators and learners contributing to each other's success.",
-              icon: <Heart className="w-8 h-8" />,
-              color: "from-pink-500 to-pink-600"
-            },{
+              icon: <Users className="w-8 h-8" />, 
+              color: "from-emerald-500 to-emerald-700"
+            },
+            {
               title: "Completely free",
               description: "Access all the resources and features with no cost involved. We believe in an accessible free education for all.",
-              icon: <Gift className="w-8 h-8" />,
-              color: "from-blue-500 to-blue-600"
+              icon: <Gift className="w-8 h-8" />, 
+              color: "from-amber-500 to-amber-700"
             }
           ].map((feature, index) => (
             <motion.div

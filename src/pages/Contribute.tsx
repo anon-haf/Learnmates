@@ -1,76 +1,9 @@
 import React from 'react';
-import { useForm, ValidationError } from '@formspree/react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Video, Send, CheckCircle, Users, BookOpen } from 'lucide-react';
+import { CheckCircle, Users, BookOpen } from 'lucide-react';
 
 const Contribute: React.FC = () => {
-  const [hasReadGuidelines, setHasReadGuidelines] = React.useState(false);
   const [showWordModal, setShowWordModal] = React.useState(false);
-  const [state, handleSubmit] = useForm("xblzywqj");
-  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-  const [dropboxLink, setDropboxLink] = React.useState("");
-  const [uploading, setUploading] = React.useState(false);
-  const [formValues, setFormValues] = React.useState({
-    name: "",
-    title: "",
-    email: "",
-    type: "video",
-    description: "",
-    message: ""
-  });
-
-  // Upload file to Dropbox and get link
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setUploading(true);
-    setDropboxLink("");
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const res = await fetch('/api/upload-to-dropbox', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data.error) {
-        setDropboxLink("");
-        alert("File upload failed: " + data.error);
-      } else {
-        setDropboxLink(data.url);
-      }
-    } catch (err) {
-      setDropboxLink("");
-      alert("File upload failed. Please try again.");
-    }
-    setUploading(false);
-  };
-
-  // Handle input changes for all fields
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormValues(prev => ({ ...prev, [name]: value }));
-  };
-  if (state.succeeded) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
-      >
-        <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8">
-            <CheckCircle className="w-10 h-10 text-green-600" />
-          </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Thank You for Contributing!</h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Your contribution has been submitted successfully. Our team will review it and get back to you within 2-3 business days.
-          </p>
-        </div>
-      </motion.div>
-    );
-  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -196,27 +129,14 @@ const Contribute: React.FC = () => {
             </div>
           </div>
           
-          <div className="mt-8 p-6 bg-white rounded-xl border-l-4 border-blue-500">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="guidelines"
-                checked={hasReadGuidelines}
-                onChange={(e) => setHasReadGuidelines(e.target.checked)}
-                className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="guidelines" className="ml-3 text-sm font-medium text-gray-900">
-                I have read and agree to follow these contribution guidelines
-                <span className="mx-2">|</span>
-                <button
-                  type="button"
-                  className="text-blue-700 underline hover:text-blue-900 focus:outline-none"
-                  onClick={() => setShowWordModal(true)}
-                >
-                  Submission guidelines
-                </button>
-              </label>
-            </div>
+          <div className="mt-8 p-6 bg-white rounded-xl border-l-4 border-blue-500 text-center">
+            <button
+              type="button"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-md"
+              onClick={() => setShowWordModal(true)}
+            >
+              View Submission Guidelines
+            </button>
           </div>
         </div>
       </motion.section>
@@ -254,179 +174,18 @@ const Contribute: React.FC = () => {
       <motion.section variants={itemVariants}>
         <div className="bg-white rounded-2xl shadow-lg p-10">
           <h2 className="text-3xl font-bold text-gray-900 mb-8">Submit Your Contribution</h2>
-          
-          <form
-            onSubmit={e => {
-              if (selectedFile && !dropboxLink) {
-                e.preventDefault();
-                alert("Please wait for the file to finish uploading.");
-                return;
-              }
-              handleSubmit(e);
-            }}
-            encType="multipart/form-data"
-            className="space-y-8"
-          >
-            {/* Basic Information */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Name *
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  required
-                  value={formValues.name}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your full name"
-                />
-              </div>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  value={formValues.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="your.email@example.com"
-                />
-                <ValidationError prefix="Email" field="email" errors={state.errors} />
-              </div>
-            </div>
+          <p className="text-gray-600 mb-6">To submit content, please open the contribution form in a new tab using the button below.</p>
 
-            {/* Content Type */}
-            <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                Content Type *
-              </label>
-              <select
-                id="type"
-                name="type"
-                value={formValues.type}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="video">Video Content</option>
-                <option value="pdf">PDF Resource</option>
-                <option value="quiz">Quiz Questions</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            {/* Description */}
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Title *
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                required
-                value={formValues.title}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter a descriptive title"
-              />
-            </div>
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                required
-                value={formValues.description}
-                onChange={handleInputChange}
-                rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Provide a detailed description of your contribution, including subject, topic, and learning objectives..."
-              />
-            </div>
-            <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                value={formValues.message}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Any extra notes or comments..."
-              />
-            </div>
-
-            {/* File Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Resources
-              </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">
-                  Drag and drop your files here, or click to browse
-                </p>
-                <input
-                  type="file"
-                  name="resources"
-                  accept=".pdf,.mp4,.mov,.avi,.doc,.docx,.ppt,.pptx"
-                  className="hidden"
-                  id="file-upload"
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                />
-                <label
-                  htmlFor="file-upload"
-                  className="inline-flex items-center px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Choose Files
-                </label>
-                {/* File list preview */}
-                {selectedFile && (
-                  <div className="mt-4 text-sm text-gray-700">
-                    <FileText className="inline w-4 h-4 mr-1 text-gray-400" />
-                    {selectedFile.name}
-                    {uploading && <span className="ml-2 text-blue-500">Uploading...</span>}
-                    {dropboxLink && !uploading && (
-                      <span className="ml-2 text-green-600">Uploaded!</span>
-                    )}
-                  </div>
-                )}
-                {/* Dropbox link hidden field for Formspree */}
-                {dropboxLink && (
-                  <input type="hidden" name="dropboxLink" value={dropboxLink} />
-                )}
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="text-center">
-              <button
-                type="submit"
-                disabled={!hasReadGuidelines || state.submitting || uploading || (!!selectedFile && !dropboxLink)}
-                className={`inline-flex items-center px-8 py-4 rounded-lg font-medium text-white shadow-lg transition-all duration-200 ${
-                  !hasReadGuidelines || state.submitting || uploading || (selectedFile && !dropboxLink)
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-500 to-teal-500 hover:from-blue-600 hover:to-teal-600 hover:shadow-xl'
-                }`}
-              >
-                <Send className="w-5 h-5 mr-2" />
-                {state.submitting ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Contribution'}
-              </button>
-            </div>
-          </form>
+          <div className="text-center">
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSfOHzdrN-UlAWhRcgUtCGdjuK9LG5-0H2UOjMap8sZV5JajMg/viewform?usp=header"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 shadow-md transition-all duration-200"
+            >
+              Open Contribution Form
+            </a>
+          </div>
         </div>
       </motion.section>
     </motion.div>

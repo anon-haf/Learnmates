@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, FileText, Trophy, ArrowRight, Clock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -7,8 +7,7 @@ import { useUser } from '../context/UserContext';
 const CurriculumPage: React.FC = () => {
   // Remove useParams, use local state for selection flow
   const { user, addRecentCourse } = useUser();
-  // Curriculum level is now passed as a prop or via router (assume selectedLevel is set externally)
-  // Remove local state for selectedLevel
+  // Curriculum level is passed via router
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
 
@@ -49,8 +48,8 @@ const CurriculumPage: React.FC = () => {
         edexcel: {
           topics: [
             { id: 'math-algebra-ed', title: 'Algebra (Edexcel)', description: 'Edexcel board algebra topics.', subject: 'Mathematics', videoCount: 10, resourceCount: 7, quizCount: 4 },
-            { id: 'physics-mechanics-ed', title: 'Mechanics (Edexcel)', description: 'Edexcel board mechanics topics.', subject: 'Physics', videoCount: 13, resourceCount: 9, quizCount: 6 }
-            // Add more Edexcel-specific topics as needed
+            { id: 'physics-mechanics-ed', title: 'Mechanics (Edexcel)', description: 'Edexcel board mechanics topics.', subject: 'Physics', videoCount: 13, resourceCount: 9, quizCount: 6 },
+            { id: 'test-quiz', title: 'Test Quiz (Edexcel)', description: 'Edexcel board test quiz topics.', subject: 'General', videoCount: 5, resourceCount: 3, quizCount: 2 }
           ]
         }
       }
@@ -62,17 +61,35 @@ const CurriculumPage: React.FC = () => {
       boards: {
         cambridge: {
           topics: [
-            { id: 'math-calculus', title: 'Calculus and Analysis', description: 'Master differentiation, integration, and their applications in real-world problems.', subject: 'Mathematics', videoCount: 25, resourceCount: 18, quizCount: 12 },
-            { id: 'physics-waves', title: 'Waves and Oscillations', description: 'Study wave properties, interference, diffraction, and oscillatory motion.', subject: 'Physics', videoCount: 20, resourceCount: 15, quizCount: 10 },
-            { id: 'chemistry-organic', title: 'Organic Chemistry', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'biology-genetics', title: 'Genetics and Evolution', description: 'Understand inheritance patterns, genetic variation, and evolutionary processes.', subject: 'Biology', videoCount: 18, resourceCount: 14, quizCount: 9 },
-            { id: 'further-math-matrices', title: 'Matrix Mathematics', description: 'Advanced matrix operations, transformations, and their applications.', subject: 'Further Mathematics', videoCount: 16, resourceCount: 12, quizCount: 8 }
+            
           ]
+
         },
         edexcel: {
           topics: [
-            { id: 'math-calculus-ed', title: 'Calculus (Edexcel)', description: 'Edexcel board calculus topics.', subject: 'Mathematics', videoCount: 20, resourceCount: 15, quizCount: 10 },
-            { id: 'physics-waves-ed', title: 'Waves (Edexcel)', description: 'Edexcel board waves topics.', subject: 'Physics', videoCount: 18, resourceCount: 13, quizCount: 8 }
+            { id: 'chemistry-T1', title: 'Formulae, Equations and Amount of Substance(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T2', title: 'Atomic Structure and the Periodic Table(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T3', title: 'Bonding and Structure(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T4', title: 'Introductory Organic Chemistry and Alkanes(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T5', title: 'Alkenes(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            
+            { id: 'chemistry-T6', title: 'Energetics, Group Chemistry, Halogenoalkanes and Alcohols (U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T7', title: 'Intermolecular Forces(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T8', title: 'Redox Chemistry and Groups 1, 2 and 7(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T9', title: 'Introduction to Kinetics and Equilibria(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T10', title: 'Organic Chemistry: Halogenoalkanes, Alcohols and Spectra(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            
+            { id: 'chemistry-T11', title: 'Rates, Equilibria and Further Organic Chemistry(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T12', title: 'Entropy and Energetics(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T13', title: 'Chemical Equilibria(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T14', title: 'Acid-base Equilibria(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+           
+            { id: 'chemistry-T15', title: 'Organic Chemistry: Carbonyls, Carboxylic Acids and Chirality(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T16', title: 'Transition Metals and Organic Nitrogen Chemistry(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T17', title: 'Transition Metals and their Chemistry(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T18', title: 'Organic Chemistry – Arenes(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T19', title: 'Organic Nitrogen Compounds: Amines, Amides, Amino Acids and Proteins(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T20', title: 'Organic Synthesis(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
             // Add more Edexcel-specific topics as needed
           ]
         }
@@ -80,9 +97,34 @@ const CurriculumPage: React.FC = () => {
     }
   };
 
-  // Assume selectedLevel is provided via props or router (for demo, default to 'igcse')
-  const selectedLevel = 'igcse';
+  // Determine selected level from the URL param (e.g. /curriculum/igcse or /curriculum/a-level)
+  const params = useParams<{ type?: string; board?: string; subject?: string }>();
+  const typeParam = params.type ? params.type.toLowerCase() : undefined;
+  const boardParam = params.board ? params.board.toLowerCase() : undefined;
+  const subjectParam = params.subject ? decodeURIComponent(params.subject) : undefined;
+  const availableLevels = Object.keys(curriculumData);
+  const selectedLevel = typeParam && availableLevels.includes(typeParam) ? typeParam : 'igcse';
   const curriculum = curriculumData[selectedLevel as keyof typeof curriculumData];
+  const navigate = useNavigate();
+
+  // sync selectedBoard state from URL param
+  useEffect(() => {
+    if (boardParam === 'cambridge' || boardParam === 'edexcel') {
+      setSelectedBoard(boardParam);
+    } else {
+      setSelectedBoard(null);
+    }
+  }, [boardParam]);
+
+  // sync subject from URL param
+  useEffect(() => {
+    if (subjectParam) {
+      setSelectedSubject(subjectParam);
+    } else {
+      setSelectedSubject(null);
+    }
+  }, [subjectParam]);
+
   const boardTopics: Topic[] = (curriculum && selectedBoard && (selectedBoard === 'cambridge' || selectedBoard === 'edexcel'))
     ? curriculum.boards[selectedBoard as BoardKey]?.topics || []
     : [];
@@ -137,7 +179,7 @@ const CurriculumPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row gap-8 w-full justify-center">
           <button
             className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-purple-500 to-blue-500 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-purple-300 group"
-            onClick={() => setSelectedBoard('cambridge')}
+            onClick={() => navigate(`/curriculum/${selectedLevel}/cambridge`)}
           >
             <div className="flex items-center justify-center mb-4">
               <BookOpen className="w-8 h-8 text-white opacity-80 group-hover:opacity-100" />
@@ -147,7 +189,7 @@ const CurriculumPage: React.FC = () => {
           </button>
           <button
             className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-pink-500 to-orange-500 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-pink-300 group"
-            onClick={() => setSelectedBoard('edexcel')}
+            onClick={() => navigate(`/curriculum/${selectedLevel}/edexcel`)}
           >
             <div className="flex items-center justify-center mb-4">
               <BookOpen className="w-8 h-8 text-white opacity-80 group-hover:opacity-100" />
@@ -217,7 +259,7 @@ const CurriculumPage: React.FC = () => {
             <button
               key={subject}
               className={`flex flex-col items-center justify-center rounded-2xl shadow-lg bg-gradient-to-br ${subjectColors[subject]} text-white px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-14 hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-blue-300 group`}
-              onClick={() => setSelectedSubject(subject)}
+              onClick={() => navigate(`/curriculum/${selectedLevel}/${selectedBoard}/${encodeURIComponent(subject)}`)}
             >
               <div className="flex items-center justify-center mb-4">
                 <BookOpen className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white opacity-80 group-hover:opacity-100" />

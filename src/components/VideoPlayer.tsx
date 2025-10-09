@@ -67,8 +67,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {/* Video Header */}
   <div className="p-4 sm:p-6 border-b border-gray-200">
   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">{title}</h2>
-          <div className="flex items-center space-x-2">
+          {/* Buttons first on mobile, title first on larger screens */}
+          <div className="order-1 sm:order-2 flex items-center space-x-2 justify-end w-full sm:w-auto">
             {/* Language Toggle */}
             {englishUrl && arabicUrl && (
               <div className="flex bg-gray-100 rounded-lg p-1">
@@ -119,6 +119,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
           </div>
+          <h2 className="order-2 sm:order-1 text-lg sm:text-xl md:text-2xl font-bold text-gray-900 break-words">{title}</h2>
         </div>
       </div>
 
