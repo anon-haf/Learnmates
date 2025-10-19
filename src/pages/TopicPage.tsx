@@ -48,7 +48,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the characteristics and classifications of living organisms, including the five kingdoms and their features.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Characteristics and Classifications Notes', url: '/documents/Biology/Chapter 1.docx' } ],
+    resources: [ { id: 'r1', title: 'Characteristics and Classifications Notes', url: '/documents/Biology/Chapter 1.pdf' } ],
     quizzes: []
   },
   'biology-4': {
@@ -57,7 +57,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Discover the key biological molecules, including carbohydrates, proteins, lipids. And testing for them.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Biological Molecules Notes', url: '/documents/Biology/Chapter 4.docx' } ],
+    resources: [ { id: 'r1', title: 'Biological Molecules Notes', url: '/documents/Biology/Chapter 4.pdf' } ],
     quizzes: []
   },
 
@@ -67,7 +67,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the role of enzymes in biological processes, including their structure, function, and factors affecting enzyme activity.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Enzymes Notes', url: '/documents/Biology/Chapter 5.docx' } ],
+    resources: [ { id: 'r1', title: 'Enzymes Notes', url: '/documents/Biology/Chapter 5.pdf' } ],
     quizzes: []
   },
   'biology-6': {
@@ -76,7 +76,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Investigate the process of photosynthesis and the factors affecting plant growth and nutrition.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Plant Nutrition Notes', url: '/documents/Biology/Chapter 6.docx' } ],
+    resources: [ { id: 'r1', title: 'Plant Nutrition Notes', url: '/documents/Biology/Chapter 6.pdf' } ],
     quizzes: []
   },
   'biology-7': {
@@ -85,7 +85,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the principles of human nutrition, including the digestive system and dietary requirements.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Human Nutrition Notes', url: '/documents/Biology/Chapter 7.docx' } ],
+    resources: [ { id: 'r1', title: 'Human Nutrition Notes', url: '/documents/Biology/Chapter 7.pdf' } ],
     quizzes: []
   },
 
@@ -95,7 +95,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the process of transport in plants, including xylem and phloem.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Transport in Plants Notes', url: '/documents/Biology/Chapter 8.docx' } ],
+    resources: [ { id: 'r1', title: 'Transport in Plants Notes', url: '/documents/Biology/Chapter 8.pdf' } ],
     quizzes: []
   },
 
