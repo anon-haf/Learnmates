@@ -37,19 +37,27 @@ const CurriculumPage: React.FC = () => {
       boards: {
         cambridge: {
           topics: [
-            { id: 'math-algebra', title: 'Algebra Fundamentals', description: 'Learn the basics of algebraic expressions, equations, and problem-solving techniques.', subject: 'Mathematics', videoCount: 12, resourceCount: 8, quizCount: 5},
-            { id: 'physics-mechanics', title: 'Mechanics and Motion', description: 'Understand the principles of motion, forces, and energy in classical mechanics.', subject: 'Physics', videoCount: 15, resourceCount: 10, quizCount: 7},
-            { id: 'chemistry-atoms', title: 'Atomic Structure', description: 'Explore the structure of atoms, electron configuration, and chemical bonding.', subject: 'Chemistry', videoCount: 10, resourceCount: 6, quizCount: 4},
-            { id: 'biology-cells', title: 'Cell Biology', description: 'Study cell structure, organelles, and cellular processes essential for life.', subject: 'Biology', videoCount: 14, resourceCount: 12, quizCount: 8},
-            { id: 'english-writing', title: 'Essay Writing Skills', description: 'Develop effective writing techniques for various essay types and formats.', subject: 'English', videoCount: 8, resourceCount: 15, quizCount: 3},
-            { id: 'cs-programming', title: 'Programming Fundamentals', description: 'Introduction to programming concepts using Python and problem-solving.', subject: 'Computer Science', videoCount: 18, resourceCount: 20, quizCount: 10}
+            { id: 'chemistry-4', title: 'Electrochemistry', description: 'Explore the principles of electrochemistry, including redox reactions and Hydrogen fuel cells.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-5', title: 'Chemical energetics', description: 'Explore the principles of chemical energetics, including enthalpy changes and reaction spontaneity.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-6', title: 'Chemical reactions', description: 'Explore the principles of chemical reactions, including redox reactions and Hydrogen fuel cells.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-7', title: 'Acids, bases and salts', description: 'Explore the principles of acids, bases and salts, including pH, neutralization and titration.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-8', title: 'The periodic table', description: 'Explore the principles of the periodic table, including group properties and periodic trends.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-9', title: 'Metals', description: 'Explore the principles of metals and their extraction, including reactivity series and extraction methods.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-10', title: 'Chemistry of the environment', description: 'Explore the principles of air and water, including composition, pollution and treatment methods.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-11', title: 'Organic chemistry', description: 'Explore the principles of organic chemistry, including hydrocarbons, functional groups and polymers.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            
+
+
+            { id: 'biology-1', title: 'Characteristics and Classifications of living organisms', description: 'Explore the characteristics and classifications of living organisms, including the five kingdoms and their features.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-4', title: 'Biological Molecules', description: 'Discover the key biological molecules, including carbohydrates, proteins, lipids. And testing for them.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-5', title: 'Enzymes', description: 'Explore the role of enzymes in biological processes, including their structure, function, and factors affecting enzyme activity.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-6', title: 'Plant Nutrition', description: 'Investigate the process of photosynthesis and the factors affecting plant growth and nutrition.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-7', title: 'Human Nutrition', description: 'Examine the components of a balanced diet and the role of nutrients in human health.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-8', title: 'Transport in plant', description: 'Explore the process of transport in plants, including xylem and phloem.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
           ]
         },
         edexcel: {
           topics: [
-            { id: 'math-algebra-ed', title: 'Algebra (Edexcel)', description: 'Edexcel board algebra topics.', subject: 'Mathematics', videoCount: 10, resourceCount: 7, quizCount: 4 },
-            { id: 'physics-mechanics-ed', title: 'Mechanics (Edexcel)', description: 'Edexcel board mechanics topics.', subject: 'Physics', videoCount: 13, resourceCount: 9, quizCount: 6 },
-            { id: 'test-quiz', title: 'Test Quiz (Edexcel)', description: 'Edexcel board test quiz topics.', subject: 'General', videoCount: 5, resourceCount: 3, quizCount: 2 }
           ]
         }
       }
@@ -67,29 +75,29 @@ const CurriculumPage: React.FC = () => {
         },
         edexcel: {
           topics: [
-            { id: 'chemistry-T1', title: 'Formulae, Equations and Amount of Substance(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T2', title: 'Atomic Structure and the Periodic Table(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T3', title: 'Bonding and Structure(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T4', title: 'Introductory Organic Chemistry and Alkanes(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T5', title: 'Alkenes(U1)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T1', title: 'Formulae, Equations and Amount of Substance (U1)', description: 'Understand chemical formulae, writing and balancing equations, and the mole concept for quantitative chemistry.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T2', title: 'Atomic Structure and the Periodic Table (U1)', description: 'Explore atomic models, electronic structure, isotopes, and trends across the periodic table.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T3', title: 'Bonding and Structure (U1)', description: 'Learn ionic, covalent and metallic bonding, molecular shapes, and how bonding relates to properties.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T4', title: 'Introductory Organic Chemistry and Alkanes (U1)', description: 'Introduction to organic nomenclature, structure and properties of alkanes and simple reaction types.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T5', title: 'Alkenes (U1)', description: 'Study structure, reactions and mechanisms of alkenes including addition reactions and polymerisation.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
             
-            { id: 'chemistry-T6', title: 'Energetics, Group Chemistry, Halogenoalkanes and Alcohols (U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T7', title: 'Intermolecular Forces(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T8', title: 'Redox Chemistry and Groups 1, 2 and 7(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T9', title: 'Introduction to Kinetics and Equilibria(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T10', title: 'Organic Chemistry: Halogenoalkanes, Alcohols and Spectra(U2)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T6', title: 'Energetics, Group Chemistry, Halogenoalkanes and Alcohols (U2)', description: 'Covers energy changes in reactions, group trends, and the chemistry of halogenoalkanes and alcohols.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T7', title: 'Intermolecular Forces (U2)', description: 'Examine van der Waals, dipole-dipole and hydrogen bonding and their effect on physical properties.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T8', title: 'Redox Chemistry and Groups 1, 2 and 7 (U2)', description: 'Learn oxidation states, redox reactions and the chemistry of key periodic groups.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T9', title: 'Introduction to Kinetics and Equilibria (U2)', description: 'Understand reaction rates, collision theory and the principles of chemical equilibrium.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T10', title: 'Organic Chemistry: Halogenoalkanes, Alcohols and Spectra (U2)', description: 'Explore reaction mechanisms, spectroscopic identification and the behaviour of halogenoalkanes and alcohols.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
             
-            { id: 'chemistry-T11', title: 'Rates, Equilibria and Further Organic Chemistry(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T12', title: 'Entropy and Energetics(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T13', title: 'Chemical Equilibria(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T14', title: 'Acid-base Equilibria(U4)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-           
-            { id: 'chemistry-T15', title: 'Organic Chemistry: Carbonyls, Carboxylic Acids and Chirality(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T16', title: 'Transition Metals and Organic Nitrogen Chemistry(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T17', title: 'Transition Metals and their Chemistry(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T18', title: 'Organic Chemistry – Arenes(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T19', title: 'Organic Nitrogen Compounds: Amines, Amides, Amino Acids and Proteins(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
-            { id: 'chemistry-T20', title: 'Organic Synthesis(U5)', description: 'Explore organic compounds, reactions, and synthesis pathways.', subject: 'Chemistry', videoCount: 22, resourceCount: 16, quizCount: 11 },
+            { id: 'chemistry-T11', title: 'Rates, Equilibria and Further Organic Chemistry (U4)', description: 'Advanced kinetics and equilibria topics plus extended organic chemistry concepts for A-level study.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T12', title: 'Entropy and Energetics (U4)', description: 'Thermodynamics topics including enthalpy, entropy and spontaneity of reactions.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T13', title: 'Chemical Equilibria (U4)', description: 'In-depth study of equilibrium constants, Le Chatelier’s principle and calculations involving equilibria.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T14', title: 'Acid-base Equilibria (U4)', description: 'Acid-base theories, pH calculations, buffers and titration curves for weak/strong acids and bases.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T15', title: 'Organic Chemistry: Carbonyls, Carboxylic Acids and Chirality (U4)', description: 'Study carbonyl compounds, carboxylic acids, derivatives and stereochemistry.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            
+            { id: 'chemistry-T16', title: 'Transition Metals and Organic Nitrogen Chemistry (U5)', description: 'Explore the chemistry of transition metals and nitrogen-containing organic molecules.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T17', title: 'Transition Metals and their Chemistry (U5)', description: 'Key properties, complex formation and reactions of transition metals.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T18', title: 'Organic Chemistry – Arenes (U5)', description: 'Aromatic chemistry including electrophilic substitution and properties of arenes.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T19', title: 'Organic Nitrogen Compounds: Amines, Amides, Amino Acids and Proteins (U5)', description: 'Structure, properties and reactions of amines, amides and biologically relevant nitrogen compounds.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-T20', title: 'Organic Synthesis (U5)', description: 'Strategies and mechanisms for multi-step organic synthesis and functional group interconversions.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
             // Add more Edexcel-specific topics as needed
           ]
         }
@@ -173,9 +181,9 @@ const CurriculumPage: React.FC = () => {
   // Step 1: Select Board (neater modern card UI)
   if (!selectedBoard) {
     return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">Select Your Exam Board</h1>
-        <p className="text-lg text-gray-500 mb-10">Choose the board for your curriculum to see tailored subjects and topics.</p>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6 tracking-tight">Select Your Exam Board</h1>
+      <p className="text-base text-gray-500 mb-8">Choose a board to see tailored subjects and topics.</p>
         <div className="flex flex-col sm:flex-row gap-8 w-full justify-center">
           <button
             className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-purple-500 to-blue-500 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-purple-300 group"
@@ -243,9 +251,9 @@ const CurriculumPage: React.FC = () => {
       subjectColors[subject] = subjectColorMap[subject] || 'from-gray-500 to-gray-700';
     });
     return (
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center">
-        <h1 className="text-4xl font-extrabold text-gray-900 mb-8 tracking-tight">Select a Subject</h1>
-        <p className="text-lg text-gray-500 mb-10">Pick a subject to view available topics and start learning.</p>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Select a Subject</h1>
+        <p className="text-base text-gray-500 mb-8">Pick a subject to view topics and start learning.</p>
         <div
           className={
             subjects.length === 1
@@ -306,10 +314,10 @@ const CurriculumPage: React.FC = () => {
             ← Back to Subjects
           </button>
         </div>
-        <h1 className="text-5xl font-bold text-gray-900 mb-4">
-          {curriculum.title} <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">{selectedSubject} Topics</span>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+          {curriculum.title} — {selectedSubject} Topics
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
           {curriculum.description}
         </p>
         <div className="mt-4 text-lg text-gray-700">Board: <span className="font-semibold">{selectedBoard}</span></div>
@@ -437,9 +445,9 @@ const CurriculumPage: React.FC = () => {
       {/* Call to Action */}
       <motion.section variants={itemVariants} className="mt-16 text-center">
         <div className="bg-gradient-to-r from-blue-600 to-teal-600 rounded-2xl p-12 text-white">
-          <h2 className="text-4xl font-bold mb-4">Ready to Excel in {curriculum.title}?</h2>
-          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Start with any topic that interests you most, or follow the structured learning path for best results.
+          <h2 className="text-2xl font-bold mb-3">Ready to excel in {curriculum.title}?</h2>
+          <p className="text-base mb-6 opacity-90 max-w-2xl mx-auto">
+            Start with any topic that interests you, or follow the structured path for best results.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             {subjectTopics.length > 0 && (

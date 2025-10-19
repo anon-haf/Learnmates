@@ -29,15 +29,14 @@ const About: React.FC = () => {
     >
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-8">
-          <BookOpen className="w-10 h-10 text-white" />
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <BookOpen className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          About <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">Learnmates</span>
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          About Learnmates
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Learnmates is a comprehensive educational platform designed to empower students in their IGCSE and A-Level journey.
-          We believe that quality education should be accessible to everyone, everywhere.
+        <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">
+          Learnmates provides free, curriculum-aligned learning resources to help students prepare for IGCSE and A-Level exams.
         </p>
       </motion.div>
 
@@ -53,30 +52,18 @@ const About: React.FC = () => {
             We strive to bridge the gap between traditional classroom learning and modern digital education, ensuring every student 
             has the tools they need to succeed.
           </p>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
             {[
-              {
-                icon: <Users className="w-6 h-6" />,
-                title: "Community-Driven",
-                description: " A platform built for the students by the students where everyone could contribute."
-              },
-              {
-                icon: <Globe className="w-6 h-6" />,
-                title: "Accessible",
-                description: "Available to any student globally, anytime, anywhere."
-              },
-              {
-                icon: <Award className="w-6 h-6" />,
-                title: "Quality Focused",
-                description: "Curated content that meets the highest educational standards."
-              }
+              { icon: <Users className="w-6 h-6" />, title: 'Community', desc: 'Students and educators sharing resources.' },
+              { icon: <Globe className="w-6 h-6" />, title: 'Open', desc: 'Accessible globally, across devices.' },
+              { icon: <Award className="w-6 h-6" />, title: 'Quality', desc: 'Curated, exam-focused materials.' }
             ].map((value, index) => (
-              <div key={index} className="text-center p-6 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <div key={index} className="text-center p-4 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <div className="text-blue-600">{value.icon}</div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{value.title}</h3>
-                <p className="text-gray-600 text-sm">{value.description}</p>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">{value.title}</h3>
+                <p className="text-gray-600 text-sm">{value.desc}</p>
               </div>
             ))}
           </div>

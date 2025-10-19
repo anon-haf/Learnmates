@@ -51,15 +51,13 @@ const ContactUs: React.FC = () => {
       className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
     >
       {/* Hero Section */}
-      <motion.div variants={itemVariants} className="text-center mb-16">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-8">
-          <MessageCircle className="w-10 h-10 text-white" />
+      <motion.div variants={itemVariants} className="text-center mb-12">
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
+          <MessageCircle className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          Get in <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">Touch</span>
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Have questions, found a bug, or want to provide feedback? We're here to help and would love to hear from you.
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">Contact Learnmates</h1>
+        <p className="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          Questions, bugs or feedback — send us a short note and we'll reply within a few days.
         </p>
       </motion.div>
 
@@ -82,8 +80,8 @@ const ContactUs: React.FC = () => {
             },
             {
               icon: <MessageCircle className="w-8 h-8" />,
-              title: "Feedback",
-              description: "Share your thoughts on how we can improve EduHub.",
+                title: "Feedback",
+                description: "Share your thoughts on how we can improve Learnmates.",
               color: "from-teal-500 to-teal-600"
             }
           ].map((type, index) => (

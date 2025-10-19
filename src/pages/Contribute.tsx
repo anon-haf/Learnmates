@@ -32,20 +32,16 @@ const Contribute: React.FC = () => {
     >
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-8">
-          <Users className="w-10 h-10 text-white" />
-        </div>
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
-          Help Us <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">Grow</span>
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Join our community of educators and contributors. Share your knowledge and help students worldwide achieve academic excellence.
-        </p>
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Users className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Contribute</h1>
+          <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">Share lessons, notes, or quizzes to help learners everywhere.</p>
       </motion.div>
 
       {/* Why Contribute Section */}
       <motion.section variants={itemVariants} className="mb-16">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Why Your Contribution Matters</h2>
+  <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">Why contribute?</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
@@ -86,8 +82,8 @@ const Contribute: React.FC = () => {
 
       {/* Guidelines Section */}
       <motion.section variants={itemVariants} className="mb-16">
-        <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-2xl p-10">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Contribution Guidelines</h2>
+       <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-2xl p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Contribution guidelines</h2>
           <div className="space-y-6">
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Content Standards</h3>
@@ -110,6 +106,7 @@ const Contribute: React.FC = () => {
                 </li>
               </ul>
             </div>
+            </div>
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Review Process</h3>
               <ul className="space-y-2 text-gray-700">
@@ -129,16 +126,15 @@ const Contribute: React.FC = () => {
             </div>
           </div>
           
-          <div className="mt-8 p-6 bg-white rounded-xl border-l-4 border-blue-500 text-center">
+          <div className="mt-6 p-4 bg-white rounded-xl border-l-4 border-blue-500 text-center">
             <button
               type="button"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-md"
+              className="inline-flex items-center px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               onClick={() => setShowWordModal(true)}
             >
-              View Submission Guidelines
+              View submission guidelines
             </button>
           </div>
-        </div>
       </motion.section>
 
       {/* Contribution Form */}
@@ -173,17 +169,17 @@ const Contribute: React.FC = () => {
       )}
       <motion.section variants={itemVariants}>
         <div className="bg-white rounded-2xl shadow-lg p-10">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Submit Your Contribution</h2>
-          <p className="text-gray-600 mb-6">To submit content, please open the contribution form in a new tab using the button below.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Submit your contribution</h2>
+          <p className="text-gray-700 mb-6">Open the contributor form in a new tab and follow the instructions.</p>
 
           <div className="text-center">
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSfOHzdrN-UlAWhRcgUtCGdjuK9LG5-0H2UOjMap8sZV5JajMg/viewform?usp=header"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 shadow-md transition-all duration-200"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Open Contribution Form
+              Open contribution form
             </a>
           </div>
         </div>

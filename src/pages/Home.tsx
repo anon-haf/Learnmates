@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, ArrowRight, User, Trophy, Clock } from 'lucide-react';
+import { BookOpen, ArrowRight, User, Trophy } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
 const Home: React.FC = () => {
@@ -70,12 +70,12 @@ const Home: React.FC = () => {
             animate={{ scale: 1, opacity: 1 }}
             className="bg-white rounded-xl p-8 max-w-md w-full"
           >
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-center text-gray-900 mb-4">
-              Welcome to EduHub!
-            </h2>
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <User className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-semibold text-center text-gray-900 mb-3">
+                  Welcome to Learnmates
+                </h2>
             <p className="text-gray-600 text-center mb-6">
               Let's personalize your learning experience. What should we call you?
             </p>
@@ -118,7 +118,7 @@ const Home: React.FC = () => {
               </>
             )}
           </h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
             {user ? (
               "Ready to continue your learning journey? Pick up where you left off or explore new topics."
             ) : (
@@ -130,8 +130,8 @@ const Home: React.FC = () => {
         {/* Recent Courses or Get Started */}
         {user && user.recentCourses.length > 0 ? (
           <motion.section variants={itemVariants} className="mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 flex items-center">
-              <BookOpen className="w-8 h-8 text-blue-600 mr-3" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <BookOpen className="w-7 h-7 text-blue-600 mr-3" />
               Continue where you left off
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -178,9 +178,9 @@ const Home: React.FC = () => {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <BookOpen className="w-10 h-10 text-blue-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">Start Your Journey</h2>
-              <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                You haven't started any courses yet. Choose your curriculum and begin learning today!
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">Start learning</h2>
+              <p className="text-base text-gray-600 mb-6 max-w-xl mx-auto">
+                You haven't started any courses yet. Pick a curriculum to begin.
               </p>
               <Link
                 to="/curriculum"
@@ -195,8 +195,8 @@ const Home: React.FC = () => {
 
         {/* Features Grid */}
         <motion.section variants={itemVariants} className="mb-16">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
-            Why Choose EduHub?
+          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+            Why Learnmates?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -226,7 +226,7 @@ const Home: React.FC = () => {
                 transition={{ delay: 0.3 + index * 0.1 }}
                 className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
               >
-                <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-white mb-6`}>
+                <div className={`w-14 h-14 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-white mb-4`}>
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
@@ -239,9 +239,9 @@ const Home: React.FC = () => {
         {/* Call to Action */}
         <motion.section variants={itemVariants} className="text-center">
           <div className="bg-gradient-to-r from-blue-600 to-teal-600 rounded-2xl p-12 text-white">
-            <h2 className="text-4xl font-bold mb-4">Ready to Excel?</h2>
-            <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-              Join thousands of students who are already improving their grades with EduHub.
+            <h2 className="text-3xl font-bold mb-3">Ready to excel?</h2>
+            <p className="text-base mb-6 opacity-90 max-w-xl mx-auto">
+              Join thousands of learners who use Learnmates to study smarter.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link

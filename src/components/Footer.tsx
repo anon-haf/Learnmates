@@ -17,8 +17,8 @@ const Footer: React.FC = () => {
               />
             </div>
             <div>
-              <span className="text-lg font-bold">leanmates</span>
-              <p className="text-sm text-gray-400">© 2025 EduHub. All rights reserved.</p>
+              <span className="text-lg font-bold">Learnmates</span>
+              <p className="text-sm text-gray-400">© 2025 Learnmates. All rights reserved.</p>
             </div>
           </div>
 
