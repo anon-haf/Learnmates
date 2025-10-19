@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm, ValidationError } from '@formspree/react';
 import { motion } from 'framer-motion';
-import { Send, MessageCircle, Bug, HelpCircle, CheckCircle } from 'lucide-react';
+import { Send, MessageCircle, Bug, HelpCircle, CheckCircle , Mail } from 'lucide-react';
 
 const ContactUs: React.FC = () => {
   const [state, handleSubmit] = useForm("xblzywqj");
@@ -53,7 +53,7 @@ const ContactUs: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-12">
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <MessageCircle className="w-8 h-8 text-white" />
+          <Mail className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-3">Contact Learnmates</h1>
         <p className="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Coffee, Heart, Users, BookOpen, Zap, Globe } from 'lucide-react';
+import { Coffee, HandHeart, Users, BookOpen, Zap, Globe ,Server, LibraryBigIcon, LibraryBig, Library, Code, Shield } from 'lucide-react';
 
 const Donate: React.FC = () => {
   const containerVariants = {
@@ -30,7 +30,7 @@ const Donate: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Heart className="w-10 h-10 text-white" />
+          <HandHeart className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
           Support <span className="text-transparent bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text">Learnmates</span>
@@ -58,8 +58,8 @@ const Donate: React.FC = () => {
               <div className="space-y-4 text-left">
                 {[
                   { icon: <Globe className="w-6 h-6" />, title: 'Access', desc: 'Reach learners everywhere' },
-                  { icon: <Heart className="w-6 h-6" />, title: 'Reliability', desc: 'Keep the site online and fast' },
-                  { icon: <Users className="w-6 h-6" />, title: 'Content', desc: 'Create and maintain learning materials' }
+                  { icon: <Shield className="w-6 h-6" />, title: 'Reliability', desc: 'Keep the site online and fast' },
+                  { icon: <Library className="w-6 h-6" />, title: 'Content', desc: 'Create and maintain learning materials' }
                 ].map((s, i) => (
                   <div key={i} className="flex items-start space-x-4">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 mt-1">{s.icon}</div>
@@ -81,21 +81,21 @@ const Donate: React.FC = () => {
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              icon: <Globe className="w-8 h-8" />,
+              icon: <Server className="w-8 h-8" />,
               title: "Server & Hosting",
               description: "Keeping our platform fast, reliable, and accessible 24/7 worldwide.",
               
               color: "from-blue-500 to-blue-600"
             },
             {
-              icon: <BookOpen className="w-8 h-8" />,
+              icon: <LibraryBig className="w-8 h-8" />,
               title: "Content Creation",
               description: "Producing high-quality educational videos, resources, and interactive materials.",
               
               color: "from-teal-500 to-teal-600"
             },
             {
-              icon: <Zap className="w-8 h-8" />,
+              icon: <Code className="w-8 h-8" />,
               title: "Platform Development",
               description: "Continuously improving features, user experience, and adding new functionality.",
              

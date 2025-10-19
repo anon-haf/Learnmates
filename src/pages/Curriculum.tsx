@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { BookOpen, ArrowRight, GraduationCap, Award } from 'lucide-react';
+import { BookOpen, ArrowRight, GraduationCap, Brain ,TrendingUp ,School, BookText } from 'lucide-react';
 
 const Curriculum: React.FC = () => {
   const containerVariants = {
@@ -28,7 +28,7 @@ const Curriculum: React.FC = () => {
       fullName: 'International General Certificate of Secondary Education',
       description: 'Comprehensive resources for IGCSE subjects, designed to help students aged 14-16 excel in their examinations.',
       subjects: ['Mathematics', 'Physics', 'Chemistry', 'Biology'],
-      icon: <BookOpen className="w-12 h-12" />,
+      icon: <BookText className="w-12 h-12" />,
       color: 'from-blue-500 to-blue-600',
       bgColor: 'from-blue-50 to-blue-100'
     },
@@ -54,7 +54,7 @@ const Curriculum: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-8">
-          <Award className="w-10 h-10 text-white" />
+          <School className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-6">
           Choose Your <span className="text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">Curriculum</span>
@@ -136,13 +136,13 @@ const Curriculum: React.FC = () => {
               color: "from-blue-500 to-blue-600"
             },
             {
-              icon: <Award className="w-8 h-8" />,
+              icon: <Brain className="w-8 h-8" />,
               title: "Interactive Quizzes",
               description: "Test your knowledge with carefully crafted questions and instant feedback.",
               color: "from-green-500 to-green-600"
             },
             {
-              icon: <GraduationCap className="w-8 h-8" />,
+              icon: <TrendingUp className="w-8 h-8" />,
               title: "Progress Tracking",
               description: "Monitor your learning progress and identify areas that need more attention.",
               color: "from-purple-500 to-purple-600"

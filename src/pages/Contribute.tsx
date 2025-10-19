@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Users, BookOpen } from 'lucide-react';
+import { CheckCircle, PlusCircle, BookOpen, User, Users } from 'lucide-react';
 
 const Contribute: React.FC = () => {
   const [showWordModal, setShowWordModal] = React.useState(false);
@@ -33,7 +33,7 @@ const Contribute: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Users className="w-8 h-8 text-white" />
+            <PlusCircle className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Contribute</h1>
           <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">Share lessons, notes, or quizzes to help learners everywhere.</p>

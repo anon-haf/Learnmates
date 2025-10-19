@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, Users, Target, Heart, Award, Globe, Gift ,Layers, PlayCircle} from 'lucide-react';
+import { Info, Users, Target, Handshake, Award, Globe, Gift ,Layers, PlayCircle} from 'lucide-react';
 
 const About: React.FC = () => {
   const containerVariants = {
@@ -30,7 +30,7 @@ const About: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <BookOpen className="w-8 h-8 text-white" />
+          <Info className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
           About Learnmates
@@ -54,7 +54,7 @@ const About: React.FC = () => {
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { icon: <Users className="w-6 h-6" />, title: 'Community', desc: 'Students and educators sharing resources.' },
+              { icon: <Handshake className="w-6 h-6" />, title: 'Community', desc: 'Students and educators sharing resources.' },
               { icon: <Globe className="w-6 h-6" />, title: 'Open', desc: 'Accessible globally, across devices.' },
               { icon: <Award className="w-6 h-6" />, title: 'Quality', desc: 'Curated, exam-focused materials.' }
             ].map((value, index) => (

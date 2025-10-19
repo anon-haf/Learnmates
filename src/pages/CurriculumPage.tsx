@@ -53,7 +53,7 @@ const CurriculumPage: React.FC = () => {
             { id: 'biology-5', title: 'Enzymes', description: 'Explore the role of enzymes in biological processes, including their structure, function, and factors affecting enzyme activity.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'biology-6', title: 'Plant Nutrition', description: 'Investigate the process of photosynthesis and the factors affecting plant growth and nutrition.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'biology-7', title: 'Human Nutrition', description: 'Examine the components of a balanced diet and the role of nutrients in human health.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'biology-8', title: 'Transport in plant', description: 'Explore the process of transport in plants, including xylem and phloem.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-8', title: 'Transport in Plants', description: 'Explore the process of transport in plants, including xylem and phloem.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
           ]
         },
         edexcel: {
