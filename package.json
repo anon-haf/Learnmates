@@ -1,6 +1,10 @@
 {
   "name": "vite-react-typescript-starter",
   "private": true,
+  "description": "A web project for LearnMates educational platform.",
+  "author": "LearnMates Team",
+  "homepage": "https://www.learnmates.org",
+  "keywords": ["learnmates", "education", "react", "vite", "typescript", "web"],
   "version": "0.0.0",
   "type": "module",
   "scripts": {

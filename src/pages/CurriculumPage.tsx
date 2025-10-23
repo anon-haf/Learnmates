@@ -69,7 +69,11 @@ const CurriculumPage: React.FC = () => {
       boards: {
         cambridge: {
           topics: [
-            
+            { id:"biology-CH1", title:"Cell Structure", description:"Explore the detailed structure and function of eukaryotic and prokaryotic cells, including organelles and microscopy techniques.", subject:"Biology", videoCount:0, resourceCount:1, quizCount:0},
+            { id:"biology-CH2", title:"Biological Molecules", description:"Dive into the chemistry of biological molecules such as carbohydrates, proteins, lipids, and nucleic acids, and their roles in cellular functions.", subject:"Biology", videoCount:0, resourceCount:1, quizCount:0},
+            { id:"biology-CH3", title:"Enzymes", description:"Understand enzyme structure, function, kinetics, and factors affecting enzyme activity in biological systems.", subject:"Biology", videoCount:0, resourceCount:1, quizCount:0},
+            { id:"biology-CH4", title:"Cell Membranes and Transport", description:"Examine the structure of cell membranes and the mechanisms of substance transport across membranes.", subject:"Biology", videoCount:0, resourceCount:1, quizCount:0},
+            { id:"biology-CH5", title:"The Mitotic Cell Cycle", description:"Learn about the stages of the cell cycle, including interphase and mitosis, and the regulation of cell division.", subject:"Biology", videoCount:0, resourceCount:1, quizCount:0}
           ]
 
         },
