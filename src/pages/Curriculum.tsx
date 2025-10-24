@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { BookOpen, ArrowRight, GraduationCap, Brain ,TrendingUp ,School, BookText } from 'lucide-react';
 
 const Curriculum: React.FC = () => {
@@ -45,6 +46,12 @@ const Curriculum: React.FC = () => {
   ];
 
   return (
+    <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>Learnmates - Curriculum</title>
+        <meta name="keywords" content="Learnmates, Curriculum, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
+        <meta name="description" content="Explore our comprehensive curriculum options for IGCSE and A-Level students. Access structured learning paths, interactive content, and resources tailored to your educational needs." />
+      </Helmet>
     <motion.div
       variants={containerVariants}
       initial="hidden"
@@ -191,6 +198,7 @@ const Curriculum: React.FC = () => {
         </div>
       </motion.section>
     </motion.div>
+    </div>
   );
 };
 

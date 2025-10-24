@@ -1,4 +1,5 @@
 import React from 'react';
+import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Info, Users, Target, Handshake, Award, Globe, Gift ,Layers, PlayCircle} from 'lucide-react';
 
@@ -21,6 +22,14 @@ const About: React.FC = () => {
   };
 
   return (
+       <div className="min-h-screen bg-gray-50">
+            <Helmet>
+              <title>Learnmates - Curriculum</title>
+              <meta name="keywords" content="Learnmates, Curriculum, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
+              <meta name="description" content="Explore our comprehensive curriculum options for IGCSE and A-Level students. Access structured learning paths, interactive content, and resources tailored to your educational needs." />
+            </Helmet>
+
+
     <motion.div
       variants={containerVariants}
       initial="hidden"
@@ -162,6 +171,7 @@ const About: React.FC = () => {
         </div>
       </motion.section>
     </motion.div>
+    </div>
   );
 };
 

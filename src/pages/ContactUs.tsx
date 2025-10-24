@@ -1,6 +1,7 @@
 import React from 'react';
 import { useForm, ValidationError } from '@formspree/react';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet';
 import { Send, MessageCircle, Bug, HelpCircle, CheckCircle , Mail } from 'lucide-react';
 
 const ContactUs: React.FC = () => {
@@ -44,6 +45,12 @@ const ContactUs: React.FC = () => {
 
 
   return (
+     <div className="min-h-screen bg-gray-50">
+          <Helmet>
+            <title>Learnmates - Contact Us</title>
+            <meta name="keywords" content="Learnmates, Contact Us, Support, Education, Learning Platform" />
+            <meta name="description" content="Get in touch with Learnmates for any inquiries, support, or feedback. We're here to help you on your learning journey." />
+          </Helmet>
     <motion.div
       variants={containerVariants}
       initial="hidden"
@@ -219,6 +226,7 @@ const ContactUs: React.FC = () => {
         </div>
       </motion.section>
     </motion.div>
+    </div>
   );
 };
 

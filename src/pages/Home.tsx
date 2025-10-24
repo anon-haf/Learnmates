@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { BookOpen, ArrowRight, User, Trophy } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 
@@ -58,6 +59,13 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+
+      <Helmet>
+        <title>Learnmates - Home</title>
+        
+        <meta name="description" content="Learnmates - Your comprehensive platform for IGCSE and A-Level studies. Access curated videos, resources, and interactive quizzes designed to help you excel." />
+        <meta name="keywords" content="Learnmates, IGCSE, A-Level, education, learning platform, study resources, interactive quizzes, online learning" />
+      </Helmet>
       {/* Name Input Modal */}
       {showNameInput && (
         <motion.div

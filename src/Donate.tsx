@@ -22,20 +22,17 @@ const Donate: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Helmet>
-        <title>Support Learnmates - Donate</title>
-        <meta name="keywords" content="Learnmates, Donate, Support, Education, Learning Platform, Contributions, Hosting, Content Creation, Development" />
-        <meta name="description" content="Support Learnmates by donating to help cover hosting, content creation, and ongoing improvements. Keep our platform free and reliable for learners worldwide." />
-      </Helmet>
-    
+    <Helmet>
+      <title>Learnmates - Donate</title>
+      <meta name="description" content="Support Learnmates - Your contributions help us provide free educational resources." />
+      <link rel="icon" type="image/x-icon" href="logo.png" />
+    </Helmet>
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
     >
-      
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -179,7 +176,6 @@ const Donate: React.FC = () => {
         </div>
       </motion.section>
     </motion.div>
-    </div>
   );
 };
 

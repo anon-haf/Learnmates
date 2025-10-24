@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, FileText, Trophy, ArrowRight, Clock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -364,6 +365,12 @@ const CurriculumPage: React.FC = () => {
           {subjectTopics.map((topic: Topic, index: number) => {
             const progress = user?.progress[topic.id] || 0;
             return (
+               <div className="min-h-screen bg-gray-50">
+                    <Helmet>
+                      <title>Learnmates - Curriculum</title>
+                      <meta name="keywords" content="Learnmates, Curriculum, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content, {topic.title} , {topic.subject}" />
+                      <meta name="description" content="Explore our comprehensive curriculum options for IGCSE and A-Level students. Access structured learning paths, interactive content, and resources tailored to your educational needs." />
+                    </Helmet>
               <motion.div
                 key={topic.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -441,6 +448,7 @@ const CurriculumPage: React.FC = () => {
                   </Link>
                 </div>
               </motion.div>
+              </div>
             );
           })}
         </div>
