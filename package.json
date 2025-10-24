@@ -17,7 +17,7 @@
    "scripts": {
     "dev": "vite",
     "build": "vite build && npm run generate-sitemap",
-    "generate-sitemap": "node scripts/sitemap.js",
+    "generate-sitemap": "node script/sitemap.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
