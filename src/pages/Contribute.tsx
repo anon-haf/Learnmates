@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import
+import { Helmet } from 'react-helmet';
 import { CheckCircle, PlusCircle, BookOpen, User, Users } from 'lucide-react';
 
 const Contribute: React.FC = () => {
