@@ -39,7 +39,7 @@ const About: React.FC = () => {
       {/* Hero Section */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Info className="w-8 h-8 text-white" />
+          <Info className="w-8 hw-8 text-white" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
           About Learnmates

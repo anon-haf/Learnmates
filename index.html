@@ -2,9 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-      <link rel="icon" type="image/png" href="logo.png" sizes="192x192" purpose="maskable" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LearnMates</title>
+      <!-- Favicon for browser and Google search logo -->
+      <link rel="icon" type="image/png" href="/public/logo.png" />
+      <link rel="apple-touch-icon" href="/public/logo.png" />
+      <!-- Structured Data for Organization with logo -->
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Learnmates",
+        "url": "https://learnmates.vercel.app/",
+        "logo": "https://learnmates.vercel.app/logo.png"
+      }
+      </script>
   </head>
   <body>
     <div id="root"></div>
