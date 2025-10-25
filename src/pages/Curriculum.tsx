@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { BookOpen, ArrowRight, GraduationCap, Brain ,TrendingUp ,School, BookText } from 'lucide-react';
 
 const Curriculum: React.FC = () => {

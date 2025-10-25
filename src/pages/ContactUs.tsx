@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm, ValidationError } from '@formspree/react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { Send, MessageCircle, Bug, HelpCircle, CheckCircle , Mail } from 'lucide-react';
 
 const ContactUs: React.FC = () => {
@@ -47,9 +47,9 @@ const ContactUs: React.FC = () => {
   return (
      <div className="min-h-screen bg-gray-50">
           <Helmet>
-            <title>Learnmates - Contact Us</title>
-            <meta name="keywords" content="Learnmates, Contact Us, Support, Education, Learning Platform" />
-            <meta name="description" content="Get in touch with Learnmates for any inquiries, support, or feedback. We're here to help you on your learning journey." />
+            <title>Learnmates | Contact Us</title>
+            <meta name="description" content="Contact Learnmates for support, feedback, or questions. We're here to help you succeed in your learning journey." />
+            <meta name="keywords" content="Learnmates, contact, support, education, feedback, help, learning" />
           </Helmet>
     <motion.div
       variants={containerVariants}

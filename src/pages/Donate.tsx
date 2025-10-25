@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Coffee, HandHeart, Users, BookOpen, Zap, Globe ,Server, LibraryBigIcon, LibraryBig, Library, Code, Shield } from 'lucide-react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 
 const Donate: React.FC = () => {
   const containerVariants = {
@@ -24,9 +24,9 @@ const Donate: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Helmet>
-        <title>Support Learnmates - Donate</title>
-        <meta name="keywords" content="Learnmates, Donate, Support, Education, Learning Platform, Contributions, Hosting, Content Creation, Development" />
-        <meta name="description" content="Support Learnmates by donating to help cover hosting, content creation, and ongoing improvements. Keep our platform free and reliable for learners worldwide." />
+        <title>Learnmates | Donate</title>
+        <meta name="description" content="Help keep Learnmates free and accessible for all students. Your donation supports hosting, content creation, and platform improvements." />
+        <meta name="keywords" content="Learnmates, donate, support, education, hosting, content creation, learning, contributions, free resources" />
       </Helmet>
     
     <motion.div

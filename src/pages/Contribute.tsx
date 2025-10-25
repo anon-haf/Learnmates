@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { CheckCircle, PlusCircle, BookOpen, User, Users } from 'lucide-react';
 
 const Contribute: React.FC = () => {
@@ -27,9 +27,9 @@ const Contribute: React.FC = () => {
   return (
       <div className="min-h-screen bg-gray-50">
         <Helmet>
-          <title>Learnmates - Contribute</title>
-          <meta name="keywords" content="Learnmates, Contribute, Education, Learning Platform, Share Content, Lessons, Notes, Quizzes, Curriculum" />
-          <meta name="description" content="Contribute to Learnmates by sharing your lessons, notes, or quizzes. Help learners worldwide access quality educational resources." />
+          <title>Learnmates | Contribute</title>
+          <meta name="description" content="Contribute to Learnmates by sharing lessons, notes, or quizzes. Help students worldwide access quality educational resources and join our global community." />
+          <meta name="keywords" content="Learnmates, contribute, share, education, lessons, notes, quizzes, curriculum, community" />
         </Helmet>
     <motion.div
       variants={containerVariants}

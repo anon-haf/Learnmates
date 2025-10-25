@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
           <div className="flex items-center space-x-3 mb-4 md:mb-0 md:mr-auto">
             <div className="rounded-lg overflow-hidden min-w-[2.5rem] min-h-[2.5rem] w-10 h-10 flex-shrink-0">
               <img 
-                src="logo.png"
+                src="/logo.png"
                 alt="Learnmates Logo"
                 className="w-full h-full object-contain"
                 style={{ aspectRatio: '1 / 1' }}

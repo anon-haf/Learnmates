@@ -1,5 +1,5 @@
 import React from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Info, Users, Target, Handshake, Award, Globe, Gift ,Layers, PlayCircle} from 'lucide-react';
 
