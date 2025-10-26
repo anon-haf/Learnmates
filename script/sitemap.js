@@ -23,43 +23,51 @@ const baseRoutes = [
 // Function to scan directory and get topic routes
 function getTopicRoutes() {
   const documentsPath = path.join(__dirname, '../public/documents');
-  const subjects = ['Biology', 'Physics'];
   const topicRoutes = [];
 
-  // Scan Chemistry topics (directly in documents folder)
-  const chemistryFiles = readdirSync(documentsPath)
-    .filter(file => file.endsWith('.pdf') && file.includes('topic'));
+  // Get all files recursively from documents folder
+  function scanDir(dir) {
+    const files = readdirSync(dir, { withFileTypes: true });
+    files.forEach(file => {
+      const fullPath = path.join(dir, file.name);
+      if (file.isDirectory()) {
+        scanDir(fullPath);
+      } else if (file.name.endsWith('.pdf') || file.name.endsWith('.docx')) {
+        // Try each pattern to match topic number
+        let topicNumber = null;
+        
+        // Check IAL pattern
+        let match = file.name.match(/IAL .*?U\d+ topic (\d+)/i);
+        if (match) topicNumber = match[1];
+        
+        // Check IGCSE pattern
+        if (!topicNumber) {
+          match = file.name.match(/IGCSE .*?(?:topic|chapter) (\d+)/i);
+          if (match) topicNumber = match[1];
+        }
+        
+        // Check A-Level pattern
+        if (!topicNumber) {
+          match = file.name.match(/(?:topic|chapter)\s*(\d+)/i);
+          if (match) topicNumber = match[1];
+        }
 
-  chemistryFiles.forEach(file => {
-    const match = file.match(/topic\s*(\d+)/i);
-    if (match) {
-      topicRoutes.push({
-        url: `/topic/chemistry/${match[1]}`,
-        changefreq: 'weekly',
-        priority: 0.7
-      });
-    }
-  });
-
-  // Scan other subjects
-  subjects.forEach(subject => {
-    const subjectPath = path.join(documentsPath, subject);
-    try {
-      const files = readdirSync(subjectPath);
-      files.forEach(file => {
-        const match = file.match(/Chapter\s*(\d+)/i);
-        if (match) {
+        if (topicNumber) {
           topicRoutes.push({
-            url: `/topic/${subject.toLowerCase()}/${match[1]}`,
+            url: `/topic/${topicNumber}`,
             changefreq: 'weekly',
             priority: 0.7
           });
         }
-      });
-    } catch (err) {
-      console.warn(`Warning: Could not read directory for ${subject}`);
-    }
-  });
+      }
+    });
+  }
+
+  try {
+    scanDir(documentsPath);
+  } catch (err) {
+    console.warn('Warning: Error scanning documents directory', err);
+  }
 
   return topicRoutes;
 }

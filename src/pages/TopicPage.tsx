@@ -60,7 +60,6 @@ const topicData = {
     resources: [ { id: 'r1', title: 'Biological Molecules Notes', url: '/documents/Biology/Chapter 4.pdf' } ],
     quizzes: []
   },
-
   'biology-5': {
     title: 'Enzymes',
     subject: 'Biology',
@@ -88,7 +87,6 @@ const topicData = {
     resources: [ { id: 'r1', title: 'Human Nutrition Notes', url: '/documents/Biology/Chapter 7.pdf' } ],
     quizzes: []
   },
-
   'biology-8': {
     title: 'Transport in Plants',
     subject: 'Biology',
@@ -98,6 +96,98 @@ const topicData = {
     resources: [ { id: 'r1', title: 'Transport in Plants Notes', url: '/documents/Biology/Chapter 8.pdf' } ],
     quizzes: []
   },
+  'biology-9': {
+    title: 'Transport in Animals',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Explore the process of transport in animals, including the circulatory system.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Transport in Animals Notes', url: '/documents/Biology/Chapter 9.pdf' } ],
+    quizzes: []
+  },
+    'biology-11': {
+    title: 'Gas Exchange in Animals',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Understand the mechanisms of gas exchange in animals, focusing on the human respiratory system.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Gas Exchange in Animals Notes', url: '/documents/Biology/Chapter 11.pdf' } ],
+    quizzes: []
+  },
+    'biology-12': {
+    title: 'Respiration',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Understand the process of cellular respiration, including aerobic and anaerobic respiration and energy production.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Respiration Notes', url: '/documents/Biology/Chapter 12.pdf' } ],
+    quizzes: []
+  },
+   'biology-14': {
+    title: 'Coordination and Response',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Study the nervous and hormonal systems in humans and plants, including responses to stimuli and homeostasis.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Coordination and Response Notes', url: '/documents/Biology/Chapter 14.pdf' } ],
+    quizzes: []
+  },
+     'biology-16': {
+    title: 'Reproduction',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Explore the reproductive systems in humans and plants, including sexual and asexual reproduction.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Reproduction Notes', url: '/documents/Biology/Chapter 16.pdf' } ],
+    quizzes: []
+  },
+   'biology-17': {
+    title: 'Inheritance',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Understand the principles of inheritance, including genes, chromosomes, and patterns of inheritance.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Inheritance Notes', url: '/documents/Biology/Chapter 17.pdf' } ],
+    quizzes: []
+  },
+   'biology-18': {
+    title: 'Variation and Selection',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Study the mechanisms of variation and natural selection in populations.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Variation and Selection Notes', url: '/documents/Biology/Chapter 18.pdf' } ],
+    quizzes: []
+  },
+   'biology-19': {
+    title: 'Organisms and their Environment',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Study the interactions between organisms and their environment, including ecosystems and biodiversity.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Organisms and their Environment Notes', url: '/documents/Biology/Chapter 19.pdf' } ],
+    quizzes: []
+  },
+   'biology-20': {
+    title: 'Human Influences on Ecosystems',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Study the impact of human activities on ecosystems, including pollution, deforestation, and conservation efforts.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Human Influences on Ecosystems Notes', url: '/documents/Biology/Chapter 20.pdf' } ],
+    quizzes: []
+  },
+
+
+
+
+
+
+
+
+
+
+
 
   'chemistry-4':{
     title: 'Electrochemistry',

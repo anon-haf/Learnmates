@@ -55,6 +55,15 @@ const CurriculumPage: React.FC = () => {
             { id: 'biology-6', title: 'Plant Nutrition', description: 'Investigate the process of photosynthesis and the factors affecting plant growth and nutrition.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'biology-7', title: 'Human Nutrition', description: 'Examine the components of a balanced diet and the role of nutrients in human health.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'biology-8', title: 'Transport in Plants', description: 'Explore the process of transport in plants, including xylem and phloem.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-9', title: 'Transport in Animals', description: 'Examine the circulatory system in animals, including the heart, blood vessels, and blood components.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-11', title: 'Gas Exchange in Animals', description: 'Understand the mechanisms of gas exchange in animals, focusing on the human respiratory system.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-12' , title: 'Respiration', description: 'Understand the process of cellular respiration, including aerobic and anaerobic respiration and energy production.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-14' , title: 'Coordination and Response', description: 'Study the nervous and hormonal systems in humans and plants, including responses to stimuli and homeostasis.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-16' , title: 'Reproduction', description: 'Explore the reproductive systems in humans and plants, including sexual and asexual reproduction.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-17' , title: 'Inheritance', description: 'Understand the principles of inheritance, including genes, chromosomes, and patterns of inheritance.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-18' , title: 'Variation and Selection', description: 'Examine the concepts of variation and evolution, including natural selection and speciation.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-19' , title: 'Organisms and their Environment', description: 'Explore ecosystems, energy flow, and the impact of human activities on the environment.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'biology-20' , title: 'Human Influences on Ecosystems', description: 'Investigate human activities that affect ecosystems, including pollution, deforestation, and conservation efforts.', subject: 'Biology', videoCount: 0, resourceCount: 1, quizCount: 0 }
           ]
         },
         edexcel: {
