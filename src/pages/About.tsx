@@ -24,9 +24,9 @@ const About: React.FC = () => {
   return (
        <div className="min-h-screen bg-gray-50">
             <Helmet>
-              <title>Learnmates - Curriculum</title>
-              <meta name="keywords" content="Learnmates, Curriculum, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
-              <meta name="description" content="Explore our comprehensive curriculum options for IGCSE and A-Level students. Access structured learning paths, interactive content, and resources tailored to your educational needs." />
+              <title>Learnmates | About</title>
+              <meta name="keywords" content="Learnmates, About, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
+              <meta name="description" content="Learn more about Learnmates, our mission, and the resources we offer to support IGCSE and A-Level students." />
             </Helmet>
 
 
