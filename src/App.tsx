@@ -1,11 +1,3 @@
-// Shared slugify helper for topic titles
-export const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^\x00-\x7F]/g, '') // remove non-ascii
-    .replace(/[^\w\s-]/g, '') // remove punctuation except spaces/hyphens
-    .trim()
-    .replace(/\s+/g, '-');
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';

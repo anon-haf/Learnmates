@@ -8,6 +8,8 @@ interface User {
     title: string;
     progress: number;
     type: string;
+    board?: string;
+    subject?: string;
   }>;
 }
 

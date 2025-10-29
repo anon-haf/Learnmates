@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { BookOpen, ArrowRight, User, Trophy } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { slugify } from '../utils/slugify';
 
 const Home: React.FC = () => {
   const { user, setUser } = useUser();
@@ -157,13 +158,18 @@ const Home: React.FC = () => {
                       <Trophy className="w-5 h-5 text-yellow-500" />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{course.title}</h3>
-                    <Link
-                      to={`/topic/${course.id}`}
-                      className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-                    >
-                      View Course
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </Link>
+                    {(() => {
+                      const hasBoardAndSubject = course.board && course.subject;
+                      const link = hasBoardAndSubject
+                        ? `/curriculum/${course.type.toLowerCase()}/${course.board}/${course.subject}/${slugify(course.title)}`
+                        : `/topic/${course.id}`;
+                      return (
+                        <Link to={link} className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium">
+                          View Course
+                          <ArrowRight className="w-4 h-4 ml-1" />
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </motion.div>
               ))}

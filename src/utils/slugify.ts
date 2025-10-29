@@ -1,7 +1,6 @@
 export const slugify = (s: string): string => {
   if (!s) return '';
   return s
-    .toLowerCase()
     // allow alphanumeric, spaces, dashes, and parentheses
     .replace(/[^a-z0-9\s\-\(\)]/g, '')
     .trim()

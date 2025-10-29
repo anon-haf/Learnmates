@@ -401,7 +401,9 @@ const CurriculumPage: React.FC = () => {
                           id: topic.id,
                           title: topic.title,
                           progress: progress,
-                          type: curriculum.title
+                          type: curriculum.title,
+                          board: selectedBoard,
+                          subject: topic.subject
                         });
                       }
                     }}
