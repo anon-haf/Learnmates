@@ -22,7 +22,7 @@ const About: React.FC = () => {
   };
 
   return (
-       <div className="min-h-screen bg-gray-50">
+       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
             <Helmet>
               <title>Learnmates | About</title>
               <meta name="keywords" content="Learnmates, About, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
@@ -41,22 +41,22 @@ const About: React.FC = () => {
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <Info className="w-8 hw-8 text-white" />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">
           About Learnmates
         </h1>
-        <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
           Learnmates provides free, curriculum-aligned learning resources to help students prepare for IGCSE and A-Level exams.
         </p>
       </motion.div>
 
       {/* Mission Section */}
       <motion.section variants={itemVariants} className="mb-16">
-        <div className="bg-white rounded-2xl shadow-lg p-10">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-10">
           <div className="flex items-center mb-6">
             <Target className="w-8 h-8 text-blue-600 mr-4" />
-            <h2 className="text-3xl font-bold text-gray-900">Our Mission</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Our Mission</h2>
           </div>
-          <p className="text-lg text-gray-700 leading-relaxed mb-6">
+          <p className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-6">
             To democratize quality education by providing students with comprehensive, accessible, and engaging learning resources. 
             We strive to bridge the gap between traditional classroom learning and modern digital education, ensuring every student 
             has the tools they need to succeed.
@@ -67,12 +67,12 @@ const About: React.FC = () => {
               { icon: <Globe className="w-6 h-6" />, title: 'Open', desc: 'Accessible globally, across devices.' },
               { icon: <Award className="w-6 h-6" />, title: 'Quality', desc: 'Curated, exam-focused materials.' }
             ].map((value, index) => (
-              <div key={index} className="text-center p-4 bg-gray-50 rounded-xl">
+              <div key={index} className="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-3">
                   <div className="text-blue-600">{value.icon}</div>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 mb-1">{value.title}</h3>
-                <p className="text-gray-600 text-sm">{value.desc}</p>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">{value.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">{value.desc}</p>
               </div>
             ))}
           </div>
@@ -83,8 +83,8 @@ const About: React.FC = () => {
       <motion.section variants={itemVariants} className="mb-16">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
-            <div className="space-y-4 text-gray-700 leading-relaxed">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Our Story</h2>
+            <div className="space-y-4 text-gray-700 dark:text-gray-300 leading-relaxed">
               <p>
                 Learnmates was born from the recognition that students worldwide deserve access to high-quality educational resources, 
                 regardless of their geographical location or economic circumstances.
@@ -135,13 +135,13 @@ const About: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
-              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
             >
               <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-white mb-6`}>
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{feature.title}</h3>
+              <p className="text-gray-600 leading-relaxed dark:text-gray-300">{feature.description}</p>
             </motion.div>
           ))}
         </div>
@@ -157,7 +157,7 @@ const About: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <a
               href="/curriculum"
-              className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-medium shadow-lg"
+              className="inline-flex items-center px-8 py-4 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium shadow-lg"
             >
               Start Learning Today
             </a>

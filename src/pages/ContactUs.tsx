@@ -13,12 +13,12 @@ const ContactUs: React.FC = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
       >
-        <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-8">
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Message Sent!</h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Message Sent!</h1>
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
             Thank you for reaching out to us. We'll get back to you within 24 hours.
           </p>
         </div>
@@ -45,7 +45,7 @@ const ContactUs: React.FC = () => {
 
 
   return (
-     <div className="min-h-screen bg-gray-50">
+     <div className="min-h-screen bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100">
           <Helmet>
             <title>Learnmates | Contact Us</title>
             <meta name="description" content="Contact Learnmates for support, feedback, or questions. We're here to help you succeed in your learning journey." />
@@ -62,15 +62,15 @@ const ContactUs: React.FC = () => {
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <Mail className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">Contact Learnmates</h1>
-        <p className="text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Contact Learnmates</h1>
+        <p className="text-base text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
           Questions, bugs or feedback — send us a short note and we'll reply within a few days.
         </p>
       </motion.div>
 
       {/* Contact Types */}
       <motion.section variants={itemVariants} className="mb-16">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">How Can We Help?</h2>
+        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">How Can We Help?</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
@@ -97,13 +97,13 @@ const ContactUs: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
-              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
             >
               <div className={`w-16 h-16 bg-gradient-to-r ${type.color} rounded-xl flex items-center justify-center text-white mb-6`}>
                 {type.icon}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{type.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{type.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{type.title}</h3>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{type.description}</p>
             </motion.div>
           ))}
         </div>
@@ -111,12 +111,12 @@ const ContactUs: React.FC = () => {
 
       {/* Contact Form */}
       <motion.section variants={itemVariants}>
-        <div className="bg-white rounded-2xl shadow-lg p-10">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Send Us a Message</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-10">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">Send Us a Message</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Your Name *
                 </label>
                 <input
@@ -124,12 +124,12 @@ const ContactUs: React.FC = () => {
                   id="name"
                   name="name"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter your full name"
                 />
               </div>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email Address *
                 </label>
                 <input
@@ -137,20 +137,20 @@ const ContactUs: React.FC = () => {
                   id="email"
                   name="email"
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="your.email@example.com"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="your.email@example.com"
                 />
                 <ValidationError prefix="Email" field="email" errors={state.errors} />
               </div>
             </div>
             <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Message Type *
               </label>
               <select
                 id="type"
                 name="type"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="bg-white dark:bg-gray-700 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="question">General Question</option>
                 <option value="bug">Bug Report</option>
@@ -161,7 +161,7 @@ const ContactUs: React.FC = () => {
               </select>
             </div>
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Subject *
               </label>
               <input
@@ -169,12 +169,12 @@ const ContactUs: React.FC = () => {
                 id="subject"
                 name="subject"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="bg-white dark:bg-gray-700 w-full px-4 py-3 border border-gray-300 dark:border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Brief description of your message"
               />
             </div>
             <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Message *
               </label>
               <textarea
@@ -182,7 +182,7 @@ const ContactUs: React.FC = () => {
                 name="message"
                 required
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="bg-white dark:bg-gray-700 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Please provide as much detail as possible..."
               />
               <ValidationError prefix="Message" field="message" errors={state.errors} />
@@ -203,13 +203,13 @@ const ContactUs: React.FC = () => {
 
       {/* Additional Info */}
       <motion.section variants={itemVariants} className="mt-16">
-        <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-2xl p-10 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Response Time</h2>
-          <p className="text-lg text-gray-600 mb-6">
+        <div className="bg-gradient-to-br from-blue-50 to-teal-50 dark:from-gray-700 dark:to-teal-700 rounded-2xl p-10 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Response Time</h2>
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
             We typically respond to all messages within 24 hours during business days. 
             For urgent technical issues, we aim to respond even faster.
           </p>
-          <div className="flex justify-center items-center space-x-8 text-sm text-gray-600">
+          <div className="flex justify-center items-center space-x-8 text-sm text-gray-600 dark:text-gray-300">
             <div className="flex items-center">
               <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
               General Questions: 24 hours

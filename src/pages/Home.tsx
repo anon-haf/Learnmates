@@ -74,15 +74,15 @@ const Home: React.FC = () => {
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-xl p-8 max-w-md w-full"
+            className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md w-full"
           >
             <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <User className="w-7 h-7 text-white" />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-semibold text-center text-gray-900 mb-3">
+                <h2 className="text-xl sm:text-2xl font-semibold text-center text-gray-900 dark:text-white mb-3">
                   Welcome to Learnmates
                 </h2>
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-gray-600 dark:text-gray-300 text-center mb-6">
               Let's personalize your learning experience. What should we call you?
             </p>
             <form onSubmit={handleNameSubmit}>
@@ -91,7 +91,7 @@ const Home: React.FC = () => {
                 value={tempName}
                 onChange={(e) => setTempName(e.target.value)}
                 placeholder="Enter your name"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 autoFocus
               />
               <button
@@ -113,7 +113,7 @@ const Home: React.FC = () => {
       >
         {/* Hero Section */}
         <motion.div variants={itemVariants} className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
             {user ? (
               <>
                 Welcome back, <span className="text-transparent bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text">{user.name}</span>!
@@ -124,7 +124,7 @@ const Home: React.FC = () => {
               </>
             )}
           </h1>
-          <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
             {user ? (
               "Ready to continue your learning journey? Pick up where you left off or explore new topics."
             ) : (
@@ -147,7 +147,7 @@ const Home: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden"
                 >
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -156,10 +156,10 @@ const Home: React.FC = () => {
                       </span>
                       <Trophy className="w-5 h-5 text-yellow-500" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">{course.title}</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{course.title}</h3>
                     <Link
                       to={`/topic/${course.id}`}
-                      className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
+                      className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
                     >
                       View Course
                       <ArrowRight className="w-4 h-4 ml-1" />
@@ -180,12 +180,12 @@ const Home: React.FC = () => {
           </motion.section>
         ) : user ? (
           <motion.section variants={itemVariants} className="mb-16 text-center">
-            <div className="bg-white rounded-xl shadow-lg p-12">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <BookOpen className="w-10 h-10 text-blue-600" />
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-teal-100 dark:from-blue-900 dark:to-teal-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-10 h-10 text-blue-600 dark:text-blue-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Start learning</h2>
-              <p className="text-base text-gray-600 mb-6 max-w-xl mx-auto">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Start learning</h2>
+              <p className="text-base text-gray-600 dark:text-gray-300 mb-6 max-w-xl mx-auto">
                 You haven't started any courses yet. Pick a curriculum to begin.
               </p>
               <Link
@@ -201,7 +201,7 @@ const Home: React.FC = () => {
 
         {/* Features Grid */}
         <motion.section variants={itemVariants} className="mb-16">
-          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+          <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-8">
             Why Learnmates?
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
@@ -230,13 +230,13 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + index * 0.1 }}
-                className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
               >
                 <div className={`w-14 h-14 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-white mb-4`}>
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -252,7 +252,7 @@ const Home: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 to="/curriculum"
-                className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-medium shadow-lg"
+                className="inline-flex items-center px-8 py-4 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium shadow-lg"
               >
                 Start Learning
                 <ArrowRight className="w-5 h-5 ml-2" />

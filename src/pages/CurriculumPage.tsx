@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, FileText, Trophy, ArrowRight, Clock } from 'lucide-react';
+import slugify from '../utils/slugify';
 import { useUser } from '../context/UserContext';
 
 const CurriculumPage: React.FC = () => {
@@ -168,26 +169,11 @@ const CurriculumPage: React.FC = () => {
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Beginner': return 'bg-green-100 text-green-800';
-      case 'Intermediate': return 'bg-yellow-100 text-yellow-800';
-      case 'Advanced': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   const getSubjectColor = (subject: string) => {
     const colors = {
-      'Mathematics': 'from-blue-500 to-blue-600',
-      'Physics': 'from-orange-500 to-orange-600',
-      'Chemistry': 'from-green-500 to-green-600',
-      'Biology': 'from-purple-500 to-purple-600',
-      'English': 'from-pink-500 to-pink-600',
-      'Computer Science': 'from-indigo-500 to-indigo-600',
-      'Further Mathematics': 'from-teal-500 to-teal-600'
     };
-    return colors[subject as keyof typeof colors] || 'from-gray-500 to-gray-600';
+    return colors[subject as keyof typeof colors] || 'from-blue-700 to-gray-500';
   };
 
   // ...removed curriculum level selection UI...
@@ -196,11 +182,11 @@ const CurriculumPage: React.FC = () => {
   if (!selectedBoard) {
     return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6 tracking-tight">Select Your Exam Board</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">Select Your Exam Board</h1>
       <p className="text-base text-gray-500 mb-8">Choose a board to see tailored subjects and topics.</p>
         <div className="flex flex-col sm:flex-row gap-8 w-full justify-center">
           <button
-            className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-purple-500 to-blue-500 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-purple-300 group"
+            className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-purple-400 to-blue-500 dark:from-purple-600 dark:to-blue-600 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-purple-300 group"
             onClick={() => navigate(`/curriculum/${selectedLevel}/cambridge`)}
           >
             <div className="flex items-center justify-center mb-4">
@@ -210,7 +196,7 @@ const CurriculumPage: React.FC = () => {
             <span className="block text-base opacity-80">International Examinations</span>
           </button>
           <button
-            className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-pink-500 to-orange-500 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-pink-300 group"
+            className="flex-1 rounded-2xl shadow-lg bg-gradient-to-br from-pink-500 to-orange-500 dark:from-pink-600 dark:to-orange-600 text-white px-8 py-10 text-2xl font-semibold hover:scale-[1.04] transition-transform focus:outline-none focus:ring-4 focus:ring-pink-300 group"
             onClick={() => navigate(`/curriculum/${selectedLevel}/edexcel`)}
           >
             <div className="flex items-center justify-center mb-4">
@@ -235,38 +221,14 @@ const CurriculumPage: React.FC = () => {
     const subjects: string[] = Array.from(new Set(boardTopics.map((t: Topic) => t.subject)));
     // Assign a specific gradient to each subject
     const subjectColorMap: Record<string, string> = {
-      'Mathematics': 'from-blue-500 to-blue-600',
-      'Physics': 'from-orange-500 to-orange-600',
-      'Chemistry': 'from-green-500 to-green-600',
-      'Biology': 'from-purple-500 to-purple-600',
-      'English': 'from-pink-500 to-pink-600',
-      'Computer Science': 'from-indigo-500 to-indigo-600',
-      'Further Mathematics': 'from-teal-500 to-teal-600',
-      'Advanced Mathematics': 'from-cyan-500 to-blue-500',
-      'Essay Writing Skills': 'from-pink-400 to-pink-600',
-      'Programming Fundamentals': 'from-indigo-400 to-indigo-600',
-      'Cell Biology': 'from-purple-400 to-purple-600',
-      'Atomic Structure': 'from-green-400 to-green-600',
-      'Mechanics and Motion': 'from-orange-400 to-orange-600',
-      'Algebra Fundamentals': 'from-blue-400 to-blue-600',
-      'Matrix Mathematics': 'from-teal-400 to-teal-600',
-      'Genetics and Evolution': 'from-purple-500 to-pink-500',
-      'Organic Chemistry': 'from-green-500 to-teal-500',
-      'Calculus and Analysis': 'from-blue-500 to-cyan-500',
-      'Waves and Oscillations': 'from-orange-500 to-yellow-500',
-      // Edexcel board subjects
-      'Algebra (Edexcel)': 'from-blue-500 to-blue-700',
-      'Mechanics (Edexcel)': 'from-orange-500 to-orange-700',
-      'Calculus (Edexcel)': 'from-cyan-500 to-blue-700',
-      'Waves (Edexcel)': 'from-yellow-500 to-orange-700',
     };
     const subjectColors: Record<string, string> = {};
     subjects.forEach((subject) => {
-      subjectColors[subject] = subjectColorMap[subject] || 'from-gray-500 to-gray-700';
+      subjectColors[subject] = subjectColorMap[subject] || 'from-teal-400 to-gray-500 dark:from-teal-700 dark:to-gray-800';
     });
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Select a Subject</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Select a Subject</h1>
         <p className="text-base text-gray-500 mb-8">Pick a subject to view topics and start learning.</p>
         <div
           className={
@@ -328,40 +290,40 @@ const CurriculumPage: React.FC = () => {
             ← Back to Subjects
           </button>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
           {curriculum.title} — {selectedSubject} Topics
         </h1>
-        <p className="text-base text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-base text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
           {curriculum.description}
         </p>
-        <div className="mt-4 text-lg text-gray-700">Board: <span className="font-semibold">{selectedBoard}</span></div>
+        <div className="mt-4 text-lg text-gray-700 dark:text-gray-300">Board: <span className="font-semibold">{selectedBoard}</span></div>
       </motion.div>
 
       {/* Stats */}
       <motion.section variants={itemVariants} className="mb-16">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
           <div className="grid md:grid-cols-4 gap-8 text-center">
             <div>
               <div className="text-3xl font-bold text-blue-600 mb-2">{subjectTopics.length}</div>
-              <div className="text-gray-600">Topics Available</div>
+              <div className="text-gray-600 dark:text-gray-300">Topics Available</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-teal-600 mb-2">
                 {subjectTopics.reduce((sum: number, topic: Topic) => sum + topic.videoCount, 0)}
               </div>
-              <div className="text-gray-600">Video Lessons</div>
+              <div className="text-gray-600 dark:text-gray-400">Video Lessons</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-purple-600 mb-2">
                 {subjectTopics.reduce((sum: number, topic: Topic) => sum + topic.resourceCount, 0)}
               </div>
-              <div className="text-gray-600">Resources</div>
+              <div className="text-gray-600 dark:text-gray-400">Resources</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-orange-600 mb-2">
                 {subjectTopics.reduce((sum: number, topic: Topic) => sum + topic.quizCount, 0)}
               </div>
-              <div className="text-gray-600">Interactive Quizzes</div>
+              <div className="text-gray-600 dark:text-gray-400">Interactive Quizzes</div>
             </div>
           </div>
         </div>
@@ -369,7 +331,7 @@ const CurriculumPage: React.FC = () => {
 
       {/* Topics Grid */}
       <motion.section variants={itemVariants}>
-        <h2 className="text-3xl font-bold text-gray-900 mb-12">Available Topics</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-12">Available Topics</h2>
         <div className="grid lg:grid-cols-2 gap-8">
           {subjectTopics.map((topic: Topic, index: number) => {
             const progress = user?.progress[topic.id] || 0;
@@ -380,12 +342,12 @@ const CurriculumPage: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + index * 0.1 }}
-                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden group"
+                className="bg-white dark:bg-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-200 overflow-hidden group"
               >
                 {/* Header */}
                 <div className={`bg-gradient-to-r ${getSubjectColor(topic.subject)} p-6 text-white`}>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-medium bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                    <span className="text-sm font-medium bg-white  dark:bg-gray-700 bg-opacity-20 px-3 py-1 rounded-full">
                       {topic.subject}
                     </span>
                   </div>
@@ -416,23 +378,23 @@ const CurriculumPage: React.FC = () => {
                     <div className="flex flex-col items-center">
                       <Play className="w-5 h-5 text-red-500 mb-1" />
                       <span className="text-sm font-medium text-gray-900">{topic.videoCount}</span>
-                      <span className="text-xs text-gray-600">Videos</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Videos</span>
                     </div>
                     <div className="flex flex-col items-center">
                       <FileText className="w-5 h-5 text-blue-500 mb-1" />
                       <span className="text-sm font-medium text-gray-900">{topic.resourceCount}</span>
-                      <span className="text-xs text-gray-600">Resources</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Resources</span>
                     </div>
                     <div className="flex flex-col items-center">
                       <Trophy className="w-5 h-5 text-yellow-500 mb-1" />
                       <span className="text-sm font-medium text-gray-900">{topic.quizCount}</span>
-                      <span className="text-xs text-gray-600">Quizzes</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">Quizzes</span>
                     </div>
                   </div>
 
                   {/* CTA Button */}
                   <Link
-                    to={`/topic/${topic.id}`}
+                    to={`/curriculum/${curriculum.title.toLowerCase()}/${selectedBoard}/${topic.subject}/${slugify(topic.title)}`}
                     onClick={() => {
                       if (user) {
                         addRecentCourse({
@@ -468,7 +430,7 @@ const CurriculumPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             {subjectTopics.length > 0 && (
               <Link
-                to={`/topic/${subjectTopics[0].id}`}
+                to={`/curriculum/${curriculum.title.toLowerCase()}/${selectedBoard}/${subjectTopics[0].subject}/${slugify(subjectTopics[0].title)}`}
                 className="inline-flex items-center px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 transition-colors font-medium shadow-lg"
               >
                 Start with First Topic

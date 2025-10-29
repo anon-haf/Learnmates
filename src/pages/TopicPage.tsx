@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, FileText, Trophy, ArrowLeft } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import slugify from '../utils/slugify';
 import VideoPlayer from '../components/VideoPlayer';
 import Resources from '../components/Resources';
 import Quiz from '../components/Quiz';
@@ -222,7 +223,7 @@ const topicData = {
   },
 
     'chemistry-7':{
-    title: 'Acid bases and salts',
+    title: 'Acids, bases and salts',
     subject: 'Chemistry',
     curriculum: 'igcse',
     description: 'Explore the principles of acids, bases and salts, including pH, neutralization and titration.',
@@ -395,7 +396,8 @@ const topicData = {
   
 };
 const TopicPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  // route is /curriculum/:type/:board/:subject/:title
+  const { title: titleParam } = useParams<{ title?: string }>();
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<'videos' | 'resources' | 'quiz'>('resources');
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
@@ -425,18 +427,25 @@ const TopicPage: React.FC = () => {
     localStorage.setItem('doneResources', JSON.stringify(doneResources));
   }, [doneResources]);
 
-  const topic = (id && (topicData as any)[id]) ? (topicData as any)[id] : null;
+  // Resolve topic by param. Links use slugified titles (kebab-case). Support direct id keys too.
+  const slug = titleParam ? decodeURIComponent(titleParam) : '';
+  let topicKey: string | undefined;
+  if (slug && (topicData as any)[slug]) {
+    topicKey = slug; // someone linked by internal id
+  }
+  if (!topicKey && slug) {
+    topicKey = Object.keys(topicData).find((k) => {
+      const t = (topicData as any)[k];
+      return slugify(t.title) === slug;
+    });
+  }
+  const topic = topicKey ? (topicData as any)[topicKey] : null;
   const quizzes = topic?.quizzes || [];
-  const progress = user?.progress?.[id!] || 0;
+  const progress = topicKey ? user?.progress?.[topicKey] || 0 : 0;
 
   const getSubjectColor = (subject: string) => {
     const colors: Record<string, string> = {
-      'Mathematics': 'from-blue-500 to-blue-600',
-      'Physics': 'from-orange-500 to-orange-600',
-      'Chemistry': 'from-green-500 to-green-600',
-      'Biology': 'from-purple-500 to-purple-600',
-      'English': 'from-pink-500 to-pink-600',
-      'Computer Science': 'from-indigo-500 to-indigo-600'
+      
     };
     return colors[subject] || 'from-gray-500 to-gray-600';
   };
@@ -444,8 +453,8 @@ const TopicPage: React.FC = () => {
   if (!topic) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">Topic Not Found</h1>
-        <p className="text-base text-gray-600 mb-6">We couldn't find that topic. Try another from the curriculum.</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">Topic Not Found</h1>
+        <p className="text-base text-gray-600 dark:text-gray-30 mb-6">We couldn't find that topic. Try another from the curriculum.</p>
         <Link to="/curriculum" className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Curriculum
@@ -511,7 +520,7 @@ const TopicPage: React.FC = () => {
         {activeTab === 'videos' && (
           <div className="space-y-6">
             {topic.videos.length === 0 ? (
-              <div className="bg-white rounded-xl shadow p-8 text-center">No video lessons for this topic yet.</div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-8 text-center">No video lessons for this topic yet.</div>
             ) : (
               topic.videos.map((v: any) => {
                 const isDone = doneVideos.includes(v.id);

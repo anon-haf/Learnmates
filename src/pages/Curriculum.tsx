@@ -46,7 +46,7 @@ const Curriculum: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <Helmet>
         <title>Learnmates | Curriculum</title>
         <meta name="keywords" content="Learnmates, Curriculum, IGCSE, A-Level, Education, Study Resources, Learning Paths, Subjects, Interactive Content" />
@@ -63,10 +63,10 @@ const Curriculum: React.FC = () => {
         <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-8">
           <School className="w-10 h-10 text-white" />
         </div>
-        <h1 className="text-5xl font-bold text-gray-900 mb-6">
+        <h1 className="text-5xl font-bold text-gray-900 mb-6 dark:text-white">
           Choose Your <span className="text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text">Curriculum</span>
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed dark:text-gray-400">
           Select the curriculum that matches your educational path. Each program offers comprehensive resources, 
           interactive content, and structured learning paths designed for success.
         </p>
@@ -83,7 +83,7 @@ const Curriculum: React.FC = () => {
               transition={{ delay: 0.3 + index * 0.2 }}
               className="group"
             >
-              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 overflow-hidden">
                 {/* Header */}
                 <div className={`bg-gradient-to-r ${curriculum.bgColor} p-8`}>
                   <div className="flex items-center justify-between mb-6">
@@ -91,7 +91,7 @@ const Curriculum: React.FC = () => {
                       {curriculum.icon}
                     </div>
                     <div className="text-right">
-                      <h2 className="text-3xl font-bold text-gray-900">{curriculum.title}</h2>
+                      <h2 className="text-3xl font-bold text-gray-900 ">{curriculum.title}</h2>
                       <p className="text-sm text-gray-600">{curriculum.fullName}</p>
                     </div>
                   </div>
@@ -100,12 +100,12 @@ const Curriculum: React.FC = () => {
 
                 {/* Content */}
                 <div className="p-8">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Available Subjects</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 dark:text-white mb-8">Available Subjects</h3>
                   <div className="grid grid-cols-2 gap-3 mb-8">
                     {curriculum.subjects.map((subject, subIndex) => (
                       <div
                         key={subIndex}
-                        className="flex items-center space-x-2 text-gray-700"
+                        className="flex items-center space-x-2 text-gray-700 dark:text-gray-300"
                       >
                         <div className={`w-4 h-1.5 bg-gradient-to-r ${curriculum.color} rounded-full`}></div>
                         <span className="text-lg">{subject}</span>
@@ -133,7 +133,7 @@ const Curriculum: React.FC = () => {
 
       {/* Features Section */}
       <motion.section variants={itemVariants} className="mb-16">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">What You'll Get</h2>
+        <h2 className="text-3xl font-bold text-center text-gray-900 mb-12 dark:text-white">What You'll Get</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
@@ -152,7 +152,7 @@ const Curriculum: React.FC = () => {
               icon: <TrendingUp className="w-8 h-8" />,
               title: "Progress Tracking",
               description: "Monitor your learning progress and identify areas that need more attention.",
-              color: "from-purple-500 to-purple-600"
+              color: "from-purple-500 to-purple-600 "
             }
           ].map((feature, index) => (
             <motion.div
@@ -160,13 +160,13 @@ const Curriculum: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 + index * 0.1 }}
-              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200 text-center"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200 text-center"
             >
-              <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-white mx-auto mb-6`}>
+              <div className={`w-16 h-16 bg-gradient-to-r ${feature.color} rounded-xl flex items-center justify-center text-black mx-auto mb-6`}>
                 {feature.icon}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 dark:text-white">{feature.title}</h3>
+              <p className="text-gray-600 leading-relaxed dark:text-gray-300">{feature.description}</p>
             </motion.div>
           ))}
         </div>
@@ -182,7 +182,7 @@ const Curriculum: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               to="/curriculum/igcse"
-              className="inline-flex items-center px-8 py-4 bg-white text-indigo-600 rounded-lg hover:bg-gray-100 transition-colors font-medium shadow-lg"
+              className="inline-flex items-center px-8 py-4 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium shadow-lg"
             >
               Start with IGCSE
               <ArrowRight className="w-5 h-5 ml-2" />

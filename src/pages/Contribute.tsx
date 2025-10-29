@@ -25,7 +25,7 @@ const Contribute: React.FC = () => {
 
 
   return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <Helmet>
           <title>Learnmates | Contribute</title>
           <meta name="description" content="Contribute to Learnmates by sharing lessons, notes, or quizzes. Help students worldwide access quality educational resources and join our global community." />
@@ -42,13 +42,13 @@ const Contribute: React.FC = () => {
           <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <PlusCircle className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Contribute</h1>
-          <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto leading-relaxed">Share lessons, notes, or quizzes to help learners everywhere.</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-4">Contribute</h1>
+          <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">Share lessons, notes, or quizzes to help learners everywhere.</p>
       </motion.div>
 
       {/* Why Contribute Section */}
       <motion.section variants={itemVariants} className="mb-16">
-  <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">Why contribute?</h2>
+  <h2 className="text-2xl font-bold text-center text-gray-900 mb-8 dark:text-white">Why contribute?</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
@@ -75,13 +75,13 @@ const Contribute: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + index * 0.1 }}
-              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow duration-200"
             >
-              <div className={`w-16 h-16 bg-gradient-to-r ${benefit.color} rounded-xl flex items-center justify-center text-white mb-6`}>
+              <div className={`w-16 h-16 bg-gradient-to-r ${benefit.color} rounded-xl flex items-center justify-center text-white mb-6 dark:bg-gray-700`}>
                 {benefit.icon}
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{benefit.title}</h3>
-              <p className="text-gray-600 leading-relaxed">{benefit.description}</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 dark:text-white">{benefit.title}</h3>
+              <p className="text-gray-600 leading-relaxed dark:text-gray-300">{benefit.description}</p>
             </motion.div>
           ))}
         </div>
@@ -89,12 +89,12 @@ const Contribute: React.FC = () => {
 
       {/* Guidelines Section */}
       <motion.section variants={itemVariants} className="mb-16">
-       <div className="bg-gradient-to-br from-blue-50 to-teal-50 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Contribution guidelines</h2>
+       <div className="bg-gradient-to-br from-blue-50 to-teal-50 dark:from-gray-700 dark:to-teal-700 rounded-2xl p-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-white">Contribution guidelines</h2>
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Content Standards</h3>
-              <ul className="space-y-2 text-gray-700">
+              <h3 className="text-xl font-semibold text-gray-900 mb-3 dark:text-white">Content Standards</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300">
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
                   Content must be curriculum-aligned (IGCSE/A-Level standards)
@@ -115,8 +115,8 @@ const Contribute: React.FC = () => {
             </div>
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">Review Process</h3>
-              <ul className="space-y-2 text-gray-700">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Review Process</h3>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300">
                 <li className="flex items-start">
                   <CheckCircle className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
                   All submissions are reviewed by our education team
@@ -133,7 +133,7 @@ const Contribute: React.FC = () => {
             </div>
           </div>
           
-          <div className="mt-6 p-4 bg-white rounded-xl border-l-4 border-blue-500 text-center">
+          <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-xl border-l-4 border-blue-500 text-center">
             <button
               type="button"
               className="inline-flex items-center px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -175,9 +175,9 @@ const Contribute: React.FC = () => {
         </div>
       )}
       <motion.section variants={itemVariants}>
-        <div className="bg-white rounded-2xl shadow-lg p-10">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Submit your contribution</h2>
-          <p className="text-gray-700 mb-6">Open the contributor form in a new tab and follow the instructions.</p>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-10">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Submit your contribution</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-6">Open the contributor form in a new tab and follow the instructions.</p>
 
           <div className="text-center">
             <a

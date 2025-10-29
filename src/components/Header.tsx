@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, User, LogIn, Menu, X } from 'lucide-react';
+import { BookOpen, User, LogIn, Menu, X, Moon, Sun } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useDarkMode } from '../context/DarkModeContext';
 
 
 const Header: React.FC = () => {
@@ -12,6 +13,7 @@ const Header: React.FC = () => {
   const [name, setName] = useState<string>("");
   const [editing, setEditing] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>("");
+  const { isDarkMode, toggleDarkMode } = useDarkMode();
   const location = useLocation();
 
   useEffect(() => {
@@ -19,6 +21,16 @@ const Header: React.FC = () => {
     if (storedName) setName(storedName);
     else if (user?.name) setName(user.name);
   }, [user]);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   const handleSave = () => {
     setName(inputValue);
@@ -41,7 +53,7 @@ const Header: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Name */}
@@ -68,7 +80,7 @@ const Header: React.FC = () => {
                 className={`relative px-3 py-2 text-sm font-medium transition-colors duration-200 ${
                   isActive(item.href)
                     ? 'text-blue-600'
-                    : 'text-gray-700 hover:text-blue-600'
+                    : 'text-gray-700  hover:text-blue-600 dark:text-gray-500 dark:hover:text-white'
                 }`}
               >
                 {item.name}
@@ -86,13 +98,24 @@ const Header: React.FC = () => {
 
           {/* Account Button & Mobile Menu */}
           <div className="flex items-center space-x-2 md:space-x-4">
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Toggle dark mode"
+            >
+              {isDarkMode ? (
+                <Sun className="w-5 h-5 text-yellow-500" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <User className="w-4 h-4" />
-                <span className="text-sm font-medium">{name || 'Knowledge Seeker'}</span>
+                <span className="text-sm font-medium">{name }</span>
               </button>
 
               <AnimatePresence>
@@ -102,7 +125,7 @@ const Header: React.FC = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2"
+                    className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray rounded-lg shadow-lg border border-gray-200 py-2"
                   >
                     <div className="px-4 py-2 border-b border-gray-100">
                       {editing ? (
@@ -128,11 +151,11 @@ const Header: React.FC = () => {
                         </div>
                       ) : (
                         <>
-                          <p className="text-sm font-medium text-gray-900">{name || 'Knowledge Seeker'}</p>
+                          <p className="text-sm font-medium text-gray-900">{name }</p>
                           <p className="text-xs text-gray-500 mb-2">Student</p>
                           <button
                             onClick={() => { setEditing(true); setInputValue(name); }}
-                            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-xs"
+                            className="dark:bg-gray-400 px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-700  text-xs"
                           >Edit Name</button>
                         </>
                       )}
