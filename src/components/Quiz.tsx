@@ -95,13 +95,13 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl shadow-lg p-8 text-center"
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center"
       >
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Trophy className="w-8 h-8 text-gray-400" />
+        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Trophy className="w-8 h-8 text-gray-400 dark:text-gray-300" />
         </div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Quiz Available</h3>
-        <p className="text-gray-600 mb-6">No quiz questions have been added for this topic yet. Help us grow by contributing content!</p>
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Quiz Available</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">No quiz questions have been added for this topic yet. Help us grow by contributing content!</p>
         <Link to="/contribute" className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-md hover:shadow-lg">
           Contribute Questions
         </Link>
@@ -167,13 +167,13 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
     const { correct, total } = calculateScore();
     const percentage = total === 0 ? 0 : Math.round((correct / total) * 100);
     return (
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white rounded-xl shadow-lg p-8 text-center">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center">
         <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
           <Trophy className="w-10 h-10 text-white" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Quiz Complete!</h2>
-        <div className="text-6xl font-bold text-transparent bg-gradient-to-r from-green-500 to-blue-500 bg-clip-text mb-4">{percentage}%</div>
-        <p className="text-xl text-gray-600 mb-8">You scored {correct} out of {total} MCQ parts correctly</p>
+  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Quiz Complete!</h2>
+        <div className="text-6xl font-bold text-transparent bg-gradient-to-r from-green-500 to-blue-400 bg-clip-text mb-4">{percentage}%</div>
+  <p className="text-xl text-gray-600 dark:text-gray-200 mb-8">You scored {correct} out of {total} MCQ parts correctly</p>
         <button onClick={handleReset} className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600 transition-all duration-200 shadow-md hover:shadow-lg">
           <RotateCcw className="w-4 h-4 mr-2" />
           Retry Quiz
@@ -183,24 +183,24 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="p-6 border-b border-gray-200">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-          <Link to="/contact" className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Report Quiz">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
+          <Link to="/contact" className="p-2 text-gray-400 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors" title="Report Quiz">
             <Flag className="w-4 h-4" />
           </Link>
         </div>
 
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div className="bg-gradient-to-r from-blue-500 to-teal-500 h-2 rounded-full transition-all duration-300" style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }} />
         </div>
-        <p className="text-sm text-gray-600 mt-2">Question {currentQuestion + 1} of {questions.length}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Question {currentQuestion + 1} of {questions.length}</p>
       </div>
 
       <div className="p-6">
         {/* Question title if present */}
-        {questions[currentQuestion].title && <h3 className="text-xl font-semibold text-gray-900 mb-4">{questions[currentQuestion].title}</h3>}
+        {questions[currentQuestion].title && <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">{questions[currentQuestion].title}</h3>}
 
         <div className="space-y-6 max-h-[56vh] overflow-y-auto pr-2">
           {parts.map((part, pi) => {
@@ -209,22 +209,27 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
             const revealed = showExplanations[currentQuestion][pi];
             const isMcq = (part.type ?? 'mcq') === 'mcq';
             return (
-              <div key={part.id} className="bg-white rounded-lg border p-4 shadow-sm">
+              <div key={part.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="text-sm text-gray-600 mb-2">Part {pi + 1}</p>
-                    <p className="font-medium text-gray-900 mb-2">{part.question}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-100 mb-2">Part {pi + 1}</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{part.question}</p>
                     {part.image && (
                       <img src={part.image} alt="part visual" className="max-h-48 object-contain rounded mb-2 cursor-zoom-in" onClick={() => setShowImageModalSrc(part.image!)} />
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">{isMcq ? 'Multiple choice' : 'Written response'}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-300">{isMcq ? 'Multiple choice' : 'Written response'}</div>
                 </div>
 
                 {isMcq ? (
                   <div className="space-y-3">
                     {part.options?.map((opt, oi) => (
-                      <motion.button key={oi} onClick={() => handleSelect(pi, oi)} disabled={revealed} className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 ${selected === oi ? (revealed ? (oi === part.correctAnswer ? 'border-green-500 bg-green-50 text-green-800' : 'border-red-500 bg-red-50 text-red-800') : 'border-blue-500 bg-blue-50 text-blue-800') : (revealed && oi === part.correctAnswer ? 'border-green-500 bg-green-50 text-green-800' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50')}`}> 
+                      <motion.button
+                        key={oi}
+                        onClick={() => handleSelect(pi, oi)}
+                        disabled={revealed}
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 ${selected === oi ? (revealed ? (oi === part.correctAnswer ? 'border-green-500 bg-green-50 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200' : 'border-red-500 bg-red-50 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200') : 'border-blue-500 bg-blue-50 text-blue-800 dark:border-blue-400 dark:bg-gray-800 dark:text-blue-300') : (revealed && oi === part.correctAnswer ? 'border-green-500 bg-green-50 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-gray-700 dark:text-gray-100')}`}
+                      >
                         <div className="flex items-center justify-between">
                           <span>{opt}</span>
                           {revealed && (
@@ -240,28 +245,28 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
                       {!revealed ? (
                         <button onClick={() => handleReveal(pi)} className="px-4 py-2 bg-orange-500 text-white rounded-lg">Check Answer</button>
                       ) : (
-                        <div className={`p-3 rounded-lg ${selected === part.correctAnswer ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                        <div className={`p-3 rounded-lg ${selected === part.correctAnswer ? 'bg-green-50 border border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200' : 'bg-red-50 border border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200'}`}>
                           <div className="font-medium mb-1">{selected === part.correctAnswer ? 'Correct' : 'Answer'}</div>
                           {part.explanation && <div className="text-sm">{part.explanation}</div>}
                         </div>
                       )}
-                      <div className="text-xs text-gray-500">MCQ</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">MCQ</div>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <textarea value={written} onChange={(e) => handleWrittenChange(pi, e.target.value)} rows={4} className="w-full p-3 border rounded-md" placeholder="Write your answer here..." />
+                    <textarea value={written} onChange={(e) => handleWrittenChange(pi, e.target.value)} rows={4} className="w-full p-3 border rounded-md dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" placeholder="Write your answer here..." />
                     <div className="flex items-center justify-between">
                       {!revealed ? (
                         <button onClick={() => handleReveal(pi)} className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg"><Eye className="w-4 h-4 mr-2" />Show Correct Answer</button>
                       ) : (
-                        <div className="p-3 rounded-lg bg-gray-50 border">
-                          <div className="font-medium text-sm text-gray-800">Correct Answer</div>
-                          <div className="text-sm text-gray-700">{String(part.correctAnswer)}</div>
-                          {part.explanation && <div className="mt-2 text-sm text-gray-600">{part.explanation}</div>}
+                        <div className="p-3 rounded-lg bg-gray-50 border dark:bg-gray-900 dark:border-gray-700">
+                          <div className="font-medium text-sm text-gray-800 dark:text-gray-100">Correct Answer</div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">{String(part.correctAnswer)}</div>
+                          {part.explanation && <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{part.explanation}</div>}
                         </div>
                       )}
-                      <div className="text-xs text-gray-500">Written</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Written</div>
                     </div>
                   </div>
                 )}
@@ -282,11 +287,11 @@ const Quiz: React.FC<QuizProps> = ({ questions, title, quizId }) => {
 
         {/* Navigation */}
         <div className="flex justify-between mt-6">
-          <button onClick={handlePrevious} disabled={currentQuestion === 0} className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+          <button onClick={handlePrevious} disabled={currentQuestion === 0} className="px-4 py-2 text-gray-600 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
 
           <div className="space-x-3">
-            <button onClick={() => { setShowExplanations(prev => { const copy = prev.map(a => a.slice()); copy[currentQuestion] = parts.map(() => true); return copy; }); }} className="px-4 py-2 bg-gray-100 rounded-lg">Reveal All</button>
-            <button onClick={handleNext} className="px-6 py-2 bg-gradient-to-r from-blue-500 to-teal-500 text-white rounded-lg hover:from-blue-600 hover:to-teal-600">{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</button>
+            <button onClick={() => { setShowExplanations(prev => { const copy = prev.map(a => a.slice()); copy[currentQuestion] = parts.map(() => true); return copy; }); }} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 dark:text-gray-100 rounded-lg">Reveal All</button>
+            <button onClick={handleNext} className="px-6 py-2 bg-gradient-to-r from-blue-500 dark:from-blue-800  to-teal-500 dark:to-teal-700 text-white rounded-lg hover:from-blue-600 hover:to-teal-600">{currentQuestion === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}</button>
           </div>
         </div>
       </div>

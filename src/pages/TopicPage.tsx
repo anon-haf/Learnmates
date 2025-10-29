@@ -197,7 +197,19 @@ const topicData = {
     description: 'Explore the principles of electrochemistry, including redox reactions and Hydrogen fuel cells.',
     videos: [],
     resources: [ { id: 'r1', title: 'Electrochemistry Notes(@PISANG)', url: 'https://drive.google.com/file/d/13hqvb_BRTV5BRebRko5wwTRJ0BBhS2v6/preview' } ],
-    quizzes: []
+    quizzes: [{
+        id: 'demo-1',
+        title: 'Demo Multi-Part Quiz',
+        questions: [
+          {
+            id: 'mq1',
+            parts: [
+              { id: 'mq1-p1', type: 'mcq' as const, question: 'What is 2 + 2?', options: ['3', '4', '5'], correctAnswer: 1, explanation: '2 + 2 = 4.' },
+              { id: 'mq1-p2', type: 'written' as const, question: 'Explain in one sentence why 2+2 equals 4.', explanation: 'Because adding two and two counts four units.' }
+            ]
+          }
+        ]
+      }]
   },
 
 
@@ -473,21 +485,21 @@ const TopicPage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
           <div className={`bg-gradient-to-r ${getSubjectColor(topic.subject)} p-8 text-white`}>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium bg-white bg-opacity-20 px-3 py-1 rounded-full">
+              <span className="text-sm font-medium bg-white dark:bg-gray-800 bg-opacity-20 px-3 py-1 rounded-full">
                 {topic.curriculum} • {topic.subject}
               </span>
               {progress > 0 && (
-                <span className="text-sm font-medium bg-white bg-opacity-20 px-3 py-1 rounded-full">{progress}% Complete</span>
+                <span className="text-sm font-medium bg-white dark:bg-gray-800 bg-opacity-20 px-3 py-1 rounded-full">{progress}% Complete</span>
               )}
             </div>
             <h1 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-4">{topic.title}</h1>
             <p className="text-sm sm:text-base opacity-90 mb-4 sm:mb-6">{topic.description}</p>
             {progress > 0 && (
-              <div className="w-full bg-white bg-opacity-20 rounded-full h-2">
-                <div className="bg-white h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+              <div className="w-full bg-white dark:bg-gray-800 bg-opacity-20 rounded-full h-2">
+                <div className="bg-white dark:bg-gray-800 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
               </div>
             )}
           </div>
@@ -495,7 +507,7 @@ const TopicPage: React.FC = () => {
       </motion.div>
 
       <motion.div variants={itemVariants} className="mb-8">
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg max-w-md mx-auto text-xs sm:text-sm">
+        <div className="flex space-x-1 bg-gray-100 dark:bg-gray-600 p-1 rounded-lg max-w-md mx-auto text-xs sm:text-sm">
           {[
             { id: 'videos', label: 'Videos', icon: Play, count: topic.videos.length },
             { id: 'resources', label: 'Resources', icon: FileText, count: topic.resources.length },
@@ -505,12 +517,12 @@ const TopicPage: React.FC = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex-1 flex items-center justify-center px-2 py-2 sm:px-4 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                activeTab === tab.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-blue-600'
+                activeTab === tab.id ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm' : 'text-gray-600 dark:text-gray-300 hover:text-blue-600'
               }`}
             >
               <tab.icon className="w-4 h-4 mr-2" />
               {tab.label}
-              <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">{tab.count}</span>
+              <span className="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-white px-2 py-1 rounded-full">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -547,10 +559,10 @@ const TopicPage: React.FC = () => {
         {activeTab === 'quiz' && (
           <div className="space-y-6">
             {quizzes.length === 0 ? (
-              <div className="bg-white rounded-xl shadow p-8 text-center">No quizzes for this topic yet.</div>
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-8 text-center">No quizzes for this topic yet.</div>
             ) : (
               quizzes.map((q: any) => (
-                <div key={q.id} className="bg-white rounded-xl shadow p-6">
+                <div key={q.id} className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">{q.title}</h3>
                   <Quiz questions={q.questions} title={q.title} quizId={q.id} />
                 </div>

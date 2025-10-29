@@ -73,14 +73,14 @@ const Resources: React.FC<ResourcesProps> = ({ resources, doneResources: externa
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl shadow-lg p-6"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6"
           >
             <div className="flex flex-col sm:flex-row items-start justify-between mb-4">
               {/* Buttons first on mobile, content first on desktop */}
               <div className="flex items-center space-x-2 mb-3 sm:mb-0 order-1 sm:order-2">
                 {/* action buttons (will be moved above title on small screens) */}
                 <button
-                  className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'}`}
+                  className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${done ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 dark:text-gray-300 text-gray-700 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-900 dark:hover:text-green-300'}`}
                   onClick={() => setDoneResources((prev) => prev.includes(resource.id) ? prev.filter(id => id !== resource.id) : [...prev, resource.id])}
                   title={done ? 'Mark as not done' : 'Mark as done'}
                 >
@@ -91,7 +91,7 @@ const Resources: React.FC<ResourcesProps> = ({ resources, doneResources: externa
                   {done ? 'Done' : 'Mark as Done'}
                 </button>
                 <button
-                  className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                  className="flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-700 dark:hover:text-blue-500  transition-colors"
                   onClick={() => setExpandedResources((prev) => expanded ? prev.filter(id => id !== resource.id) : [...prev, resource.id])}
                   title={expanded ? 'Collapse' : 'Expand'}
                 >
@@ -124,20 +124,20 @@ const Resources: React.FC<ResourcesProps> = ({ resources, doneResources: externa
                 </Link>
               </div>
               <div className="flex items-center space-x-3 order-2 sm:order-1">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-800 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-red-600 dark:text-red-200" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{resource.title}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{resource.title}</h3>
                   {resource.description && (
-                    <p className="text-sm text-gray-600">{resource.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{resource.description}</p>
                   )}
                 </div>
               </div>
               
             </div>
             {expanded && (
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-4">
                 <iframe
                   src={resource.url}
                   title={resource.title}
