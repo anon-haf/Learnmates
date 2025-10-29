@@ -1,7 +1,7 @@
 export const slugify = (s: string): string => {
   if (!s) return '';
   return s
-    .toLowerCase()
+  .toLowerCase()
   .replace(/[^a-z0-9\s\-\(\)]/g, '')
     .trim()
     // replace all spaces with a single dash
