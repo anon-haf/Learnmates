@@ -133,26 +133,41 @@ const Donate: React.FC = () => {
 
       {/* Buy Me a Coffee Widget (currently disabled) */}
       <motion.section variants={itemVariants} className="text-center">
-        <div className="bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl p-10 sm:p-12 text-white">
+        <div className="bg-gradient-to-r from-orange-500 dark:from-orange-700 to-pink-500 dark:to-pink-700 rounded-2xl p-10 sm:p-12 text-white">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-8">
             <Coffee className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold mb-3">Donations coming soon</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-3">Support Learnmates</h2>
           <p className="text-base mb-6 opacity-95 max-w-xl mx-auto">
-            We’re preparing a simple, secure donations flow. For now donations are disabled while we finish the work.
+            If you find our resources helpful, consider buying us a coffee. Every contribution helps keep Learnmates running!
           </p>
 
-          <div className="bg-white bg-opacity-10 rounded-xl p-8 max-w-2xl mx-auto">
-            <div className="text-lg font-semibold mb-2">Coming soon</div>
-            <p className="text-sm opacity-90 mb-4">We’ll announce donation options here once they’re ready. Meanwhile, you can help in other ways:</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <a href="/contribute" className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white text-blue-600 font-medium">Contribute content</a>
-              <button onClick={() => navigator.clipboard?.writeText('https://your-site.example')}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-white bg-opacity-20 text-white font-medium">
+          <div className="flex flex-col items-center justify-center space-y-6">
+            <a
+              href="https://buymeacoffee.com/learnmates"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-8 py-4 bg-yellow-400 dark:bg-yellow-500 hover:bg-yellow-500 dark:hover:bg-yellow-400 text-gray-900 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <Coffee className="w-6 h-6 mr-3" />
+              Buy me a coffee
+            </a>
+            <div className="text-sm opacity-80">Even if you can’t donate financially, you can help by:</div>
+            <div className="grid sm:grid-cols-2 gap-4 max-w-2xl w-full">
+              <a
+                href="/contribute"
+                className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-white dark:bg-gray-300 text-blue-600 dark:text-blue-500 font-medium hover:bg-opacity-90 dark:hover:bg-opacity-80 transition-colors"
+              >
+                Contribute content
+              </a>
+              <button
+                onClick={() => navigator.clipboard?.writeText('https://learnmates.org')}
+                className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-white bg-opacity-20 text-white font-medium hover:bg-opacity-30 transition-colors"
+              >
                 Share Learnmates
               </button>
             </div>
-            <div className="mt-4 text-xs opacity-80 text-gray-100">Thanks — even helping to share the site means a lot.</div>
+            <div className="text-sm opacity-80">Every form of support helps us grow — thank you!</div>
           </div>
         </div>
       </motion.section>
