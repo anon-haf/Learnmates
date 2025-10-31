@@ -125,16 +125,16 @@ const Header: React.FC = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray rounded-lg shadow-lg border border-gray-200 py-2"
+                    className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 py-2"
                   >
-                    <div className="px-4 py-2 border-b border-gray-100">
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600 flex items-center space-x-2">
                       {editing ? (
                         <div className="flex flex-col gap-2">
                           <input
                             type="text"
                             value={inputValue}
                             onChange={e => setInputValue(e.target.value)}
-                            className="border rounded px-3 py-1 text-sm"
+                            className="border rounded px-3 py-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Enter your name"
                             autoFocus
                           />
@@ -151,11 +151,11 @@ const Header: React.FC = () => {
                         </div>
                       ) : (
                         <>
-                          <p className="text-sm font-medium text-gray-900">{name }</p>
-                          <p className="text-xs text-gray-500 mb-2">Student</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{name }</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-300 mb-2">Student</p>
                           <button
                             onClick={() => { setEditing(true); setInputValue(name); }}
-                            className="dark:bg-gray-400 px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-700  text-xs"
+                            className="dark:bg-gray-400 px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-700  text-xs "
                           >Edit Name</button>
                         </>
                       )}
