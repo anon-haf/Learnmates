@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { BookOpen, ArrowRight, User, Trophy } from 'lucide-react';
+import { BookOpen, ArrowRight, User, Trophy, StepForward, Bookmark } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { slugify } from '../utils/slugify';
 
@@ -137,9 +137,9 @@ const Home: React.FC = () => {
         {/* Recent Courses or Get Started */}
         {user && user.recentCourses.length > 0 ? (
           <motion.section variants={itemVariants} className="mb-16">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <BookOpen className="w-7 h-7 text-blue-600 mr-3" />
-              Continue where you left off
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+              <Bookmark className="w-9 h-7 fill-blue-600 text-blue-600 mr-0" />
+            Continue where you left off
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {user.recentCourses.map((course, index) => (
