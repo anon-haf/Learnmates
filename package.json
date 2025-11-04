@@ -16,7 +16,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run generate-sitemap",
+    "generate-metadata": "node script/generateMetadata.js",
+    "build": "npm run generate-metadata && vite build && npm run generate-sitemap",
     "generate-sitemap": "node script/sitemap.js",
     "lint": "eslint .",
     "preview": "vite preview"

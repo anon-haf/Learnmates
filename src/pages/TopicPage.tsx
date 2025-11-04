@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BookOpen, Play, FileText, Trophy, ArrowLeft } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -493,7 +494,7 @@ const topicData = {
 };
 const TopicPage: React.FC = () => {
   // route is /curriculum/:type/:board/:subject/:title
-  const { title: titleParam } = useParams<{ title?: string }>();
+  const { type: typeParam, board: boardParam, subject: subjectParam, title: titleParam } = useParams<{ type?: string; board?: string; subject?: string; title?: string }>();
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState<'videos' | 'resources' | 'quiz'>('resources');
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
@@ -559,8 +560,40 @@ const TopicPage: React.FC = () => {
     );
   }
 
+  // Prepare metadata values
+  const routeType = typeParam ? typeParam.toLowerCase() : (typeof topic?.curriculum === 'string' && topic.curriculum.toLowerCase().includes('igcse') ? 'igcse' : 'a-level');
+  const routeBoard = boardParam || undefined;
+  const canonicalPath = `/curriculum/${routeType}/${routeBoard || 'cambridge'}/${encodeURIComponent(topic.subject)}/${slugify(topic.title)}`;
+
+  // Prefer metadata from generated public/metadata.json when available
+  const [pageMeta, setPageMeta] = useState<any | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/metadata.json');
+        if (!res.ok) return;
+        const data = await res.json();
+        // Look up by canonicalPath key or by matching url
+        const meta = data?.topics?.[canonicalPath] || Object.values(data?.topics || {}).find((t: any) => t.url === canonicalPath);
+        if (mounted) setPageMeta(meta || null);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, [canonicalPath]);
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Helmet>
+        <title>{pageMeta?.title || `${topic.title} — ${topic.subject} | Learnmates`}</title>
+        <meta name="description" content={pageMeta?.description || topic.description} />
+        <meta name="keywords" content={pageMeta?.keywords || `Learnmates, free study materials, video lessons, practice quizzes, ${topic.title}, ${routeBoard || ''}, ${topic.subject}, ${routeType}`} />
+        <meta property="og:title" content={pageMeta?.title || `${topic.title} — ${topic.subject} | Learnmates`} />
+        <meta property="og:description" content={pageMeta?.description || topic.description} />
+        <link rel="canonical" href={typeof window !== 'undefined' ? `${window.location.origin}${pageMeta?.url || canonicalPath}` : (pageMeta?.url || canonicalPath)} />
+      </Helmet>
       <motion.div variants={itemVariants} className="mb-8">
         <div className="flex items-center mb-4">
           <Link to={`/curriculum/${topic.curriculum.toLowerCase()}`} className="text-blue-600 hover:text-blue-700 font-medium mr-4 flex items-center">

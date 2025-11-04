@@ -239,6 +239,12 @@ const CurriculumPage: React.FC = () => {
     });
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
+        <Helmet>
+          <title>{`${curriculum.title} — ${selectedBoard?.charAt(0).toUpperCase() + selectedBoard?.slice(1)} Subjects | Learnmates`}</title>
+          <meta name="description" content={curriculum.description} />
+          <meta name="keywords" content={`Learnmates, ${curriculum.title}, ${selectedBoard}, subjects, free study materials`} />
+          <link rel="canonical" href={`/curriculum/${selectedLevel}/${selectedBoard}`} />
+        </Helmet>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Select a Subject</h1>
         <p className="text-base text-gray-500 mb-8">Pick a subject to view topics and start learning.</p>
         <div
@@ -291,6 +297,12 @@ const CurriculumPage: React.FC = () => {
       animate="visible"
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
     >
+      <Helmet>
+        <title>{`${curriculum.title} — ${selectedSubject} Topics | Learnmates`}</title>
+        <meta name="description" content={`Browse ${selectedSubject} topics for ${curriculum.title}. ${curriculum.description}`} />
+        <meta name="keywords" content={`Learnmates, ${curriculum.title}, ${selectedBoard}, ${selectedSubject}, topics`} />
+        <link rel="canonical" href={`/curriculum/${selectedLevel}/${selectedBoard}/${encodeURIComponent(selectedSubject)}`} />
+      </Helmet>
       {/* Header */}
       <motion.div variants={itemVariants} className="text-center mb-16">
         <div className="flex items-center justify-center mb-6">
