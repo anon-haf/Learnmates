@@ -3,19 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <!-- Favicon for browser and Google search logo -->
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
-      <!-- Structured Data for Organization with logo -->
+    <!-- Favicons and touch icon (served from /logos/) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logos/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/logos/favicon-16x16.png" />
+    <link rel="shortcut icon" href="/logos/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/logos/logo-192x192.png" />
+      <!-- Structured Data for Organization with logo (use absolute URL to public logo) -->
       <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": "Learnmates",
-        "url": "https://learnmates.vercel.app/",
-        "logo": "https://learnmates.vercel.app/logo.png"
+        "url": "https://www.learnmates.org",
+        "logo": "https://www.learnmates.org/logos/logo-512x512.png"
       }
       </script>
+      <!-- Open Graph image for social shares (uses PNG fallback) -->
+      <meta property="og:image" content="https://www.learnmates.org/logos/og-image.png" />
+      <meta name="twitter:image" content="https://www.learnmates.org/logos/og-image.png" />
   </head>
   <body>
     <div id="root"></div>

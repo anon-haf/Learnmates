@@ -1,4 +1,31 @@
+# Global rules
 User-agent: *
 Allow: /
+Allow: /curriculum/
+Allow: /about
+Allow: /contact
+Allow: /contribute
+Allow: /donate
+
+# API and private endpoints
 Disallow: /api/
+Disallow: /admin/
+Disallow: /private/
+
+# Allow crawling curriculum pages
+Allow: /curriculum/igcse/cambridge/*/
+Allow: /curriculum/alevel/cambridge/*/
+
+# Allow logo assets
+Allow: /logos/
+
+# Temporary or development routes
+Disallow: /dev/
+Disallow: /test/
+Disallow: /staging/
+
+# Rate limiting for aggressive crawlers
+Crawl-delay: 10
+
+# Sitemap location
 Sitemap: https://www.learnmates.org/sitemap.xml
