@@ -1,5 +1,5 @@
 import React from 'react';
-import { Instagram, Youtube } from 'lucide-react';
+import { Instagram, Youtube ,Github} from 'lucide-react';
 
 const Footer: React.FC = () => {
   return (
@@ -42,6 +42,16 @@ const Footer: React.FC = () => {
               aria-label="YouTube"
             >
               <Youtube className="w-5 h-5" />
+
+            </a>
+            <a
+              href="https://github.com/anon-haf/Learnmates"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-gray-500 transition-colors duration-200"
+              aria-label="GitHub"
+            >
+              <Github className="w-5 h-5" />
             </a>
           </div>
         </div>
