@@ -22,29 +22,6 @@ const itemVariants = {
 
 // Clean, deduplicated topic data (chemistry T1..T20 + a test quiz)
 const topicData = {
-  'test-quiz': {
-    title: 'Test Quiz',
-    subject: 'General',
-    curriculum: 'A-Level',
-    description: 'A small test quiz demonstrating multi-part and written questions.',
-    videos: [],
-    resources: [],
-    quizzes: [
-      {
-        id: 'demo-1',
-        title: 'Demo Multi-Part Quiz',
-        questions: [
-          {
-            id: 'mq1',
-            parts: [
-              { id: 'mq1-p1', type: 'mcq' as const, question: 'What is 2 + 2?', options: ['3', '4', '5'], correctAnswer: 1, explanation: '2 + 2 = 4.' },
-              { id: 'mq1-p2', type: 'written' as const, question: 'Explain in one sentence why 2+2 equals 4.', explanation: 'Because adding two and two counts four units.' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
   'biology-1': {
     title: 'Characteristics and Classifications of living organisms',
     subject: 'Biology',
@@ -54,13 +31,34 @@ const topicData = {
     resources: [ { id: 'r1', title: 'Characteristics and Classifications Notes', url: '/documents/Biology/Chapter 1.pdf' } ],
     quizzes: []
   },
+  'biology-2': {
+    title: 'Organisation of the organism',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Explore the organization of cells, tissues, organs, and systems in living organisms.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Organisation of the Organism Notes', url: '/documents/Biology/Chapter 2.pdf' } ],
+    quizzes: []
+  },
+  'biology-3': {
+    title: 'Cell Structure and Transport',
+    subject: 'Biology',
+    curriculum: 'igcse',
+    description: 'Examine the processes of diffusion, osmosis, and active transport in cellular function.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Cell Structure and Transport Notes', url: '/documents/Biology/Chapter 3.pdf' } ],
+    quizzes: []
+  },
+
+    
+
   'biology-4': {
     title: 'Biological Molecules',
     subject: 'Biology',
     curriculum: 'igcse',
     description: 'Discover the key biological molecules, including carbohydrates, proteins, lipids. And testing for them.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Biological Molecules Notes', url: '/documents/Biology/Chapter 4.pdf' } ],
+    resources: [ { id: 'r1', title: 'Biological Molecules Notes', url: '/documents/Biology/Chapter 4.pdf' },{ id: 'r2', title: 'Biological Molecules(@PISANG)', url: 'https://drive.google.com/file/d/1ekIXRfI5ey4k4uFDqNF61GvVcvcgcsYg/preview?usp=drive_link' } ],
     quizzes: []
   },
   'biology-5': {
@@ -69,7 +67,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the role of enzymes in biological processes, including their structure, function, and factors affecting enzyme activity.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Enzymes Notes', url: '/documents/Biology/Chapter 5.pdf' } ],
+    resources: [ { id: 'r1', title: 'Enzymes Notes', url: '/documents/Biology/Chapter 5.pdf' },{ id: 'r2', title: 'Enzymes(@PISANG)', url: 'https://drive.google.com/file/d/1O2eAMklSCQFlAFM-hNWK726Ky1-_5rk2/preview?usp=drive_link' } ],
     quizzes: []
   },
   'biology-6': {
@@ -87,7 +85,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the principles of human nutrition, including the digestive system and dietary requirements.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Human Nutrition Notes', url: '/documents/Biology/Chapter 7.pdf' } ],
+    resources: [ { id: 'r1', title: 'Human Nutrition Notes', url: '/documents/Biology/Chapter 7.pdf' } ,{ id: 'r2', title: 'Human Nutrition(@PISANG)', url: 'https://drive.google.com/file/d/1JgyyC1k2qDEtqV5XUFXh7SykkNpS3x-4/preview?usp=drive_link' }],
     quizzes: []
   },
   'biology-8': {
@@ -105,16 +103,29 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Explore the process of transport in animals, including the circulatory system.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Transport in Animals Notes', url: '/documents/Biology/Chapter 9.pdf' } ],
+    resources: [ { id: 'r1', title: 'Transport in Animals Notes', url: '/documents/Biology/Chapter 9.pdf' },{ id: 'r2', title: 'Transport in Animals(@PISANG)', url: 'https://drive.google.com/file/d/1l5Mn8qTtryFlotDhfG7UqsexZPp0QZqU/preview?usp=drive_link' } ],
     quizzes: []
   },
+    'biology-10':{
+      title: 'Disease and Immunity',
+      subject: 'Biology',
+      curriculum: 'igcse',
+      description: 'Understand the causes and effects of diseases in humans, including the immune response and vaccination.',
+      videos: [],
+      resources: [ { id: 'r1', title: 'Disease and Immunity Notes', url: '/documents/Biology/Chapter 10.pdf' } ],
+      quizzes: []
+    },
+
+
+
+
     'biology-11': {
     title: 'Gas Exchange in Animals',
     subject: 'Biology',
     curriculum: 'igcse',
     description: 'Understand the mechanisms of gas exchange in animals, focusing on the human respiratory system.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Gas Exchange in Animals Notes', url: '/documents/Biology/Chapter 11.pdf' } ],
+    resources: [ { id: 'r1', title: 'Gas Exchange in Animals Notes', url: '/documents/Biology/Chapter 11.pdf' } ,{ id: 'r2', title: 'Gas Exchange in Animals(@PISANG)', url: 'https://drive.google.com/file/d/1_O-htbL8BFGI5pGs6OPbCM3ophQdrg0Q/preview?usp=drive_link' }],
     quizzes: []
   },
     'biology-12': {
@@ -123,25 +134,45 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Understand the process of cellular respiration, including aerobic and anaerobic respiration and energy production.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Respiration Notes', url: '/documents/Biology/Chapter 12.pdf' } ],
+    resources: [ { id: 'r1', title: 'Respiration Notes', url: '/documents/Biology/Chapter 12.pdf' },{ id: 'r2', title: 'Respiration(@PISANG)', url: 'https://drive.google.com/file/d/1tgq3R0dAWN0rgijhrdxZUFcAKhM8Hlwh/preview?usp=drive_link' } ],
     quizzes: []
   },
+    'biology-13': {
+      title: 'Excretion in humans',
+      subject: 'Biology',
+      curriculum: 'igcse',
+      description: 'Understand the processes of excretion in humans, including the structure and role of the kidneys and the urinary system.',
+      videos: [],
+      resources: [ { id: 'r1', title: 'Excretion in Humans Notes', url: '/documents/Biology/Chapter 13.pdf' } ,{ id: 'r2', title: 'Excretion in Humans(@PISANG)', url: 'https://drive.google.com/file/d/1qYFpKtgEtaqZ1dXUJoeM1ImnHoZIgnPj/preview?usp=drive_link' } ],
+      quizzes: []
+    },
+
    'biology-14': {
     title: 'Coordination and Response',
     subject: 'Biology',
     curriculum: 'igcse',
     description: 'Study the nervous and hormonal systems in humans and plants, including responses to stimuli and homeostasis.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Coordination and Response Notes', url: '/documents/Biology/Chapter 14.pdf' } ],
+    resources: [ { id: 'r1', title: 'Coordination and Response Notes', url: '/documents/Biology/Chapter 14.pdf' },{ id: 'r2', title: 'Coordination and Response(@PISANG)', url: 'https://drive.google.com/file/d/1RE4Jal3ifuInALVuFjrYB26izBfYSaql/preview?usp=drive_link' } ],
     quizzes: []
   },
+    'biology-15': {
+      title: 'Drugs',
+      subject: 'Biology',
+      curriculum: 'igcse',
+      description: 'Understand the use of drugs and their effects on the human body.',
+      videos: [],
+      resources: [ { id: 'r1', title: 'Drugs Notes', url: '/documents/Biology/Chapter 15.pdf' } ],
+      quizzes: []
+    },
+
      'biology-16': {
     title: 'Reproduction',
     subject: 'Biology',
     curriculum: 'igcse',
     description: 'Explore the reproductive systems in humans and plants, including sexual and asexual reproduction.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Reproduction Notes', url: '/documents/Biology/Chapter 16.pdf' } ],
+    resources: [ { id: 'r1', title: 'Reproduction Notes', url: '/documents/Biology/Chapter 16.pdf' },{ id: 'r2', title: 'Reproduction(@PISANG)', url: 'https://drive.google.com/file/d/1tgq3R0dAWN0rgijhrdxZUFcAKhM8Hlwh/preview?usp=drive_link' } ],
     quizzes: []
   },
    'biology-17': {
@@ -150,7 +181,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Understand the principles of inheritance, including genes, chromosomes, and patterns of inheritance.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Inheritance Notes', url: '/documents/Biology/Chapter 17.pdf' } ],
+    resources: [ { id: 'r1', title: 'Inheritance Notes', url: '/documents/Biology/Chapter 17.pdf' },{ id: 'r2', title: 'Inheritance(@PISANG)', url: 'https://drive.google.com/file/d/1PiMywYjzXCAvgay-2zJrD1c07oZ_VQ54/preview?usp=drive_link' } ],
     quizzes: []
   },
    'biology-18': {
@@ -168,7 +199,7 @@ const topicData = {
     curriculum: 'igcse',
     description: 'Study the interactions between organisms and their environment, including ecosystems and biodiversity.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Organisms and their Environment Notes', url: '/documents/Biology/Chapter 19.pdf' } ],
+    resources: [ { id: 'r1', title: 'Organisms and their Environment Notes', url: '/documents/Biology/Chapter 19.pdf' },{ id: 'r2', title: 'Organisms and their Environment(@PISANG)', url: 'https://drive.google.com/file/d/1tgYLG1icFKPscFMXkrq6zRMow7HrXjV4/preview?usp=drive_link' } ],
     quizzes: []
   },
    'biology-20': {
