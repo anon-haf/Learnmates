@@ -463,64 +463,6 @@ const topicData = {
   'chemistry-T20': { title: 'Organic Synthesis (U5)', subject: 'Chemistry', curriculum: 'A-Level', description: 'Strategies and mechanisms for multi-step organic synthesis and functional group interconversions.', videos: [], resources: [ { id: 'r1', title: 'Self-Study booklet(@Aeth_en)', url: '/documents/IAL Chemistry U5 topic 20 Self-Study booklet(@Aeth_en).pdf' , description: 'Visit "https://drive.google.com/drive/folders/1EyhEUz6ZcmHwnyETDSSuwlSU010HTBj7" for original document.'} ], quizzes: [] },
 
 
-
-  'biology-CH1': {
-    title: 'Cell Structure',
-    subject: 'Biology',
-    curriculum: 'A-Level',
-    description: 'Explore the detailed structure and function of eukaryotic and prokaryotic cells, including organelles and microscopy techniques.',
-    videos: [],
-    resources: [
-      { id: 'r1', title: 'Cell structure Notes(@PISANG)', url: 'https://drive.google.com/file/d/1LJHwU2WvNtj-__T8awP2Iju4lacei5Ms/preview', description: '' }
-    ],
-    quizzes: []
-  },
-  'biology-CH2': {
-    title: 'Biological Molecules',
-    subject: 'Biology',
-    curriculum: 'A-Level',
-    description: 'Dive into the chemistry of biological molecules such as carbohydrates, proteins, lipids, and nucleic acids, and their roles in cellular functions.',
-    videos: [],
-    resources: [
-      { id: 'r1', title: 'Biological Molecules Notes(@PISANG)', url: 'https://drive.google.com/file/d/1n_WajVfs6NWUSk07Pd1GXxBRFqxfRMKa/preview', description: '' }
-    ],
-    quizzes: []
-  },
-  'biology-CH3': {
-    title: 'Enzymes',
-    subject: 'Biology',
-    curriculum: 'A-Level',
-    description: 'Understand enzyme structure, function, kinetics, and factors affecting enzyme activity in biological systems.',
-    videos: [],
-    resources: [
-      { id: 'r1', title: 'Enzymes Notes(@PISANG)', url: 'https://drive.google.com/file/d/1f-8rckyEYRQAUkxlitwPyF4NGUOtXe6P/preview', description: '' }
-    ],
-    quizzes: []
-  },
-  'biology-CH4': {
-    title: 'Cell Membranes and Transport',
-    subject: 'Biology',
-    curriculum: 'A-Level',
-    description: 'Examine the structure of cell membranes and the mechanisms of substance transport across membranes.',
-    videos: [],
-    resources: [
-      { id: 'r1', title: 'Cell Membranes and Transport Notes(@PISANG)', url: 'https://drive.google.com/file/d/143n4n7gTZnCJmmDzl1VrxBd-WlSdW9GF/preview', description: '' }
-    ],
-    quizzes: []
-  },
-  'biology-CH5': {
-    title: 'The Mitotic Cell Cycle',
-    subject: 'Biology',
-    curriculum: 'A-Level',
-    description: 'Learn about the stages of the cell cycle, including interphase and mitosis, and the regulation of cell division.',
-    videos: [],
-    resources: [
-      { id: 'r1', title: 'The Mitotic Cell Cycle Notes(@PISANG)', url: 'https://drive.google.com/file/d/1UYvzrVOlup3e05PVSdyErc6DM3wKy2u9/preview', description: '' }
-    ],
-    quizzes: []
-  },
-
-
   
 };
 const TopicPage: React.FC = () => {
