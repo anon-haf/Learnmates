@@ -122,8 +122,23 @@ const CurriculumPage: React.FC = () => {
             { id: 'chemistry-T18', title: 'Organic Chemistry – Arenes (U5)', description: 'Aromatic chemistry including electrophilic substitution and properties of arenes.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'chemistry-T19', title: 'Organic Nitrogen Compounds: Amines, Amides, Amino Acids and Proteins (U5)', description: 'Structure, properties and reactions of amines, amides and biologically relevant nitrogen compounds.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
             { id: 'chemistry-T20', title: 'Organic Synthesis (U5)', description: 'Strategies and mechanisms for multi-step organic synthesis and functional group interconversions.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            // Add more Edexcel-specific topics as needed
+           
+           
+            {id: 'Physics-T1', title: 'Mechanics (U1)', description: 'Explore the principles of mechanics including motion, forces and energy.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T2', title: 'Materials (U1)', description: 'Uunderstsand Materials and their properties.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T3', title: 'Waves and Particle Nature of Light (U1)', description: 'Understand wave properties, behaviour and applications.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T4', title: 'Electric Circuits (U2)', description: 'Learn about electric circuits, current, voltage, and resistance.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T5', title: 'Further Mechanics (U4)', description: 'Understand advanced mechanics concepts including circular motion, oscillations, and gravitation.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T6', title: 'Electric and Magnetic Fields (U4)', description: 'Explore electric and magnetic fields, forces, and electromagnetic induction.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},
+            {id: 'Physics-T7', title: 'Nuclear and Particle Physics (U4)', description: 'Study the structure of the nucleus, radioactivity, and nuclear reactions.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},
+            {id: 'Physics-T8', title: 'Thermodynamics (U5)', description: 'Understand the principles of thermal physics, including temperature, heat transfer, and the kinetic theory of gases.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},
+            {id: 'Physics-T9', title: 'Nuclear Decay (U5)', description: 'Learn about different types of nuclear decay, half-life, and radioactive decay processes.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},
+            {id: 'Physics-T10', title: 'Oscillations (U5)', description: 'Explore oscillatory motion, simple harmonic motion, and their applications.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},
+            {id: 'Physics-T11', title: 'Astrophysics and Cosmology (U5)', description: 'Understand astrophysical phenomena and the structure and evolution of the universe.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0}
+          
           ]
+
+
         }
       }
     }

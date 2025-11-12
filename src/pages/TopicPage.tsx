@@ -462,7 +462,105 @@ const topicData = {
   'chemistry-T19': { title: 'Organic Nitrogen Compounds: Amines, Amides, Amino Acids and Proteins (U5)', subject: 'Chemistry', curriculum: 'A-Level', description: 'Structure, properties and reactions of amines, amides and biologically relevant nitrogen compounds.', videos: [], resources: [ { id: 'r1', title: 'Self-Study booklet(@Aeth_en)', url: '/documents/IAL Chemistry U5 topic 19 Self-Study booklet(@Aeth_en).pdf' , description: 'Visit "https://drive.google.com/drive/folders/1EyhEUz6ZcmHwnyETDSSuwlSU010HTBj7" for original document.'} ], quizzes: [] },
   'chemistry-T20': { title: 'Organic Synthesis (U5)', subject: 'Chemistry', curriculum: 'A-Level', description: 'Strategies and mechanisms for multi-step organic synthesis and functional group interconversions.', videos: [], resources: [ { id: 'r1', title: 'Self-Study booklet(@Aeth_en)', url: '/documents/IAL Chemistry U5 topic 20 Self-Study booklet(@Aeth_en).pdf' , description: 'Visit "https://drive.google.com/drive/folders/1EyhEUz6ZcmHwnyETDSSuwlSU010HTBj7" for original document.'} ], quizzes: [] },
 
-
+  'Physics-T1': {
+    title: 'Mechanics (U1)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Explore the principles of mechanics including motion, forces and energy.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Mechanics Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U1 topic 1.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T2': {
+    title: 'Materials (U1)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Understand Materials and their properties.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Materials Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U1 topic 1.4 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T3': {
+    title: 'Waves and Particle Nature of Light (U1)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Understand wave properties, behaviour and applications.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Waves and Particle Nature of Light Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U1 topic 1.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T4': {
+    title: 'Electric Circuits (U2)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Learn about electric circuits, current, voltage, and resistance.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Electric Circuits Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U2 topic 2.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T5': {
+    title: 'Further Mechanics (U4)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Understand advanced mechanics concepts including circular motion, oscillations, and gravitation.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Further Mechanics Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U4 topic 4.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T6': {
+    title: 'Electric and Magnetic Fields (U4)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Explore electric and magnetic fields, forces, and electromagnetic induction.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Electric and Magnetic Fields Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U4 topic 4.4 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T7': {
+    title: 'Nuclear and Particle Physics (U4)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Study the structure of the nucleus, radioactivity, and nuclear reactions.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Nuclear and Particle Physics Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U4 topic 4.5 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T8': {
+    title: 'Thermodynamics (U5)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Understand the principles of thermal physics, including temperature, heat transfer, and the kinetic theory of gases.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Thermodynamics Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U5 topic 5.3 Self-Study booklet(@Aeth_en)pdf' } ],
+    quizzes: []
+  },
+  'Physics-T9': {
+    title: 'Nuclear Decay (U5)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Learn about different types of nuclear decay, half-life, and radioactive decay processes.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Nuclear Decay Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U5 topic 5.4 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T10': {
+    title: 'Oscillations (U5)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Explore oscillatory motion, simple harmonic motion, and their applications.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Oscillations Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U5 topic 5.5 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  },
+  'Physics-T11': {
+    title: 'Astrophysics and Cosmology (U5)',
+    subject: 'Physics',
+    curriculum: 'A-Level',
+    description: 'Understand astrophysical phenomena and the structure and evolution of the universe.',
+    videos: [],
+    resources: [ { id: 'r1', title: 'Astrophysics and Cosmology Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U5 topic 5.6 Self-Study booklet(@Aeth_en).pdf' } ],
+    quizzes: []
+  }
   
 };
 const TopicPage: React.FC = () => {
