@@ -85,14 +85,14 @@ const CurriculumPage: React.FC = () => {
       boards: {
         cambridge: {
           topics: [
-            { id: 'chemistry-CH1', title: 'Atomic Structure', description: 'Understand atomic models, electronic structure, isotopes, and trends across the periodic table.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH2', title: 'Atoms, molecules and stoichiometry', description: 'Understand the concepts of atoms, molecules, and stoichiometry in chemical reactions.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH3', title: 'Chemical bonding', description: 'Explore the different types of chemical bonds, including ionic, covalent, and metallic bonds, and their properties.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH4', title: 'States of matter', description: 'Understand the properties of solids, liquids, and gases, and the changes between these states.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH5', title: 'Chemical energetics (A-level)', description: 'Learn about energy changes in chemical reactions, including exothermic and endothermic processes.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH6', title: 'Electrochemistry (A-level)', description: 'Study the principles of electrochemistry, including redox reactions, electrochemical cells, and applications in industry.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH8', title: 'Reaction kinetics', description: 'Understand reaction rates, collision theory, and the factors affecting reaction rates.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            { id: 'chemistry-CH9', title: 'The Periodic Table: chemical periodicity', description: 'Explore the trends and patterns in the periodic table, including atomic radius, ionization energy, and electronegativity.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 }
+            { id: 'chemistry-CH1', title: 'Atomic Structure (As)', description: 'Understand atomic models, electronic structure, isotopes, and trends across the periodic table.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH2', title: 'Atoms, molecules and stoichiometry (As)', description: 'Understand the concepts of atoms, molecules, and stoichiometry in chemical reactions.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH3', title: 'Chemical bonding (As)', description: 'Explore the different types of chemical bonds, including ionic, covalent, and metallic bonds, and their properties.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH4', title: 'States of matter (As)', description: 'Understand the properties of solids, liquids, and gases, and the changes between these states.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH5', title: 'Chemical energetics (As)', description: 'Learn about energy changes in chemical reactions, including exothermic and endothermic processes.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH6', title: 'Electrochemistry (As)', description: 'Study the principles of electrochemistry, including redox reactions, electrochemical cells, and applications in industry.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH8', title: 'Reaction kinetics (As)', description: 'Understand reaction rates, collision theory, and the factors affecting reaction rates.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            { id: 'chemistry-CH9', title: 'The Periodic Table: chemical periodicity (As)', description: 'Explore the trends and patterns in the periodic table, including atomic radius, ionization energy, and electronegativity.', subject: 'Chemistry', videoCount: 0, resourceCount: 1, quizCount: 0 }
           
           ]
 

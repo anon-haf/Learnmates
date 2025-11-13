@@ -317,7 +317,7 @@ const topicData = {
   
   
   'chemistry-CH1':{
-    title:"Atomic Structure",
+    title:"Atomic Structure (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Understand atomic models, electronic structure, isotopes, and trends across the periodic table.",
@@ -326,7 +326,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH2':{
-    title:"Atoms, molecules and stoichiometry",
+    title:"Atoms, molecules and stoichiometry (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Understand the concepts of atoms, molecules, and stoichiometry in chemical reactions.",
@@ -335,7 +335,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH3':{
-    title:"Chemical bonding",
+    title:"Chemical bonding (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Explore the different types of chemical bonds, including ionic, covalent, and metallic bonds, and their properties.",
@@ -344,7 +344,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH4':{
-    title:"States of matter",
+    title:"States of matter (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Understand the properties of solids, liquids, and gases, and the changes between these states.",
@@ -353,7 +353,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH5':{
-    title:"Chemical energetics (A-level)",
+    title:"Chemical energetics (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Learn about energy changes in chemical reactions, including exothermic and endothermic processes.",
@@ -362,7 +362,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH6':{
-    title:"Electrochemistry (A-level)",
+    title:"Electrochemistry (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Study the principles of electrochemistry, including redox reactions, electrochemical cells, and applications in industry.",
@@ -371,7 +371,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH8':{
-    title:"Reaction kinetics",
+    title:"Reaction kinetics (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Understand reaction rates, collision theory, and the factors affecting reaction rates.",
@@ -380,7 +380,7 @@ const topicData = {
     quizzes:[]
   },
   'chemistry-CH9':{
-    title:"The Periodic Table: chemical periodicity",
+    title:"The Periodic Table: chemical periodicity (As)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Explore the trends and patterns in the periodic table, including atomic radius, ionization energy, and electronegativity.",
