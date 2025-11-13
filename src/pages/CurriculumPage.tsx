@@ -126,7 +126,7 @@ const CurriculumPage: React.FC = () => {
            
             {id: 'Physics-T1', title: 'Mechanics (U1)', description: 'Explore the principles of mechanics including motion, forces and energy.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
             {id: 'Physics-T2', title: 'Materials (U1)', description: 'Uunderstsand Materials and their properties.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
-            {id: 'Physics-T3', title: 'Waves and Particle Nature of Light (U1)', description: 'Understand wave properties, behaviour and applications.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
+            {id: 'Physics-T3', title: 'Waves and Particle Nature of Light (U2)', description: 'Understand wave properties, behaviour and applications.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
             {id: 'Physics-T4', title: 'Electric Circuits (U2)', description: 'Learn about electric circuits, current, voltage, and resistance.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
             {id: 'Physics-T5', title: 'Further Mechanics (U4)', description: 'Understand advanced mechanics concepts including circular motion, oscillations, and gravitation.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0 },
             {id: 'Physics-T6', title: 'Electric and Magnetic Fields (U4)', description: 'Explore electric and magnetic fields, forces, and electromagnetic induction.', subject: 'Physics', videoCount: 0, resourceCount: 1, quizCount: 0},

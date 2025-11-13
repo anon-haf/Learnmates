@@ -481,12 +481,12 @@ const topicData = {
     quizzes: []
   },
   'Physics-T3': {
-    title: 'Waves and Particle Nature of Light (U1)',
+  title: 'Waves and Particle Nature of Light (U2)',
     subject: 'Physics',
     curriculum: 'A-Level',
     description: 'Understand wave properties, behaviour and applications.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Waves and Particle Nature of Light Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U1 topic 1.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    resources: [ { id: 'r1', title: 'Waves and Particle Nature of Light Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U2 topic 2.3 Self-Study booklet(@Aeth_en).pdf' } ],
     quizzes: []
   },
   'Physics-T4': {
@@ -495,7 +495,7 @@ const topicData = {
     curriculum: 'A-Level',
     description: 'Learn about electric circuits, current, voltage, and resistance.',
     videos: [],
-    resources: [ { id: 'r1', title: 'Electric Circuits Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U2 topic 2.3 Self-Study booklet(@Aeth_en).pdf' } ],
+    resources: [ { id: 'r1', title: 'Electric Circuits Self-Study booklet(@Aeth_en)', url: '/documents/Physics/IAl/IAL Physics U2 topic 2.4 Self-Study booklet(@Aeth_en).pdf' } ],
     quizzes: []
   },
   'Physics-T5': {
