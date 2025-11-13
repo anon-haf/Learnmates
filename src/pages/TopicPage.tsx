@@ -322,7 +322,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand atomic models, electronic structure, isotopes, and trends across the periodic table.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/dcocument/Chemistry/A level cambridge/Atomic Structure.pdf' } ],
+    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/Atomic Structure.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH2':{
@@ -331,7 +331,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand the concepts of atoms, molecules, and stoichiometry in chemical reactions.",
     videos:[],
-    resources:[{id:'r1', title:'Atom, molecules and stiochimetry(@Mockingbird)', url:'/dcocument/Chemistry/A level cambridge/Atoms, molecules and stoichiometry.pdf'}],
+    resources:[{id:'r1', title:'Atom, molecules and stiochimetry(@Mockingbird)', url:'/documents/Chemistry/A level cambridge/Atoms, molecules and stoichiometry.pdf'}],
     quizzes:[]
   },
   'chemistry-CH3':{
@@ -340,7 +340,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Explore the different types of chemical bonds, including ionic, covalent, and metallic bonds, and their properties.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Chemical bonding Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/04808dee-e873-44a6-98af-4b2add85c77c/Unit_3.pdf?table=block&id=1c5d58d4-06b3-4787-96f7-554db1117728&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=vtMuoSp5aUGZDiyu7Qe-UqCmneZjHuljzNufCQV_ecs&downloadName=Unit+3.pdf' } ],
+    resources:[ { id: 'r1', title: 'Chemical bonding Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/Chemical bonding.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH4':{
@@ -349,25 +349,25 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand the properties of solids, liquids, and gases, and the changes between these states.",
     videos:[],
-    resources:[ { id: 'r1', title: 'States of Matter Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/a7006b43-059d-4a1e-9f9c-d50ecf5e7a07/Unit_4.pdf?table=block&id=0e921126-0501-4d47-b858-752b632fce2c&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=C--B2xvYIk35sLTMnQ2YRSVF4NSsDVHxwiJEmXEsKWA&downloadName=Unit+4.pdf' } ],
+    resources:[ { id: 'r1', title: 'States of Matter Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/States of Matter.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH5':{
-    title:"Chemical energetics",
+    title:"Chemical energetics (A-level)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Learn about energy changes in chemical reactions, including exothermic and endothermic processes.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Chemical Energetics Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/e86ac5ff-8555-46e3-82c2-72034986d288/Unit_5.pdf?table=block&id=a65f6f7a-c658-47a1-9657-353c4c3da2ab&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=u3NXem3wizjQZKbCrJkibDUGQMB-Ug7Aha7Is7Miv-w&downloadName=Unit+5.pdf' } ],
+    resources:[ { id: 'r1', title: 'Chemical Energetics Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/Chemical Energetics.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH6':{
-    title:"Electrochemistry",
+    title:"Electrochemistry (A-level)",
     subject:"Chemistry",
     curriculum:'A-level',
     description:"Study the principles of electrochemistry, including redox reactions, electrochemical cells, and applications in industry.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/e0d0fa15-8992-45d4-b770-55413f421dfb/Unit_6.pdf?table=block&id=a610d318-e58a-43b5-a73c-56943af0b194&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=cO_Atly5eZhOaUbBx0662NJIoTHvTHkMYDz1fQDILGQ&downloadName=Unit+6.pdf' } ],
+    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/Electrochemistry.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH8':{
@@ -376,7 +376,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand reaction rates, collision theory, and the factors affecting reaction rates.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/7004c5e0-fb6f-4945-88c4-bb0f9cc68be4/Unit_8.pdf?table=block&id=036448e3-1514-4463-9e7c-29e43e37bf42&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=nyg9cmYjvYId2tK2Szt2sAXET6x_eZlhNcfq3gjr204&downloadName=Unit+8.pdf' } ],
+    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/Reaction kinetics.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH9':{
@@ -385,7 +385,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Explore the trends and patterns in the periodic table, including atomic radius, ionization energy, and electronegativity.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/876015dd-6486-490f-8c99-e400003d3b3f/Unit_9.pdf?table=block&id=b56e42a4-6ffa-4a79-8f4e-cf1975432978&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=ZOoxcplaXEUuJVcnRuNhjSGl4kCP3SmbwfRwt33aBPY&downloadName=Unit+9.pdf' } ],
+    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/documents/Chemistry/A level cambridge/The Periodic Table chemical periodicity.pdf' } ],
     quizzes:[]
   },
   
