@@ -322,7 +322,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand atomic models, electronic structure, isotopes, and trends across the periodic table.",
     videos:[],
-    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: 'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/750ac319-e07a-40b2-9a84-76d8c38d7dfe/Unit_1.pdf?table=block&id=4290d01e-3ab7-4389-8b26-f2db5007565b&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=7zCjCLRsrtNi8bWVFfG6rSdsirUaksdbH9AQgVrcyiU&downloadName=Unit+1.pdf' } ],
+    resources:[ { id: 'r1', title: 'Atomic Structure Notes(@Mockingbird)', url: '/dcocument/Chemistry/A level cambridge/Atomic Structure.pdf' } ],
     quizzes:[]
   },
   'chemistry-CH2':{
@@ -331,7 +331,7 @@ const topicData = {
     curriculum:'A-level',
     description:"Understand the concepts of atoms, molecules, and stoichiometry in chemical reactions.",
     videos:[],
-    resources:[{id:'r1', title:'Atom, molecules and stiochimetry', url:'https://file.notion.so/f/f/a3bdaf06-9fde-4f9d-9d4b-f367fea3e603/5023e2b2-a58f-4e13-9d7e-bd0711158aee/Unit_2.pdf?table=block&id=6bcc9c2b-54e0-4c51-87dc-605cfc968293&spaceId=a3bdaf06-9fde-4f9d-9d4b-f367fea3e603&expirationTimestamp=1761969600000&signature=JdFa92agDCKDAaJY83TkiromhLXUHoIIQwfQ7rzpMdk&downloadName=Unit+2.pdf'}],
+    resources:[{id:'r1', title:'Atom, molecules and stiochimetry(@Mockingbird)', url:'/dcocument/Chemistry/A level cambridge/Atoms, molecules and stoichiometry.pdf'}],
     quizzes:[]
   },
   'chemistry-CH3':{
