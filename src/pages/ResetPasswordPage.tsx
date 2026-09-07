@@ -1,7 +1,6 @@
 import { FormEvent, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabaseClient';
 import { motion } from 'framer-motion';
 import { Loader2, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Input, Button } from '@/components/ui';
@@ -13,42 +12,33 @@ export function ResetPasswordPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [validToken, setValidToken] = useState<boolean | null>(null);
-  const { updatePassword, user, loading: authLoading } = useAuth();
+  const [isRecoveryFlow, setIsRecoveryFlow] = useState<boolean | null>(null);
+  const { updatePassword, user, session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const checkToken = async () => {
-      const accessToken = searchParams.get('access_token');
-      const refreshToken = searchParams.get('refresh_token');
-      const type = searchParams.get('type');
-
-      if (!accessToken || !refreshToken || type !== 'recovery') {
-        setValidToken(false);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-
-        if (error || !data.session) {
-          setValidToken(false);
-        } else {
-          setValidToken(true);
-        }
-      } catch {
-        setValidToken(false);
-      }
-    };
-
-    checkToken();
+    const type = searchParams.get('type');
+    const hasTokens = searchParams.get('access_token') && searchParams.get('refresh_token');
+    
+    if (type === 'recovery' && hasTokens) {
+      setIsRecoveryFlow(true);
+    } else if (type !== 'recovery') {
+      setIsRecoveryFlow(false);
+    }
   }, [searchParams]);
 
-  if (authLoading || validToken === null) {
+  useEffect(() => {
+    if (isRecoveryFlow === true && authLoading) {
+      return;
+    }
+    
+    if (isRecoveryFlow === true && !authLoading && !user) {
+      setIsRecoveryFlow(false);
+    }
+  }, [isRecoveryFlow, authLoading, user]);
+
+  if (authLoading || isRecoveryFlow === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
         <motion.div
@@ -63,7 +53,7 @@ export function ResetPasswordPage() {
     );
   }
 
-  if (!validToken) {
+  if (isRecoveryFlow === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
         <motion.div
@@ -79,6 +69,35 @@ export function ResetPasswordPage() {
               <CardTitle className="text-2xl">Invalid or expired reset link</CardTitle>
               <CardDescription className="mt-3 text-sm max-w-xl mx-auto">
                 This password reset link is invalid or has expired. Please request a new one from the login page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="primary" fullWidth size="lg" onClick={() => navigate('/login')}>
+                Back to login
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (isRecoveryFlow === true && !user && !session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-lg"
+        >
+          <Card variant="elevated" padding="lg" className="text-center">
+            <CardHeader className="mb-8">
+              <div className="w-16 h-16 bg-danger-100 dark:bg-danger-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-danger-600 dark:text-danger-400" />
+              </div>
+              <CardTitle className="text-2xl">Session expired</CardTitle>
+              <CardDescription className="mt-3 text-sm max-w-xl mx-auto">
+                The reset link has expired or was already used. Please request a new one from the login page.
               </CardDescription>
             </CardHeader>
             <CardContent>

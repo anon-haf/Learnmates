@@ -11,7 +11,8 @@ export function AuthLayout() {
   const isCurriculumPath = location.pathname.startsWith('/curriculum');
   const isTopicalsPath = location.pathname.startsWith('/topicals');
   const isLockInPath = location.pathname.startsWith('/lock_in');
-  const shouldUseDashboardShell = isDashboardPath || isLockInPath || (user && (isCurriculumPath || isTopicalsPath));
+  const isPastpapersPath = location.pathname.startsWith('/pastpapers');
+  const shouldUseDashboardShell = isDashboardPath || isLockInPath || (user && (isCurriculumPath || isTopicalsPath || isPastpapersPath));
 
   if (loading) {
     return (

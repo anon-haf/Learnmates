@@ -51,7 +51,7 @@ const PaperViewerPage: React.FC = () => {
   const [markSchemeOpen, setMarkSchemeOpen] = useState(false);
   const [markSchemeOpenFull, setMarkSchemeOpenFull] = useState(false);
   const [mcqPanelOpenFull, setMcqPanelOpenFull] = useState(true);
-  
+
   const [isMerging, setIsMerging] = useState(false);
   const [fullPaperPdfUrl, setFullPaperPdfUrl] = useState<string | null>(null);
   const [fullPaperMsUrl, setFullPaperMsUrl] = useState<string | null>(null);
@@ -132,17 +132,17 @@ const PaperViewerPage: React.FC = () => {
     const isMcqSubject = isCambridgeScienceMcqSubject(level, board, subject);
     if (isMcqSubject) {
       try {
-        let mcqAnswersUrl = level === 'a-level' 
+        let mcqAnswersUrl = level === 'a-level'
           ? `${baseUrlPrefix}topicals/${level}/${board}/${subject}/AS/mcq_ans.json`
           : `${baseUrlPrefix}topicals/${level}/${board}/${subject}/${subject}/mcq_ans.json`;
-          
+
         const resolvedMcqAnswersUrl = await resolveFromR2(mcqAnswersUrl);
         const res = await fetch(resolvedMcqAnswersUrl || mcqAnswersUrl, { headers: getAssetAuthHeaders() });
         if (res.ok) {
-           const data = await res.json();
-           if (data && typeof data === 'object') subjectMcqAnswers = data;
+          const data = await res.json();
+          if (data && typeof data === 'object') subjectMcqAnswers = data;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (info && Array.isArray(info)) {
@@ -167,17 +167,17 @@ const PaperViewerPage: React.FC = () => {
           const pdfUrl = `${basePath}/${fileName}.pdf`;
           let msUrl = deriveMarkSchemeUrl(pdfUrl);
           const isMCQ = entry.MCQ === 'yes' || entry.MCQ === true;
-          
+
           const entryPaperNum = getPaperNumberFromFileName(fileName);
           const mcqPaperNumbers = (level === 'igcse' || level === 'IGCSE') ? [1, 2] : [1];
           const shouldEnableMcqChecker = isMcqSubject && entryPaperNum !== null && mcqPaperNumbers.includes(entryPaperNum);
           const pKey = getPaperKeyFromFileName(fileName);
-          const mcqAnswer = shouldEnableMcqChecker && subjectMcqAnswers && pKey && questionNumber 
-            ? subjectMcqAnswers[pKey]?.[parseInt(questionNumber, 10) - 1] 
+          const mcqAnswer = shouldEnableMcqChecker && subjectMcqAnswers && pKey && questionNumber
+            ? subjectMcqAnswers[pKey]?.[parseInt(questionNumber, 10) - 1]
             : undefined;
 
           if (mcqAnswer) {
-             msUrl = undefined;
+            msUrl = undefined;
           }
 
           return {
@@ -240,11 +240,11 @@ const PaperViewerPage: React.FC = () => {
         try {
           const msPapers = papers.filter(p => p.msUrl || p.mcqAnswer);
           if (msPapers.length > 0) {
-            const msItems: MergeItem[] = msPapers.map(p => ({ 
-              id: `q${p.questionNumber}`, 
-              url: p.msUrl || '', 
+            const msItems: MergeItem[] = msPapers.map(p => ({
+              id: `q${p.questionNumber}`,
+              url: p.msUrl || '',
               type: p.mcqAnswer ? 'mcqAnswer' : 'pdf',
-              mcqAnswer: p.mcqAnswer 
+              mcqAnswer: p.mcqAnswer
             }));
             const msBlob = await generateMergedPDF(msItems, 'Mark Scheme', {
               title: paperDisplayName,
@@ -305,9 +305,9 @@ const PaperViewerPage: React.FC = () => {
 
   if (!level || !board || !subject) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center text-gray-500">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <p>Invalid paper link.</p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -345,21 +345,19 @@ const PaperViewerPage: React.FC = () => {
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setViewMode('single')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'single'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'single'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
             >
               Single Question
             </button>
             <button
               onClick={() => setViewMode('full')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'full'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'full'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
             >
               Full Paper
             </button>
@@ -397,7 +395,7 @@ const PaperViewerPage: React.FC = () => {
               Next
             </button>
           </div>
-          
+
           <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900">
             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
               <div className="flex items-center gap-3">
@@ -409,11 +407,10 @@ const PaperViewerPage: React.FC = () => {
                 {currentPdf.msUrl && (
                   <button
                     onClick={() => setMarkSchemeOpen(!markSchemeOpen)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${
-                      markSchemeOpen
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${markSchemeOpen
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
                   >
                     {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
                   </button>
@@ -433,58 +430,57 @@ const PaperViewerPage: React.FC = () => {
               <div className="flex flex-col gap-4 w-full">
                 {currentPdf.mcqAnswer ? (
                   <div className="flex flex-col lg:flex-row gap-4">
-                     <div className="flex-1 w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 max-h-[50vh] lg:max-h-[85vh]">
-                        <MediaViewer
-                          url={currentPdf.pdfUrl}
-                          type="pdf"
-                          savedAnnotation={annotations[currentPdf.pdfUrl]}
-                          onSaveAnnotation={(data) => setAnnotations(prev => ({ ...prev, [currentPdf.pdfUrl]: data }))}
-                          hasMarkScheme={false}
-                          markSchemeOpen={false}
-                          hideLargeView={true}
-                        />
-                     </div>
-                     <div className="w-full lg:w-72 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col shrink-0 max-h-[50vh] lg:max-h-[85vh]">
-                        <div className="p-4 flex flex-col items-center flex-1 overflow-y-auto">
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Select Answer</h4>
-                          <div className="flex gap-2 w-full mb-4 justify-center">
-                             {['A', 'B', 'C', 'D'].map(opt => {
-                               const isSelected = selectedOption === opt;
-                               const isCorrect = isAnswerChecked && currentPdf.mcqAnswer === opt;
-                               const isWrong = isAnswerChecked && isSelected && currentPdf.mcqAnswer !== opt;
-                               return (
-                                 <button 
-                                   key={opt}
-                                   onClick={() => { setSelectedOption(opt); setIsAnswerChecked(false); }}
-                                   className={`flex-1 aspect-square max-w-[56px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${
-                                     isCorrect
-                                       ? 'border-green-600 bg-green-600 text-white'
-                                       : isWrong
-                                         ? 'border-red-600 bg-red-600 text-white'
-                                         : isSelected
-                                           ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                           : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                   }`}
-                                 >
-                                   {opt}
-                                 </button>
-                               );
-                             })}
-                          </div>
-                          <button
-                            onClick={() => setIsAnswerChecked(true)}
-                            disabled={!selectedOption}
-                            className="w-full py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Check
-                          </button>
-                          {isAnswerChecked && (
-                            <div className={`mt-4 p-3 rounded-lg w-full text-center font-bold ${selectedOption === currentPdf.mcqAnswer ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
-                              {selectedOption === currentPdf.mcqAnswer ? 'Correct!' : 'Incorrect'}
-                            </div>
-                          )}
+                    <div className="flex-1 w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 max-h-[50vh] lg:max-h-[85vh]">
+                      <MediaViewer
+                        url={currentPdf.pdfUrl}
+                        type="pdf"
+                        savedAnnotation={annotations[currentPdf.pdfUrl]}
+                        onSaveAnnotation={(data) => setAnnotations(prev => ({ ...prev, [currentPdf.pdfUrl]: data }))}
+                        hasMarkScheme={false}
+                        markSchemeOpen={false}
+                        hideLargeView={true}
+                      />
+                    </div>
+                    <div className="w-full lg:w-72 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 flex flex-col shrink-0 max-h-[50vh] lg:max-h-[85vh]">
+                      <div className="p-4 flex flex-col items-center flex-1 overflow-y-auto">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Select Answer</h4>
+                        <div className="flex gap-2 w-full mb-4 justify-center">
+                          {['A', 'B', 'C', 'D'].map(opt => {
+                            const isSelected = selectedOption === opt;
+                            const isCorrect = isAnswerChecked && currentPdf.mcqAnswer === opt;
+                            const isWrong = isAnswerChecked && isSelected && currentPdf.mcqAnswer !== opt;
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => { setSelectedOption(opt); setIsAnswerChecked(false); }}
+                                className={`flex-1 aspect-square max-w-[56px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrect
+                                  ? 'border-green-600 bg-green-600 text-white'
+                                  : isWrong
+                                    ? 'border-red-600 bg-red-600 text-white'
+                                    : isSelected
+                                      ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
+                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  }`}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
                         </div>
-                     </div>
+                        <button
+                          onClick={() => setIsAnswerChecked(true)}
+                          disabled={!selectedOption}
+                          className="w-full py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Check
+                        </button>
+                        {isAnswerChecked && (
+                          <div className={`mt-4 p-3 rounded-lg w-full text-center font-bold ${selectedOption === currentPdf.mcqAnswer ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
+                            {selectedOption === currentPdf.mcqAnswer ? 'Correct!' : 'Incorrect'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className={`w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 ${markSchemeOpen && currentPdf.msUrl ? 'max-h-[50vh] lg:max-h-[85vh]' : 'max-h-[85vh]'}`}>
@@ -500,7 +496,7 @@ const PaperViewerPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              
+
               {markSchemeOpen && currentPdf.msUrl && (
                 <div className="flex flex-col gap-4 w-full">
                   <div className="w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col max-h-[50vh] lg:max-h-[85vh]">
@@ -572,11 +568,10 @@ const PaperViewerPage: React.FC = () => {
                 <button
                   onClick={() => setMarkSchemeOpenFull(!markSchemeOpenFull)}
                   disabled={isMerging || isMergingMs}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${
-                    markSchemeOpenFull
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${markSchemeOpenFull
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {isMergingMs ? (
                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -588,18 +583,17 @@ const PaperViewerPage: React.FC = () => {
                 <button
                   onClick={() => setMcqPanelOpenFull(!mcqPanelOpenFull)}
                   disabled={isMerging}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${
-                    mcqPanelOpenFull
-                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
-                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${mcqPanelOpenFull
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {mcqPanelOpenFull ? 'Hide MCQ Checker' : 'Show MCQ Checker'}
                 </button>
               )}
             </div>
           </div>
-          
+
           <div className="p-4 bg-gray-50 dark:bg-gray-900">
             {isMerging ? (
               <div className="flex flex-col items-center justify-center py-20">
@@ -666,15 +660,14 @@ const PaperViewerPage: React.FC = () => {
                                       setFullMcqSelections(prev => ({ ...prev, [qNum]: opt }));
                                       setFullMcqChecked(false);
                                     }}
-                                    className={`w-10 h-10 shrink-0 rounded-full border text-sm font-bold uppercase transition-colors duration-200 flex items-center justify-center ${
-                                      isCorrect
-                                        ? 'border-green-600 bg-green-600 text-white'
-                                        : isWrong
-                                          ? 'border-red-600 bg-red-600 text-white'
-                                          : isSelected
-                                            ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                    }`}
+                                    className={`w-10 h-10 shrink-0 rounded-full border text-sm font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrect
+                                      ? 'border-green-600 bg-green-600 text-white'
+                                      : isWrong
+                                        ? 'border-red-600 bg-red-600 text-white'
+                                        : isSelected
+                                          ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
+                                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                      }`}
                                   >
                                     {opt}
                                   </button>
@@ -709,9 +702,9 @@ const PaperViewerPage: React.FC = () => {
         />
       )}
 
-      <ReportModal 
-        isOpen={isReportModalOpen} 
-        onClose={() => setIsReportModalOpen(false)} 
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
         question={currentPdf ? {
           id: currentPdf.fileName,
           title: currentPdf.fileName,
@@ -721,7 +714,7 @@ const PaperViewerPage: React.FC = () => {
           markSchemeType: 'pdf',
           topicMatches: currentPdf.topicMatches,
           unit: currentPdf.unit,
-        } : null} 
+        } : null}
       />
     </motion.div>
   );
