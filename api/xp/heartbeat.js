@@ -13,8 +13,18 @@ const XP_RULES = {
   },
   question_view: {
     amountPerView: 5,
+    mcqAnswerAmount: 5,
     dailyCap: 100,
-    minViewDuration: 45,
+    minViewDuration: 15,
+  },
+  topical_paper_generation: {
+    amount: 15,
+    dailyCap: 30,
+    maxPerSubjectPerDay: 2
+  },
+  streak_visit: {
+    baseAmount: 10,
+    dailyCap: 100
   }
 };
 
@@ -54,7 +64,7 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { action, duration, tabVisible, mouseMoving, scrollSpeed, reachedBottom, sawQuestion, sawMS, refId } = req.body;
+    const { action, duration, tabVisible, mouseMoving, scrollSpeed, reachedBottom, sawQuestion, sawMS, refId, streak, mcqAnswer, subject } = req.body;
     
     let xpAmount = 0;
     let dailyCap = 0;
@@ -77,10 +87,22 @@ export default async function handler(req, res) {
     else if (action === 'question_view') {
       conditionsMet = sawQuestion && sawMS && duration >= XP_RULES.question_view.minViewDuration;
       if (conditionsMet) {
-        xpAmount = XP_RULES.question_view.amountPerView;
+        xpAmount = mcqAnswer ? XP_RULES.question_view.mcqAnswerAmount : XP_RULES.question_view.amountPerView;
       }
       dailyCap = XP_RULES.question_view.dailyCap;
     } 
+    else if (action === 'topical_paper_generation') {
+      conditionsMet = true; // Generation is already validated on client
+      xpAmount = XP_RULES.topical_paper_generation.amount;
+      dailyCap = XP_RULES.topical_paper_generation.dailyCap;
+    }
+    else if (action === 'streak_visit') {
+      conditionsMet = streak && streak > 0;
+      if (conditionsMet) {
+        xpAmount = streak * XP_RULES.streak_visit.baseAmount;
+      }
+      dailyCap = XP_RULES.streak_visit.dailyCap;
+    }
     else {
       return res.status(400).json({ error: 'Invalid action type' });
     }
@@ -107,7 +129,10 @@ export default async function handler(req, res) {
         scrollSpeed,
         reachedBottom,
         sawQuestion,
-        sawMS
+        sawMS,
+        streak,
+        mcqAnswer,
+        subject
       }
     });
 

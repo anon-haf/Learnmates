@@ -8,6 +8,7 @@ import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName } from '../utils/topicalHelpers';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import PDFViewerModal from '../components/PDFViewerModal';
+import Dropdown from '../components/topical/Dropdown';
 
 interface PaperEntry {
   fileName: string;
@@ -91,6 +92,11 @@ const PastpapersPage: React.FC = () => {
   const matches = useMemo(
     () => configs.filter(c => c.level === selectedLevel && c.board === selectedBoard && c.subject === selectedSubject),
     [configs, selectedLevel, selectedBoard, selectedSubject]
+  );
+
+  const hasMultipleUnits = useMemo(
+    () => matches.length > 0 && matches[0].units.length > 1,
+    [matches]
   );
 
   const [papers, setPapers] = useState<PaperGroup[]>([]);
@@ -278,39 +284,36 @@ const PastpapersPage: React.FC = () => {
       <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Level</label>
-            <select
-              value={selectedLevel}
-              onChange={e => setSelectedLevel(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select Level</option>
-              {levels.map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
-            </select>
+            <Dropdown
+              label="Level"
+              fullWidth
+              buttonLabel={selectedLevel ? selectedLevel.toUpperCase() : 'Select Level'}
+              options={levels.map(l => ({ value: l, label: l.toUpperCase() }))}
+              selectedValue={selectedLevel}
+              onSelect={setSelectedLevel}
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Board</label>
-            <select
-              value={selectedBoard}
-              onChange={e => setSelectedBoard(e.target.value)}
+            <Dropdown
+              label="Board"
+              fullWidth
+              buttonLabel={selectedBoard ? (selectedBoard.charAt(0).toUpperCase() + selectedBoard.slice(1)) : 'Select Board'}
+              options={boardsForLevel(selectedLevel).map(b => ({ value: b, label: b.charAt(0).toUpperCase() + b.slice(1) }))}
+              selectedValue={selectedBoard}
+              onSelect={setSelectedBoard}
               disabled={!selectedLevel}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">Select Board</option>
-              {boardsForLevel(selectedLevel).map(b => <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>)}
-            </select>
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
-            <select
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
+            <Dropdown
+              label="Subject"
+              fullWidth
+              buttonLabel={selectedSubject || 'Select Subject'}
+              options={subjectsForLvlBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: s }))}
+              selectedValue={selectedSubject}
+              onSelect={setSelectedSubject}
               disabled={!selectedLevel || !selectedBoard}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">Select Subject</option>
-              {subjectsForLvlBoard(selectedLevel, selectedBoard).map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            />
           </div>
         </div>
       </div>
@@ -364,19 +367,24 @@ const PastpapersPage: React.FC = () => {
                             onClick={() => navigateToPaper(paper)}
                             className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer text-left"
                           >
-                            <div className="flex items-start justify-between gap-3 mb-3">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
                                   <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{paper.displayName.replace('Paper ', '').replace(' Variant ', ' V')}</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{paper.displayName.replace('Paper ', '').replace(' Variant ', ' V')}</span>
                               </div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
                                 {paper.entries.some(e => e.isMCQ) && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
                                     MCQ
+                                  </span>
+                                )}
+                                {hasMultipleUnits && (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getUnitBadgeColor(paper.unit)}`}>
+                                    {paper.unit}
                                   </span>
                                 )}
                                 <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -387,10 +395,6 @@ const PastpapersPage: React.FC = () => {
                                 </span>
                               </div>
                             </div>
-
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getUnitBadgeColor(paper.unit)}`}>
-                              {paper.unit}
-                            </span>
                           </button>
                         ))}
                       </div>

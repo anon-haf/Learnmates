@@ -216,7 +216,10 @@ const PaperViewerPage: React.FC = () => {
       const mergeQ = async () => {
         try {
           const qItems: MergeItem[] = papers.map(p => ({ id: `q${p.questionNumber}`, url: p.pdfUrl, type: 'pdf' }));
-          const qBlob = await generateMergedPDF(qItems, 'Question');
+          const qBlob = await generateMergedPDF(qItems, 'Question', {
+            title: paperDisplayName,
+            subtitle: `${level.toUpperCase()} ${board.charAt(0).toUpperCase() + board.slice(1)} ${subject} - ${unit}`
+          });
           setFullPaperPdfUrl(URL.createObjectURL(qBlob));
         } catch (error) {
           console.error("Error generating question paper:", error);
@@ -243,7 +246,10 @@ const PaperViewerPage: React.FC = () => {
               type: p.mcqAnswer ? 'mcqAnswer' : 'pdf',
               mcqAnswer: p.mcqAnswer 
             }));
-            const msBlob = await generateMergedPDF(msItems, 'Mark Scheme');
+            const msBlob = await generateMergedPDF(msItems, 'Mark Scheme', {
+              title: paperDisplayName,
+              subtitle: `${level.toUpperCase()} ${board.charAt(0).toUpperCase() + board.slice(1)} ${subject} - ${unit} (Mark Scheme)`
+            });
             setFullPaperMsUrl(URL.createObjectURL(msBlob));
           }
         } catch (error) {

@@ -23,11 +23,11 @@ import { DarkModeProvider } from './context/DarkModeContext';
 import { EngagementProvider } from './context/EngagementContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import LockIn from './pages/LockIn';
 import { DashboardShell } from './layouts/DashboardShell';
-import { XPRewardNotification } from './components/XPRewardNotification';
 import { useXP } from './hooks/useXP';
 import { LockInProvider } from './components/lock-in/LockInContext';
 import { GlobalLockInManager } from './components/lock-in/GlobalLockInManager';
@@ -36,9 +36,7 @@ function AppContent() {
   // Global XP tracking
   useXP();
   return (
-    <>
-      <XPRewardNotification />
-      <Routes>
+    <Routes>
         <Route element={<AuthLayout />}> 
         {/* Public routes - rendered inside AuthLayout's PublicLayout */}
         <Route path="/" element={<Home />} />
@@ -50,6 +48,7 @@ function AppContent() {
         <Route path="/copyright" element={<Copyright />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Protected dashboard routes - use DashboardShell */}
         <Route element={<ProtectedRoute requireCompleteProfile />}>
@@ -74,7 +73,6 @@ function AppContent() {
         </Route>
         </Route>
       </Routes>
-    </>
   );
 }
 

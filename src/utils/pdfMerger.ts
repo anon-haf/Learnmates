@@ -8,6 +8,99 @@ export interface MergeItem {
   mcqAnswer?: string;
 }
 
+// Helper to add footers to all pages
+const addHeadersAndFooters = async (
+  pdf: PDFDocument,
+  boldFont: any,
+  regularFont: any,
+  options: {
+    title: string;
+    subtitle: string;
+  }
+) => {
+  const pages = pdf.getPages();
+  
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const { width, height } = page.getSize();
+    const pageNum = i + 1;
+    const totalPages = pages.length;
+    
+    // Footer line
+    page.drawLine({
+      start: { x: 40, y: 35 },
+      end: { x: width - 40, y: 35 },
+      thickness: 0.5,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+    
+    // Filename + tag (title + subtitle) left-aligned in footer
+    let footerLeftText = options.title;
+    if (options.subtitle) {
+      footerLeftText += ' | ' + options.subtitle;
+    }
+    const footerLeftSize = 7;
+    const maxFooterLeftWidth = width - 120;
+    let renderedFooterLeft = footerLeftText;
+    while (regularFont.widthOfTextAtSize(renderedFooterLeft, footerLeftSize) > maxFooterLeftWidth && renderedFooterLeft.length > 0) {
+      renderedFooterLeft = renderedFooterLeft.slice(0, -1);
+    }
+    if (renderedFooterLeft !== footerLeftText) renderedFooterLeft = renderedFooterLeft.trimEnd() + '...';
+    
+    page.drawText(renderedFooterLeft, {
+      x: 40,
+      y: 15,
+      size: footerLeftSize,
+      font: regularFont,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+    
+    // Page number (centered)
+    const pageNumText = `Page ${pageNum} of ${totalPages}`;
+    const pageNumSize = 8;
+    const pageNumWidth = regularFont.widthOfTextAtSize(pageNumText, pageNumSize);
+    page.drawText(pageNumText, {
+      x: (width - pageNumWidth) / 2,
+      y: 15,
+      size: pageNumSize,
+      font: regularFont,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+    
+    // Learnmates.org right-aligned in footer
+    const footerText = 'Learnmates.org';
+    const footerSize = 7;
+    const footerWidth = regularFont.widthOfTextAtSize(footerText, footerSize);
+    page.drawText(footerText, {
+      x: width - 40 - footerWidth,
+      y: 15,
+      size: footerSize,
+      font: regularFont,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  }
+};
+
+// Keep embedLogo for potential future use but no longer called
+const embedLogo = async (pdf: PDFDocument, logoUrl: string) => {
+  try {
+    const absoluteUrl = logoUrl.startsWith('http') ? logoUrl : new URL(logoUrl, window.location.origin).href;
+    const response = await fetch(absoluteUrl);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || '';
+    
+    if (contentType.includes('png')) {
+      return await pdf.embedPng(arrayBuffer);
+    } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+      return await pdf.embedJpg(arrayBuffer);
+    }
+  } catch (e) {
+    console.warn('Failed to embed logo:', e);
+  }
+  return null;
+};
+
 // helper: fetch with a short timeout
 const fetchWithTimeout = (url: string, timeout = 3000): Promise<Response> => {
   return new Promise((resolve, reject) => {
@@ -185,7 +278,11 @@ const fetchR2AsArrayBuffer = async (url: string): Promise<ArrayBuffer | null> =>
 
 export const generateMergedPDF = async (
   items: MergeItem[],
-  typeLabel: 'Question' | 'Mark Scheme'
+  typeLabel: 'Question' | 'Mark Scheme',
+  options?: {
+    title?: string;
+    subtitle?: string;
+  }
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
   
@@ -385,6 +482,13 @@ export const generateMergedPDF = async (
   }
 
   console.log(`[PDF Merge] Final PDF has ${mergedPdf.getPageCount()} pages`);
+
+  // Add footers (fonts already embedded earlier)
+  await addHeadersAndFooters(mergedPdf, boldFont, regularFont, {
+    title: options?.title || `${typeLabel} Papers`,
+    subtitle: options?.subtitle || ''
+  });
+
   const pdfBytes = await mergedPdf.save();
   return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
 };

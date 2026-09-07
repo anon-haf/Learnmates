@@ -140,7 +140,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         type: type === 'questions' ? q.questionContentType : q.markSchemeType
       }));
 
-      const mergedBlob = await generateMergedPDF(items, type === 'questions' ? 'Question' : 'Mark Scheme');
+      const mergedBlob = await generateMergedPDF(items, type === 'questions' ? 'Question' : 'Mark Scheme', {
+        title: `${quiz.title} - ${type === 'questions' ? 'Questions' : 'Mark Schemes'}`,
+        subtitle: `Learnmates Topical Practice`
+      });
       
       // Remove loading notification
       document.body.removeChild(loadingNotification);

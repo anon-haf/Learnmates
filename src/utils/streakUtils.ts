@@ -35,6 +35,27 @@ export const getStreakData = async (): Promise<StreakData> => {
   };
 };
 
+const awardStreakXP = async (streak: number) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    await fetch('/api/xp/heartbeat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        action: 'streak_visit',
+        streak
+      })
+    });
+  } catch (error) {
+    console.error('Failed to award streak XP:', error);
+  }
+};
+
 export const updateStreak = async (): Promise<StreakData> => {
   await supabase.rpc('add_user_visit');
   return getStreakData();
@@ -67,6 +88,7 @@ export const getLast30DaysFromStreak = (streak: StreakData): DayData[] => {
  */
 export const updateStreakAndDays = async (): Promise<{ streak: StreakData; days: DayData[] }> => {
   const streak = await updateStreak();
+  await awardStreakXP(streak.currentStreak);
   const days = getLast30DaysFromStreak(streak);
   return { streak, days };
 };

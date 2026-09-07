@@ -1068,6 +1068,28 @@ export const mergeTopicalPDFs = async (
 // Top-level "download" action
 // ---------------------------------------------------------------------------
 
+const awardTopicalPaperGenerationXP = async (levelBoardSubject: { level: string; board: string; subject: string }) => {
+  try {
+    const { supabase } = await import('../lib/supabaseClient');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    await fetch('/api/xp/heartbeat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        action: 'topical_paper_generation',
+        subject: levelBoardSubject.subject
+      })
+    });
+  } catch (error) {
+    console.error('Failed to award topical paper generation XP:', error);
+  }
+};
+
 export const downloadMergedTopicalPDFs = async (
   type: ExportType,
   questions: Question[],
@@ -1117,6 +1139,9 @@ export const downloadMergedTopicalPDFs = async (
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(downloadUrl);
+
+    // Award XP for topical paper generation
+    await awardTopicalPaperGenerationXP(levelBoardSubject);
 
     callbacks.onDone?.();
   } catch (error) {

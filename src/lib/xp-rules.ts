@@ -15,8 +15,9 @@ export const XP_RULES = {
   },
   question_view: {
     amountPerView: 5,
+    mcqAnswerAmount: 5,
     dailyCap: 100,
-    minViewDuration: 45, // seconds
+    minViewDuration: 15, // seconds
     requireSawQuestion: true,
     requireSawMS: true
   },
@@ -27,6 +28,15 @@ export const XP_RULES = {
   paper_download: {
     amount: 30,
     dailyCap: 60
+  },
+  topical_paper_generation: {
+    amount: 15,
+    dailyCap: 30, // max 2 per day per subject (15 * 2 = 30)
+    maxPerSubjectPerDay: 2
+  },
+  streak_visit: {
+    baseAmount: 10, // streak * 10
+    dailyCap: 100
   }
 };
 
