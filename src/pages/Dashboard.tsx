@@ -324,7 +324,7 @@ const Dashboard: React.FC = () => {
                                   fullWidth
                                   className="py-4 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700 rounded-none transition-colors duration-200"
                                 >
-                                  <Link to={paths.pastpapers}>Pastpapers</Link>
+                                  <Link to={paths.pastpapers}>Past Papers</Link>
                                 </Button>
                               </>
                             )}
