@@ -367,27 +367,28 @@ const PastpapersPage: React.FC = () => {
                             onClick={() => navigateToPaper(paper)}
                             className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all cursor-pointer text-left"
                           >
-                            <div className="flex items-center justify-between gap-3 mb-3">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                            <div className="flex items-center justify-between gap-2.5 min-w-0">
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
                                   <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{paper.displayName.replace('Paper ', '').replace(' Variant ', ' V')}</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0 whitespace-nowrap">
+                                  {paper.displayName.replace('Paper ', '').replace(' Variant ', ' V')}
+                                </span>
                               </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                {paper.entries.some(e => e.isMCQ) && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
-                                    MCQ
-                                  </span>
-                                )}
+
+                              <div className="flex items-center gap-1.5 min-w-0 justify-end">
                                 {hasMultipleUnits && (
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getUnitBadgeColor(paper.unit)}`}>
+                                  <span
+                                    title={paper.unit}
+                                    className={`inline-block truncate min-w-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${getUnitBadgeColor(paper.unit)}`}
+                                  >
                                     {paper.unit}
                                   </span>
                                 )}
-                                <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1 shrink-0 whitespace-nowrap">
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>

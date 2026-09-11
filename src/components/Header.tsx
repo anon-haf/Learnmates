@@ -46,7 +46,7 @@ const Header: React.FC = () => {
     { name: 'Dashboard', href: '/dashboard', authOnly: true },
     { name: 'Curriculum', href: '/curriculum' },
     { name: 'Past Papers', href: '/pastpapers' },
-    { name: 'Topicals generator', href: '/topicals' },
+    { name: 'Topicals', href: '/topicals' },
     { name: 'Contribute', href: '/contribute' },
     { name: 'Donate', href: '/donate' },
     { name: 'About', href: '/about' },
