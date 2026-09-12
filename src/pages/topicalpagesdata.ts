@@ -2260,7 +2260,7 @@ export const topicalConfigs: SubjectConfig[] = [
     "level": "a-level",
     "units": [
       {
-        "unit": "Further Pure Mathematics 1",
+        "unit": "Further Pure 1",
         "topics": [
           {
             "topic": "1 Polynomial Roots",
@@ -2318,7 +2318,7 @@ export const topicalConfigs: SubjectConfig[] = [
         ]
       },
       {
-        "unit": "Further Pure Mathematics 2",
+        "unit": "Further Pure 2",
         "topics": [
           {
             "topic": "1 Hyperbolic Functions",
