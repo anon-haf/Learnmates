@@ -2560,6 +2560,167 @@ export const topicalConfigs: SubjectConfig[] = [
         ]
       }
     ]
+  },
+  {
+    "subject": "Computer Science",
+    "board": "cambridge",
+    "level": "a-level",
+    "units": [
+      {
+        "unit": "AS",
+        "topics": [
+          {
+            "topic": "1 Information representation",
+            "subtopics": [
+              { "subtopic": "1.1 Data Representation", "search": "1.1 Data Representation" },
+              { "subtopic": "1.2 Multimedia - Graphics, Sound", "search": "1.2 Multimedia - Graphics, Sound" },
+              { "subtopic": "1.3 Compression", "search": "1.3 Compression" }
+            ]
+          },
+          {
+            "topic": "2 Communication",
+            "subtopics": [
+              { "subtopic": "2.1 Networks including the internet", "search": "2.1 Networks including the internet" }
+            ]
+          },
+          {
+            "topic": "3 Hardware",
+            "subtopics": [
+              { "subtopic": "3.1 Computers and their components", "search": "3.1 Computers and their components" },
+              { "subtopic": "3.2 Logic Gates and Logic Circuits", "search": "3.2 Logic Gates and Logic Circuits" }
+            ]
+          },
+          {
+            "topic": "4 Processor Fundamentals",
+            "subtopics": [
+              { "subtopic": "4.1 Central Processing Unit (CPU) Architecture", "search": "4.1 Central Processing Unit (CPU) Architecture" },
+              { "subtopic": "4.2 Assembly Language", "search": "4.2 Assembly Language" },
+              { "subtopic": "4.3 Bit manipulation", "search": "4.3 Bit manipulation" }
+            ]
+          },
+          {
+            "topic": "5 System Software",
+            "subtopics": [
+              { "subtopic": "5.1 Operating Systems", "search": "5.1 Operating Systems" },
+              { "subtopic": "5.2 Language Translators", "search": "5.2 Language Translators" }
+            ]
+          },
+          {
+            "topic": "6 Security, privacy and data integrity",
+            "subtopics": [
+              { "subtopic": "6.1 Data Security", "search": "6.1 Data Security" },
+              { "subtopic": "6.2 Data Integrity", "search": "6.2 Data Integrity" }
+            ]
+          },
+          {
+            "topic": "7 Ethics and Ownership",
+            "subtopics": [
+              { "subtopic": "7.1 Ethics and Ownership", "search": "7.1 Ethics and Ownership" }
+            ]
+          },
+          {
+            "topic": "8 Databases",
+            "subtopics": [
+              { "subtopic": "8.1 Database Concepts", "search": "8.1 Database Concepts" },
+              { "subtopic": "8.2 Database Management Systems (DBMS)", "search": "8.2 Database Management Systems (DBMS)" },
+              { "subtopic": "8.3 Data Definition Language (DDL) and Data Manipulation Language (DML)", "search": "8.3 Data Definition Language (DDL) and Data Manipulation Language (DML)" }
+            ]
+          },
+          {
+            "topic": "9 Algorithm Design and Problem-solving",
+            "subtopics": [
+              { "subtopic": "9.1 Computational Thinking Skills", "search": "9.1 Computational Thinking Skills" },
+              { "subtopic": "9.2 Algorithms", "search": "9.2 Algorithms" }
+            ]
+          },
+          {
+            "topic": "10 Data Types and Structures",
+            "subtopics": [
+              { "subtopic": "10.1 Data Types and Records", "search": "10.1 Data Types and Records" },
+              { "subtopic": "10.2 Arrays", "search": "10.2 Arrays" },
+              { "subtopic": "10.3 Files", "search": "10.3 Files" },
+              { "subtopic": "10.4 Introduction to Abstract Data Types (ADT)", "search": "10.4 Introduction to Abstract Data Types (ADT)" }
+            ]
+          },
+          {
+            "topic": "11 Programming",
+            "subtopics": [
+              { "subtopic": "11.1 Programming Basics", "search": "11.1 Programming Basics" },
+              { "subtopic": "11.2 Constructs", "search": "11.2 Constructs" },
+              { "subtopic": "11.3 Structured Programming", "search": "11.3 Structured Programming" }
+            ]
+          },
+          {
+            "topic": "12 Software Development",
+            "subtopics": [
+              { "subtopic": "12.1 Program Development Life cycle", "search": "12.1 Program Development Life cycle" },
+              { "subtopic": "12.2 Program Design", "search": "12.2 Program Design" },
+              { "subtopic": "12.3 Program Testing and Maintenance", "search": "12.3 Program Testing and Maintenance" }
+            ]
+          }
+        ]
+      },
+      {
+        "unit": "A2",
+        "topics": [
+          {
+            "topic": "13 Data Representation",
+            "subtopics": [
+              { "subtopic": "13.1 User-defined data types", "search": "13.1 User-defined data types" },
+              { "subtopic": "13.2 File organisation and access", "search": "13.2 File organisation and access" },
+              { "subtopic": "13.3 Floating-point numbers, representation and manipulation", "search": "13.3 Floating-point numbers, representation and manipulation" }
+            ]
+          },
+          {
+            "topic": "14 Communication and internet technologies",
+            "subtopics": [
+              { "subtopic": "14.1 Protocols", "search": "14.1 Protocols" },
+              { "subtopic": "14.2 Circuit switching, packet switching", "search": "14.2 Circuit switching, packet switching" }
+            ]
+          },
+          {
+            "topic": "15 Hardware and Virtual Machines",
+            "subtopics": [
+              { "subtopic": "15.1 Processors, Parallel Processing and Virtual Machines", "search": "15.1 Processors, Parallel Processing and Virtual Machines" },
+              { "subtopic": "15.2 Boolean Algebra and Logic Circuits", "search": "15.2 Boolean Algebra and Logic Circuits" }
+            ]
+          },
+          {
+            "topic": "16 System Software",
+            "subtopics": [
+              { "subtopic": "16.1 Purposes of an Operating System (OS)", "search": "16.1 Purposes of an Operating System (OS)" },
+              { "subtopic": "16.2 Translation Software", "search": "16.2 Translation Software" }
+            ]
+          },
+          {
+            "topic": "17 Security",
+            "subtopics": [
+              { "subtopic": "17.1 Encryption, Encryption Protocols and Digital certificates", "search": "17.1 Encryption, Encryption Protocols and Digital certificates" }
+            ]
+          },
+          {
+            "topic": "18 Artificial Intelligence (AI)",
+            "subtopics": [
+              { "subtopic": "18.1 Artificial Intelligence", "search": "18.1 Artificial Intelligence" }
+            ]
+          },
+          {
+            "topic": "19 Computational thinking and Problem-solving",
+            "subtopics": [
+              { "subtopic": "19.1 Algorithms", "search": "19.1 Algorithms" },
+              { "subtopic": "19.2 Recursion", "search": "19.2 Recursion" }
+            ]
+          },
+          {
+            "topic": "20 Further Programming",
+            "subtopics": [
+              { "subtopic": "20.1 Programming Paradigms", "search": "20.1 Programming Paradigms" },
+              { "subtopic": "20.2 File Processing and Exception Handling", "search": "20.2 File Processing and Exception Handling" }
+            ]
+          }
+        ]
+      }
+    ]
   }
 
   // additional config objects can be added here
