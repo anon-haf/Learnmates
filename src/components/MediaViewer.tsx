@@ -2041,17 +2041,18 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     <div className="flex items-stretch gap-4 w-full max-w-md mx-auto">
                       {['A', 'B', 'C', 'D'].map(option => {
                         const isSelected = mcqSelection === option;
-                        const isCorrect = mcqLiveCheck && isSelected && currentMcqAnswer === option;
-                        const isWrong = mcqLiveCheck && isSelected && currentMcqAnswer !== option;
+                        const showAnswers = mcqLiveCheck && mcqSelection !== null;
+                        const isCorrectOption = showAnswers && currentMcqAnswer === option;
+                        const isSelectedWrong = showAnswers && isSelected && currentMcqAnswer !== option;
                         return (
                           <button
                             key={option}
                             type="button"
                             onClick={() => { if (onMcqSelect) onMcqSelect(option); }}
                             className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${
-                              isCorrect
+                              isCorrectOption
                                 ? 'border-green-600 bg-green-600 text-white'
-                                : isWrong
+                                : isSelectedWrong
                                   ? 'border-red-600 bg-red-600 text-white'
                                   : isSelected
                                     ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
@@ -2065,18 +2066,12 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between h-5">
                     {mcqSelection ? (
-                      mcqLiveCheck ? (
-                        <p className={`text-xs sm:text-sm font-semibold ${mcqSelection === currentMcqAnswer ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-400'}`}>
-                          {mcqSelection === currentMcqAnswer ? 'Correct!' : `Correct answer: ${currentMcqAnswer}`}
-                        </p>
-                      ) : (
-                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Live check is off. Toggle it on to reveal the answer.</p>
+                      !mcqLiveCheck && (
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Answer recorded.</p>
                       )
-                    ) : (
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Tap an option to check your answer.</p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>

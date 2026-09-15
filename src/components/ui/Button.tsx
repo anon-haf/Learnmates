@@ -35,13 +35,13 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variantStyles = {
       primary:
-        'bg-primary-600 text-white shadow-sm hover:bg-primary-700 active:bg-primary-800 dark:bg-primary-600 dark:hover:bg-primary-500 dark:active:bg-primary-700 hover:shadow-md',
+        'bg-slate-100 text-black dark:text-white shadow-sm hover:bg-primary-400 active:bg-primary-800 dark:bg-slate-600 dark:hover:bg-primary-500 dark:active:bg-primary-400 hover:shadow-md',
       secondary:
         'bg-white text-slate-800 border border-slate-300 shadow-sm hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 dark:active:bg-slate-600 hover:shadow-sm',
       outline:
         'border-2 border-primary-600 text-primary-600 hover:bg-primary-50 active:bg-primary-100 dark:border-primary-500 dark:text-primary-400 dark:hover:bg-primary-900/30 dark:active:bg-primary-900/50 hover:shadow-sm',
       ghost:
-        'text-slate-700 hover:bg-slate-100 active:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800 dark:active:bg-slate-700 hover:shadow-sm',
+        'text-slate-700 hover:bg-slate-100 active:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-600 dark:active:bg-slate-700 hover:shadow-sm',
       danger:
         'bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-800 dark:bg-red-500 dark:hover:bg-red-600 dark:active:bg-red-700 hover:shadow-md',
     };

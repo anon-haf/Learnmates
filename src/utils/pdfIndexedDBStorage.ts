@@ -43,7 +43,13 @@ function hashPdfUrl(url: string): string {
   return Math.abs(hash).toString(36);
 }
 
-export async function loadAnnotations(pdfUrl: string): Promise<StoredVectorAnnotations | null> {
+
+const temporaryStorage = new Map<string, StoredVectorAnnotations>();
+
+export async function loadAnnotations(pdfUrl: string, storageMode: 'permanent' | 'temporary' = 'permanent'): Promise<StoredVectorAnnotations | null> {
+  if (storageMode === 'temporary') {
+    return temporaryStorage.get(pdfUrl) || null;
+  }
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -66,21 +72,20 @@ export async function loadAnnotations(pdfUrl: string): Promise<StoredVectorAnnot
   }
 }
 
+
 export async function saveAnnotations(
   pdfUrl: string,
-  pages: Record<number, StoredVectorPage>
+  pages: Record<number, StoredVectorPage>,
+  storageMode: 'permanent' | 'temporary' = 'permanent'
 ): Promise<void> {
   try {
     const pageEntries = Object.entries(pages);
 
     if (pageEntries.length === 0) {
-      await clearStoredAnnotations(pdfUrl);
+      await clearStoredAnnotations(pdfUrl, storageMode);
       return;
     }
 
-    const db = await getDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
 
     const payload: StoredVectorAnnotations = {
       version: 2,
@@ -88,6 +93,16 @@ export async function saveAnnotations(
       savedAt: Date.now(),
       pages: Object.fromEntries(pageEntries.map(([page, data]) => [String(page), data])),
     };
+
+    if (storageMode === 'temporary') {
+      temporaryStorage.set(pdfUrl, payload);
+      return;
+    }
+
+
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
 
     return new Promise((resolve, reject) => {
       const request = store.put(payload);
@@ -99,7 +114,12 @@ export async function saveAnnotations(
   }
 }
 
-export async function clearStoredAnnotations(pdfUrl: string): Promise<void> {
+
+export async function clearStoredAnnotations(pdfUrl: string, storageMode: 'permanent' | 'temporary' = 'permanent'): Promise<void> {
+  if (storageMode === 'temporary') {
+    temporaryStorage.delete(pdfUrl);
+    return;
+  }
   try {
     const db = await getDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');

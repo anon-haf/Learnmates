@@ -27,6 +27,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import LockIn from './pages/LockIn';
+import Leaderboard from './pages/Leaderboard';
 import { DashboardShell } from './layouts/DashboardShell';
 import { useXP } from './hooks/useXP';
 import { LockInProvider } from './components/lock-in/LockInContext';
@@ -56,6 +57,9 @@ function AppContent() {
           <Route path="/dashboard/profile" element={<ProfilePage />} />
           <Route path="/lock_in" element={<LockIn />} />
         </Route>
+
+        {/* Public routes using DashboardShell */}
+        <Route path="/leaderboard" element={<Leaderboard />} />
 
         {/* Conditional layout routes - DashboardShell if logged in, PublicLayout if not */}
         <Route element={<ConditionalLayout />}>

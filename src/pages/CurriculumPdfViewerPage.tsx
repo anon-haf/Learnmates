@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft } from 'lucide-react';
-import PDFViewerModal from '../components/PDFViewerModal';
+import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { resolvePdfResource, resolveTopicKeyFromParams } from '../utils/curriculumTopicResolver';
 import { buildTopicPath } from '../utils/pdfViewerPaths';
 import { topicData } from '../data/topicData';
@@ -89,7 +89,7 @@ const CurriculumPdfViewerPage: React.FC = () => {
         <meta name="twitter:description" content={pageDescription} />
         {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
       </Helmet>
-      <PDFViewerModal
+      <UniversalDocumentViewer
         pdfUrl={resource.url}
         fileName={resource.title}
         onClose={() => navigate(topicPath)}

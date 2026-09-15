@@ -31,13 +31,13 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
+const navItems: { name: string; href: string; icon: typeof Trophy; disabled?: boolean; beta?: boolean }[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Curriculum', href: '/curriculum', icon: LibraryBig },
   { name: 'Past Papers', href: '/pastpapers', icon: FileText },
   { name: 'Topicals', href: '/topicals', icon: Layers },
   { name: 'Lock in', href: '/lock_in', icon: Lock },
-  { name: 'Leaderboard', href: '#', icon: Trophy, disabled: true }
+  { name: 'Leaderboard', href: '/leaderboard', icon: Trophy }
   ,
 ];
 
