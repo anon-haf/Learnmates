@@ -10,6 +10,7 @@ import React, {
 import { Document } from 'react-pdf';
 import { pdfDocumentOptions } from '../utils/pdfjsConfig';
 import { supabase } from '../lib/supabaseClient';
+import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { Link } from 'react-router-dom';
@@ -254,13 +255,22 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
       setCurrentPage(1);
 
       try {
-        const absoluteUrl = pdfUrl.startsWith('http') || pdfUrl.startsWith('blob:')
-          ? pdfUrl
-          : new URL(pdfUrl, window.location.origin).href;
+        const resolvedUrl = (await resolveFromR2(pdfUrl)) || pdfUrl;
+        const absoluteUrl = resolvedUrl.startsWith('http') || resolvedUrl.startsWith('blob:')
+          ? resolvedUrl
+          : new URL(resolvedUrl, window.location.origin).href;
 
-        const response = await fetch(absoluteUrl);
+        const response = await fetch(absoluteUrl, {
+          headers: getAssetAuthHeaders(),
+        });
+
         if (!response.ok) {
           throw new Error(`Failed to fetch PDF (${response.status})`);
+        }
+
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('text/html') || contentType.includes('application/json')) {
+          throw new Error('Received HTML/JSON instead of PDF document');
         }
 
         const data = new Uint8Array(await response.arrayBuffer());
@@ -272,7 +282,8 @@ const PDFViewerModal: React.FC<PDFViewerModalProps> = ({
         console.warn('PDF arraybuffer fetch failed, falling back to URL:', err);
         if (!cancelled) {
           pdfBytesForThumbnailsRef.current = null;
-          setPdfFile(pdfUrl);
+          const resolvedUrl = (await resolveFromR2(pdfUrl)) || pdfUrl;
+          setPdfFile(resolvedUrl);
           setFetchError('Loaded via URL fallback — some images may not render.');
         }
       }
