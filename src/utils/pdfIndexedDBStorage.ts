@@ -191,7 +191,7 @@ export function exportCanvasAnnotation(
 ): StoredVectorPage | null {
   if (!options?.skipContentCheck && !canvasHasContent(canvas)) return null;
 
-  const rasterFallback = canvas.toDataURL('image/webp', 0.75);
+  const rasterFallback = canvas.toDataURL('image/png');
 
   return {
     width: canvas.width,
@@ -224,14 +224,25 @@ export function applyStoredAnnotation(
     // Apply raster fallback if present (stores canvas drawing as image)
     if (stored.rasterFallback) {
       const img = new Image();
+      let hasResolved = false;
+      const done = () => {
+        if (!hasResolved) {
+          hasResolved = true;
+          resolve();
+        }
+      };
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve();
+        done();
       };
       img.onerror = () => {
-        resolve(); // Resolve even if image fails to load
+        done(); // Resolve even if image fails to load
       };
       img.src = stored.rasterFallback;
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        done();
+      }
     } else {
       resolve();
     }

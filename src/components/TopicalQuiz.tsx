@@ -853,7 +853,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
           <div className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
             {currentQ.questionContent ? (
               <QuestionViewTracker questionId={currentQ.id}>
-                <div className="w-full max-h-[70vh] overflow-y-auto overflow-x-hidden relative">
+                <div className="w-full h-[70vh] overflow-hidden relative">
                   {!showLargeView && <UniversalDocumentViewer
                     key={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || 'empty')}
                     mode="inline"

@@ -146,7 +146,7 @@ export async function renderPdfPageThumbnail(
       }).promise;
     }
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.45);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     thumbnailCache.set(storageKey, dataUrl);
     pendingRenders.delete(storageKey);
     return dataUrl;

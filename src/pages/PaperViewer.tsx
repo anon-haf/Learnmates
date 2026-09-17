@@ -437,7 +437,7 @@ const PaperViewerPage: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-col gap-4 w-full">
-              <div className="w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 max-h-[85vh]">
+              <div className="w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 h-[85vh]">
                 <UniversalDocumentViewer
                   key={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
                   mode="inline"

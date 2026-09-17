@@ -2,7 +2,6 @@ import React, {
   useState,
   useRef,
   useEffect,
-  useLayoutEffect,
   useCallback,
   useMemo,
   useTransition,
@@ -94,6 +93,7 @@ const MemoizedPdfDrawablePage = React.memo(
   PdfDrawablePage,
   (prevProps, nextProps) => {
     return (
+      prevProps.mode === nextProps.mode &&
       prevProps.pageNumber === nextProps.pageNumber &&
       prevProps.pageWidth === nextProps.pageWidth &&
       prevProps.drawingEnabled === nextProps.drawingEnabled &&
@@ -102,14 +102,14 @@ const MemoizedPdfDrawablePage = React.memo(
       prevProps.penSize === nextProps.penSize &&
       prevProps.eraserSize === nextProps.eraserSize &&
       prevProps.allowTouchNavigation === nextProps.allowTouchNavigation &&
-      prevProps.renderScale === nextProps.renderScale
+      prevProps.renderScale === nextProps.renderScale &&
+      prevProps.restoredAnnotation === nextProps.restoredAnnotation
     );
   }
 );
 
 const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   mode = 'modal',
-  type = 'pdf',
   savedAnnotation,
   onSaveAnnotation,
   hideToolbar = false,
@@ -178,6 +178,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const pdfBytesForThumbnailsRef = useRef<Uint8Array | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isProgrammaticScroll = useRef(false);
+  const isZoomingRef = useRef(false);
+  const zoomEndTimeoutRef = useRef<number | null>(null);
   const engagementRecordedRef = useRef({ opened: false, read: false, downloaded: false });
   const alivePagesRef = useRef<Set<number>>(new Set());
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
@@ -185,11 +187,16 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [sidebarEl, setSidebarEl] = useState<HTMLDivElement | null>(null);
   const lastPointerInContainerRef = useRef<{ x: number; y: number } | null>(null);
   const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+  // Note: we do NOT sync zoomRef.current = zoom here because the zoom state
+  // is only updated at end-of-gesture and we don't want re-renders to overwrite
+  // the ref that applyZoomAtPoint reads imperatively during active zooming.
+  const pageWidthRef = useRef(pageWidth);
+  pageWidthRef.current = pageWidth;
   const storedPagesRef = useRef(storedPages);
   const pageRestoreGettersRef = useRef<Map<number, () => StoredAnnotationPage | null>>(
     new Map()
   );
+  const pageAspectRatiosRef = useRef<Record<number, number>>({});
   storedPagesRef.current = storedPages;
 
   useEffect(() => {
@@ -266,6 +273,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     },
     [setPageDrawingActive]
   );
+
+  const handlePageAspectMeasured = useCallback((pageNum: number, aspect: number) => {
+    pageAspectRatiosRef.current[pageNum] = aspect;
+  }, []);
 
   // Load the full PDF into memory so embedded images decode reliably
   useEffect(() => {
@@ -377,12 +388,21 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       const stored = await loadAnnotations(pdfUrl, storageMode);
       if (cancelled) return;
 
-      if (stored) {
+      if (stored && Object.keys(stored.pages).length > 0) {
         const pages: Record<number, StoredAnnotationPage> = {};
         Object.entries(stored.pages).forEach(([page, data]) => {
           pages[Number(page)] = data;
         });
         setStoredPages(pages);
+      } else if (savedAnnotation) {
+        setStoredPages({
+          1: {
+            width: pageWidth,
+            height: pageWidth * A4_ASPECT,
+            actions: [],
+            rasterFallback: savedAnnotation,
+          },
+        });
       } else {
         setStoredPages({});
       }
@@ -396,7 +416,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfUrl, resetAnnotationHistory, resetCache, markSaved]);
+  }, [pdfUrl, mode, savedAnnotation, pageWidth, resetAnnotationHistory, resetCache, markSaved]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -462,7 +482,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (isProgrammaticScroll.current) return;
+        if (isProgrammaticScroll.current || isZoomingRef.current) return;
 
         const visible = entries
           .filter((entry) => entry.isIntersecting)
@@ -498,11 +518,18 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
+    // Initialize the CSS variable imperatively since we no longer set it via React style prop.
+    // This prevents a flash of unscaled content on first render.
+    container.style.setProperty('--pdf-zoom', String(zoomRef.current / 100));
 
     const updatePageWidth = () => {
       const padding = 32;
       const available = container.clientWidth - padding;
-      setPageWidth(Math.max(280, available));
+      setPageWidth(prev => {
+        // Ignore small changes (< 24px) to prevent infinite loop from scrollbar flickering
+        if (Math.abs(prev - available) < 24) return prev;
+        return Math.max(280, available);
+      });
     };
 
     updatePageWidth();
@@ -511,20 +538,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     return () => observer.disconnect();
   }, [sidebarOpen]);
 
-  const findPageUnderPoint = useCallback((clientX: number, clientY: number) => {
-    for (const [page, el] of pageRefs.current) {
-      const rect = el.getBoundingClientRect();
-      if (
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom
-      ) {
-        return page;
-      }
-    }
-    return null;
-  }, []);
+
 
   const applyZoomAtPoint = useCallback(
     (newZoom: number, clientX: number, clientY: number) => {
@@ -532,42 +546,61 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       const oldZoom = zoomRef.current;
       if (clamped === oldZoom) return;
 
-      const pageNumber = findPageUnderPoint(clientX, clientY) ?? currentPage;
-      const pageEl = pageRefs.current.get(pageNumber);
       const container = scrollContainerRef.current;
-
-      if (pageEl && container) {
-        const containerRect = container.getBoundingClientRect();
-        const pageRect = pageEl.getBoundingClientRect();
-
-        const localX = clientX - pageRect.left;
-        const localY = clientY - pageRect.top;
-        const ratio = clamped / oldZoom;
-
-        container.style.setProperty('--pdf-zoom', String(clamped / 100));
-
-        // Force synchronous layout to get the newly scaled rect
-        const newPageRect = pageEl.getBoundingClientRect();
-
-        const pointerX = clientX - containerRect.left;
-        const pointerY = clientY - containerRect.top;
-
-        const pageLeftInScroll = newPageRect.left - containerRect.left + container.scrollLeft;
-        const pageTopInScroll = newPageRect.top - containerRect.top + container.scrollTop;
-
-        const pointX = pageLeftInScroll + localX * ratio;
-        const pointY = pageTopInScroll + localY * ratio;
-
-        container.scrollLeft = Math.max(0, pointX - pointerX);
-        container.scrollTop = Math.max(0, pointY - pointerY);
-      } else if (container) {
-        container.style.setProperty('--pdf-zoom', String(clamped / 100));
+      if (!container) {
+        zoomRef.current = clamped;
+        setZoom(clamped);
+        return;
       }
 
-      setZoom(clamped);
+      isZoomingRef.current = true;
+      if (zoomEndTimeoutRef.current !== null) {
+        clearTimeout(zoomEndTimeoutRef.current);
+      }
+      zoomEndTimeoutRef.current = window.setTimeout(() => {
+        isZoomingRef.current = false;
+        zoomEndTimeoutRef.current = null;
+      }, 200);
+
+      const ratio = clamped / oldZoom;
+      const containerRect = container.getBoundingClientRect();
+
+      const pointerX = clientX - containerRect.left;
+      const pointerY = clientY - containerRect.top;
+
+      const containerWidth = container.clientWidth;
+      const baseWidth = pageWidthRef.current;
+      const oldDocWidth = baseWidth * (oldZoom / 100);
+      const newDocWidth = baseWidth * (clamped / 100);
+
+      // Account for flexbox centering offset (items-center / mx-auto)
+      const oldOffset = oldDocWidth < containerWidth - 32 ? (containerWidth - oldDocWidth) / 2 : 16;
+      const newOffset = newDocWidth < containerWidth - 32 ? (containerWidth - newDocWidth) / 2 : 16;
+
+      const topPadding = 16;
+      const contentPointX = container.scrollLeft + pointerX - oldOffset;
+      const contentPointY = container.scrollTop + pointerY - topPadding;
+
+      const targetScrollLeft = newOffset + contentPointX * ratio - pointerX;
+      const targetScrollTop = topPadding + contentPointY * ratio - pointerY;
+
+      container.style.setProperty('--pdf-zoom', String(clamped / 100));
+      container.scrollLeft = Math.max(0, targetScrollLeft);
+      container.scrollTop = Math.max(0, targetScrollTop);
+
+      // Only update React state (which causes a re-render) AFTER the user stops
+      // zooming. The CSS variable and zoomRef are updated imperatively above, so
+      // the visual output is always correct. The state update just syncs the
+      // toolbar percentage display and enables non-zoom features that depend on zoom.
       zoomRef.current = clamped;
+      if (zoomEndTimeoutRef.current !== null) clearTimeout(zoomEndTimeoutRef.current);
+      zoomEndTimeoutRef.current = window.setTimeout(() => {
+        zoomEndTimeoutRef.current = null;
+        isZoomingRef.current = false;
+        setZoom(zoomRef.current);
+      }, 200);
     },
-    [currentPage, findPageUnderPoint]
+    [] // no external deps — reads only refs
   );
 
   const applyZoomAtCursor = useCallback(
@@ -601,26 +634,47 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       };
     };
 
+    let zoomRafId: number | null = null;
+    let targetZoom = zoomRef.current;
+    let latestPointer = { x: 0, y: 0 };
+
     const handleWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
 
-      // Trackpads typically emit many small delta events, while mice emit larger discrete ones.
-      const isTrackpad = Math.abs(e.deltaY) < 50;
-      const multiplier = isTrackpad ? 0.75 : 0.1;
+      if (zoomRafId === null) {
+        // Sync targetZoom with latest actual zoom on gesture start
+        targetZoom = zoomRef.current;
+      }
 
-      // Scale delta by current zoom for consistent relative sensitivity at all zoom levels
-      // Trackpads often emit smaller deltas for zoom-out; boost slightly
-      const directionBoost = e.deltaY > 0 ? 1.3 : 1; // zoom out (positive deltaY) gets 30% boost
-      const zoomDelta = -e.deltaY * multiplier * (zoomRef.current / 100) * directionBoost;
-      applyZoomAtPoint(zoomRef.current + zoomDelta, e.clientX, e.clientY);
+      latestPointer = { x: e.clientX, y: e.clientY };
+
+      const isTrackpad = Math.abs(e.deltaY) < 50;
+      const multiplier = isTrackpad ? 2.0 : 0.08;
+      const zoomDelta = -e.deltaY * multiplier * (targetZoom / 100);
+
+      targetZoom = clampZoom(targetZoom + zoomDelta);
+
+      if (zoomRafId === null) {
+        zoomRafId = requestAnimationFrame(() => {
+          applyZoomAtPoint(targetZoom, latestPointer.x, latestPointer.y);
+          zoomRafId = null;
+        });
+      }
+    };
+
+    const handlePointerLeave = () => {
+      lastPointerInContainerRef.current = null;
     };
 
     container.addEventListener('pointermove', trackPointer);
+    container.addEventListener('pointerleave', handlePointerLeave);
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
       container.removeEventListener('pointermove', trackPointer);
+      container.removeEventListener('pointerleave', handlePointerLeave);
       container.removeEventListener('wheel', handleWheel);
+      if (zoomRafId !== null) cancelAnimationFrame(zoomRafId);
     };
   }, [applyZoomAtPoint]);
 
@@ -650,6 +704,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       pinchStateRef.zoom = zoomRef.current;
     };
 
+    let pinchRafId: number | null = null;
+    let targetPinchZoom = 100;
+    let targetMidpoint = { x: 0, y: 0 };
+
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length !== 2 || pinchStateRef.distance <= 0) return;
 
@@ -657,8 +715,15 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       const nextDistance = touchDistance(e.touches);
       const rawScale = nextDistance / pinchStateRef.distance;
       const scale = 1 + (rawScale - 1) * 1.5;
-      const midpoint = touchMidpoint(e.touches);
-      applyZoomAtPoint(pinchStateRef.zoom * scale, midpoint.x, midpoint.y);
+      targetMidpoint = touchMidpoint(e.touches);
+      targetPinchZoom = pinchStateRef.zoom * scale;
+
+      if (pinchRafId === null) {
+        pinchRafId = requestAnimationFrame(() => {
+          applyZoomAtPoint(targetPinchZoom, targetMidpoint.x, targetMidpoint.y);
+          pinchRafId = null;
+        });
+      }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -677,6 +742,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('touchcancel', handleTouchEnd);
+      if (pinchRafId !== null) cancelAnimationFrame(pinchRafId);
     };
   }, [applyZoomAtPoint, drawingEnabled, touchScrollInDrawMode]);
 
@@ -734,7 +800,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const storageMode = mode === 'inline' ? 'temporary' : 'permanent';
     await saveAnnotations(pdfUrl, pages, storageMode);
     markSaved();
-  }, [exportAll, markSaved, pdfUrl, mode]);
+
+    if (onSaveAnnotation) {
+      const page1DataUrl = pages[1]?.rasterFallback || '';
+      onSaveAnnotation(page1DataUrl);
+    }
+  }, [exportAll, markSaved, pdfUrl, mode, onSaveAnnotation]);
 
   // Auto-save only when idle — never during an active stroke (export blocks the main thread)
   useEffect(() => {
@@ -832,13 +903,18 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     [getCachedPage]
   );
 
-  const estimatedPageHeight = pageWidth * A4_ASPECT * (zoom / 100) + PAGE_GAP_PX;
+  // Intentionally NOT including zoom here — the buffer should be based on the
+  // unscaled page height so that zoom state changes don't trigger buffer
+  // recalculation which would mount/unmount pages and shift the document layout.
+  const estimatedPageHeight = pageWidth * A4_ASPECT + PAGE_GAP_PX;
 
   const dynamicBuffer = useMemo(() => {
     const container = scrollContainerRef.current;
     if (!container) return 2;
     const containerHeight = container.clientHeight;
-    return Math.ceil(containerHeight / estimatedPageHeight) + 1;
+    // Use current zoom from ref (not state) to avoid re-renders during zoom
+    const scaledHeight = estimatedPageHeight * (zoomRef.current / 100);
+    return Math.ceil(containerHeight / scaledHeight) + 1;
   }, [estimatedPageHeight]);
 
   // Ensure minimum ±2 buffer always kept loaded
@@ -1389,13 +1465,13 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         <div
           ref={scrollContainerRef}
           className="flex-1 bg-gray-950 overflow-y-auto overflow-x-auto p-4"
-          style={{ touchAction: 'pan-x pan-y pinch-zoom', '--pdf-zoom': zoom / 100 } as React.CSSProperties}
+          style={{ touchAction: 'pan-x pan-y pinch-zoom' } as React.CSSProperties}
           data-pdf-scroll-container="true"
         >
           {!pdfFile ? (
             <PdfDocumentSkeleton pageCount={2} />
           ) : (
-            <div className="flex flex-col items-center min-w-fit">
+            <div style={{ width: `max(100%, calc(${pageWidth}px * var(--pdf-zoom, 1)))` }} className="flex flex-col items-center">
               <Document
                 file={pdfFile}
                 options={documentOptions}
@@ -1403,7 +1479,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 loading={<PdfDocumentSkeleton pageCount={2} />}
                 error={<div className="text-red-400 p-8 text-center">Failed to load PDF</div>}
                 onLoadError={(error) => console.error('PDF Load Error:', error)}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-[calc(12px*var(--pdf-zoom,1))]"
               >
                 {numPages > 0 &&
                   Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => {
@@ -1422,10 +1498,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                         >
                           {shouldRenderPage ? (
                             <MemoizedPdfDrawablePage
+                              mode={mode}
                               pageNumber={pageNum}
                               pageWidth={pageWidth}
                               zoom={zoom}
-                              renderScale={Math.abs(pageNum - currentPage) <= 1 ? Math.min(2, Math.max(1, debouncedZoom / 100)) : 1}
+                              renderScale={1}
                               drawingEnabled={drawingEnabled}
                               drawTool={drawTool}
                               penColor={penColor}
@@ -1434,6 +1511,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               onCanvasMount={handleCanvasMount}
                               onActionComplete={handleActionComplete}
                               onDrawingActiveChange={handleDrawingActiveChange}
+                              onPageAspectMeasured={handlePageAspectMeasured}
                               allowTouchNavigation={touchScrollInDrawMode}
                               restoredAnnotation={storedPages[pageNum] ?? null}
                               getRestoredAnnotation={getPageRestoreGetter(pageNum)}
@@ -1443,7 +1521,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               className="mx-auto scroll-mt-4 rounded bg-gray-200/40 dark:bg-gray-800/40"
                               style={{
                                 width: `calc(${pageWidth}px * var(--pdf-zoom, 1))`,
-                                height: `calc(${pageWidth * A4_ASPECT}px * var(--pdf-zoom, 1))`,
+                                height: `calc(${pageWidth * (pageAspectRatiosRef.current[pageNum] || A4_ASPECT)}px * var(--pdf-zoom, 1))`,
                               }}
                               aria-hidden="true"
                             />
