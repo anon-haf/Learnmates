@@ -62,18 +62,21 @@ export function useXP() {
       const timeDiff = currentTime - lastScrollTimeRef.current;
       const distance = Math.abs(scrollTop - lastScrollPosRef.current);
       
-      if (timeDiff > 0 && distance > 0) {
-        const speed = (distance / timeDiff) * 1000; // pixels per second
-        
-        // If speed is within natural reading speed, accumulate scroll time
-        if (speed < XP_RULES.scrolling.maxScrollSpeed) {
-          scrollTimeRef.current += timeDiff;
-        }
-      }
-      
       // Check if reached near bottom (within 100px or 90% scrolled)
       if (scrollTop + clientHeight >= scrollHeight - 100 || (scrollHeight > 0 && (scrollTop + clientHeight) / scrollHeight >= 0.9)) {
         isReachedBottomRef.current = true;
+      }
+
+      if (timeDiff > 0 && distance > 0) {
+        const scrollSpeed = (distance / timeDiff) * 1000; // pixels per second
+        
+        // Require slower scroll speed (more natural reading) and bottom reached
+        const maxAllowedSpeed = XP_RULES.scrolling.maxScrollSpeed * 0.5;
+        const conditionsMet = scrollSpeed > 0 && scrollSpeed < maxAllowedSpeed && isReachedBottomRef.current;
+        
+        if (conditionsMet) {
+          scrollTimeRef.current += timeDiff;
+        }
       }
       
       lastScrollPosRef.current = scrollTop;
@@ -154,6 +157,7 @@ export function useXP() {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
+          const refId = window.location.pathname; // Use page path as reference ID for scrolling events
           const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
@@ -164,7 +168,8 @@ export function useXP() {
               action: 'scrolling',
               duration,
               scrollSpeed: 50,
-              reachedBottom: true
+              reachedBottom: true,
+              refId
             })
           });
 

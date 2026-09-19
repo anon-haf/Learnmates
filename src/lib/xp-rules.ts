@@ -30,8 +30,8 @@ export const XP_RULES = {
     dailyCap: 60
   },
   topical_paper_generation: {
-    amount: 15,
-    dailyCap: 30, // max 2 per day per subject (15 * 2 = 30)
+    amount: 10,
+    dailyCap: 30,
     maxPerSubjectPerDay: 2
   },
   streak_visit: {
