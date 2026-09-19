@@ -20,31 +20,31 @@ export function DownloadButton({ resourceId, resourceType, resourceName }: Downl
         return;
       }
 
-      const response = await fetch('/api/xp/download', {
+      // Fire XP request with keepalive BEFORE download — survives page navigation
+      fetch('/api/xp/download', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ resourceId })
+        keepalive: true,
+        body: JSON.stringify({ resourceId, resourceName, resourceType })
+      }).then(async (response) => {
+        if (response.ok) {
+          const data = await response.json();
+          if (data.xpAwarded > 0) {
+            triggerXPNotification(
+              data.xpAwarded, 
+              resourceType === 'paper' ? 'paper_download' : 'download'
+            );
+          }
+        }
+      }).catch((error) => {
+        console.error('Download XP error:', error);
       });
 
-      if (!response.ok) {
-        throw new Error('Download request failed');
-      }
-
-      const data = await response.json();
-      
-      // Show notification if XP was awarded
-      if (data.xpAwarded > 0) {
-        triggerXPNotification(
-          data.xpAwarded, 
-          resourceType === 'paper' ? 'paper_download' : 'download'
-        );
-      }
-
       // Proceed with the actual download
-      if (data.url) {
+      if (data?.url) {
         window.open(data.url, '_blank');
       }
     } catch (error) {

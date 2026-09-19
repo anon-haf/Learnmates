@@ -8,7 +8,7 @@ export const XP_RULES = {
   },
   scrolling: {
     amountPerMinute: 15,
-    dailyCap: 150,
+    dailyCap: 50,
     checkInterval: 60000, // 60 seconds
     maxScrollSpeed: 150, // pixels per second (slow/natural reading speed)
     requireReachedBottom: true

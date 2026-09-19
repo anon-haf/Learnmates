@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Flag, RotateCcw, Trophy, FileText, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import MediaViewer from './MediaViewer';
+import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, fetchR2AsBlobUrl, getAssetAuthHeaders } from '../utils/r2Utils';
 
@@ -1139,7 +1140,7 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
         {/* Question Content Display (with optional side-by-side mark scheme) */}
         <div className="mb-6 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
           {currentQ.questionContent ? (
-            <div>
+            <QuestionViewTracker questionId={currentQ.id || `quiz_${quizId || title}_${currentQuestion}`}>
               <MediaViewer
                 url={currentQ.questionContent}
                 type={(currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
@@ -1159,7 +1160,7 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
                 questionIndex={currentQuestion}
                 onChangeQuestion={(i) => setCurrentQuestion(i)}
               />
-            </div>
+            </QuestionViewTracker>
           ) : (
             <p className="text-gray-500 dark:text-gray-400">No question content provided</p>
           )}

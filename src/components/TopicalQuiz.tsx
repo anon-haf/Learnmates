@@ -634,7 +634,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">MCQ Cheaker</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">MCQ Checker</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">Choose A–D below.</p>
           </div>
           <button
@@ -682,9 +682,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between h-5">
           {selectedMcqOption ? (
-            !liveMcqCheckEnabled && (
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Answer recorded.</p>
-            )
+            !liveMcqCheckEnabled
           ) : null}
         </div>
       </div>
@@ -850,10 +848,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
           </div>
 
           {/* Question Content Display (wraps to content height) */}
-          <div className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+          <div className="@container w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
             {currentQ.questionContent ? (
               <QuestionViewTracker questionId={currentQ.id}>
-                <div className="w-full h-[70vh] overflow-hidden relative">
+                <div className="w-full overflow-hidden relative flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
                   {!showLargeView && <UniversalDocumentViewer
                     key={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || 'empty')}
                     mode="inline"
@@ -876,7 +874,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       </div>
 
       {/* Vertical sidebar for larger screens */}
-      <div className="hidden md:flex flex-col w-52 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 min-h-0 max-h-[70vh]">
+      <div className="hidden md:flex flex-col w-52 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
         <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-800">
           <h3 className="text-sm font-semibold tracking-wide text-gray-700 dark:text-gray-200 uppercase">
             Papers
@@ -975,30 +973,87 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden relative flex flex-col md:flex-row">
+          <div className="flex-1 overflow-hidden relative flex flex-col lg:flex-row">
             <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-start min-h-0">
               <UniversalDocumentViewer
-                key={currentQ.questionContent}
+                key={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || 'empty')}
                 mode="inline"
-                pdfUrl={currentQ.questionContent || ''}
-                type={(currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
+                pdfUrl={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || '')}
+                type={
+                  showMarkScheme && currentQ.markScheme
+                    ? ((currentQ.markSchemeType || currentQ.questionContentType || 'pdf') as 'pdf' | 'image')
+                    : ((currentQ.questionContentType || 'pdf') as 'pdf' | 'image')
+                }
               />
             </div>
 
-            {(mcqBlock || (showMarkScheme && currentQ.markScheme)) && (
-              <div className="w-full md:w-1/2 lg:w-[40%] flex flex-col bg-gray-800 border-t md:border-t-0 md:border-l border-gray-700 overflow-hidden max-h-[40vh] md:max-h-full">
-                {mcqBlock && (
-                  <div className="shrink-0 p-2 sm:p-4 border-b border-gray-700 overflow-y-auto max-h-[50%]">
-                    {mcqBlock}
+            {(currentQ.mcqAnswer || (showMarkScheme && currentQ.markScheme)) && (
+              <div className="w-full lg:w-80 flex flex-col bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 overflow-y-auto max-h-[50vh] lg:max-h-full shrink-0 p-4 gap-4">
+                {currentQ.mcqAnswer && (
+                  <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-3 sm:p-4 shrink-0">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-sm font-semibold text-gray-100">MCQ Checker</p>
+                          <p className="text-xs text-gray-400">Choose A–D below.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
+                          className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${liveMcqCheckEnabled
+                            ? 'bg-purple-500 text-gray-200 hover:bg-purple-300 dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600'
+                            : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
+                            }`}
+                        >
+                          {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-center py-2">
+                        <div className="flex flex-row lg:flex-col items-center justify-center gap-3 sm:gap-4 w-full max-w-md mx-auto lg:max-w-none">
+                          {['A', 'B', 'C', 'D'].map(option => {
+                            const isSelected = selectedMcqOption === option;
+                            const showAnswers = liveMcqCheckEnabled && selectedMcqOption !== null;
+                            const isCorrectOption = showAnswers && currentQ.mcqAnswer === option;
+                            const isSelectedWrong = showAnswers && isSelected && currentQ.mcqAnswer !== option;
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedMcqOption(option);
+                                  if (quizId) {
+                                    setMcqSelections(prev => ({ ...prev, [currentQuestion]: option }));
+                                  }
+                                }}
+                                className={`flex-1 aspect-square min-w-[52px] max-w-[100px] lg:max-w-[72px] lg:w-14 lg:h-14 shrink-0 rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
+                                  ? 'border-green-600 bg-green-600 text-white'
+                                  : isSelectedWrong
+                                    ? 'border-red-600 bg-red-600 text-white'
+                                    : isSelected
+                                      ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
+                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                  }`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {selectedMcqOption && !liveMcqCheckEnabled}
+                    </div>
                   </div>
                 )}
+
                 {showMarkScheme && currentQ.markScheme && (
-                  <div className="flex-1 relative overflow-hidden flex flex-col">
-                    <div className="p-2 border-b border-gray-700 bg-gray-900 flex justify-between items-center shrink-0">
-                      <h4 className="text-sm font-semibold text-gray-300">Mark Scheme</h4>
+                  <div className="flex-1 relative overflow-hidden flex flex-col min-h-[300px] rounded-lg border border-gray-700 bg-gray-900/60">
+                    <div className="p-2.5 border-b border-gray-700 bg-gray-900 flex justify-between items-center shrink-0">
+                      <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Mark Scheme</h4>
                       <button onClick={() => setShowMarkScheme(false)} className="text-xs text-gray-400 hover:text-white">Close</button>
                     </div>
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative min-h-0">
                       <UniversalDocumentViewer
                         key={currentQ.markScheme}
                         mode="inline"

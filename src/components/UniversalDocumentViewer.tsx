@@ -753,11 +753,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         setEngagementFlag(engagementContext.topicId, engagementContext.resourceId, pdfUrl, 'downloaded');
       }
 
-      // Award XP for downloading
+      // Award XP for downloading — fire BEFORE the download so it survives navigation
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          const response = await fetch('/api/xp/download', {
+          // Use keepalive so this survives if the user immediately leaves
+          fetch('/api/xp/download', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -769,16 +770,19 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
               resourceName: fileName,
               resourceType: 'file'
             })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.xpAwarded > 0) {
-              triggerXPNotification(data.xpAwarded, 'download');
+          }).then(async (response) => {
+            if (response.ok) {
+              const data = await response.json();
+              if (data.xpAwarded > 0) {
+                triggerXPNotification(data.xpAwarded, 'download');
+              }
             }
-          }
+          }).catch((err) => {
+            console.error('Failed to award download XP from viewer', err);
+          });
         }
       } catch (err) {
-        console.error('Failed to award download XP from viewer', err);
+        console.error('Failed to get session for download XP', err);
       }
     }
 
@@ -942,7 +946,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   }, [renderStart, renderEnd, currentPage, effectiveBuffer]);
 
   return (
-    <div className={`w-full flex flex-col bg-gray-900 text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full'}`}>
+    <div className={`w-full flex flex-col bg-gray-900 text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
       {showSaveDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div

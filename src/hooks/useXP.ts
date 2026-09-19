@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { XP_RULES } from '../lib/xp-rules';
+import { triggerXPNotification } from '../components/XPRewardNotification';
 
 export function useXP() {
   const activeTimeRef = useRef(0);
@@ -9,7 +10,7 @@ export function useXP() {
   const lastActivePingRef = useRef(Date.now());
   const lastScrollPingRef = useRef(Date.now());
   
-  const lastScrollPosRef = useRef(window.scrollY);
+  const lastScrollPosRef = useRef(0);
   const lastScrollTimeRef = useRef(Date.now());
   
   const isMouseMovingRef = useRef(false);
@@ -24,54 +25,63 @@ export function useXP() {
       clearTimeout(mouseTimeout);
       mouseTimeout = setTimeout(() => {
         isMouseMovingRef.current = false;
-      }, 2000); // Stop considering mouse moving after 2 seconds of inactivity
+      }, 3000); // Consider active for 3s after mouse movement
     };
     
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    window.addEventListener('keydown', handleMouseMove, { passive: true });
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('keydown', handleMouseMove);
       clearTimeout(mouseTimeout);
     };
   }, []);
 
   useEffect(() => {
-    // Scroll tracking
-    const handleScroll = () => {
-      // Only track scrolling on PDF viewer pages
-      if (!window.location.pathname.endsWith('.pdf')) {
-        return;
+    // Scroll tracking (uses capture true to catch scroll events on any container element)
+    const handleScroll = (event: Event) => {
+      const target = event.target as HTMLElement | Document;
+      let scrollTop = 0;
+      let scrollHeight = 0;
+      let clientHeight = 0;
+
+      if (target === document || target === document.documentElement || target === document.body) {
+        scrollTop = window.scrollY || document.documentElement.scrollTop;
+        scrollHeight = document.documentElement.scrollHeight;
+        clientHeight = window.innerHeight;
+      } else if (target instanceof HTMLElement) {
+        scrollTop = target.scrollTop;
+        scrollHeight = target.scrollHeight;
+        clientHeight = target.clientHeight;
       }
-      
-      const currentScrollPos = window.scrollY;
+
+      if (scrollHeight <= 0) return;
+
       const currentTime = Date.now();
-      
       const timeDiff = currentTime - lastScrollTimeRef.current;
-      const distance = Math.abs(currentScrollPos - lastScrollPosRef.current);
+      const distance = Math.abs(scrollTop - lastScrollPosRef.current);
       
-      if (timeDiff > 0) {
+      if (timeDiff > 0 && distance > 0) {
         const speed = (distance / timeDiff) * 1000; // pixels per second
         
         // If speed is within natural reading speed, accumulate scroll time
-        if (speed > 0 && speed < XP_RULES.scrolling.maxScrollSpeed) {
-          // Add the time spent scrolling
+        if (speed < XP_RULES.scrolling.maxScrollSpeed) {
           scrollTimeRef.current += timeDiff;
         }
       }
       
-      // Check if reached bottom
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      if (windowHeight + currentScrollPos >= documentHeight - 100) {
+      // Check if reached near bottom (within 100px or 90% scrolled)
+      if (scrollTop + clientHeight >= scrollHeight - 100 || (scrollHeight > 0 && (scrollTop + clientHeight) / scrollHeight >= 0.9)) {
         isReachedBottomRef.current = true;
       }
       
-      lastScrollPosRef.current = currentScrollPos;
+      lastScrollPosRef.current = scrollTop;
       lastScrollTimeRef.current = currentTime;
     };
     
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', handleScroll, { capture: true });
   }, []);
 
   useEffect(() => {
@@ -88,20 +98,19 @@ export function useXP() {
   }, []);
 
   useEffect(() => {
-    // API Heartbeat for active time
+    // API Heartbeat for active time (every 30 seconds)
     const activePingInterval = setInterval(async () => {
       const now = Date.now();
-      const timeSinceLastPing = now - lastActivePingRef.current;
       
-      // Only send if we have at least some active time
-      if (activeTimeRef.current >= 5000) { // arbitrary small threshold
+      // Only send if we have accrued at least 15 seconds of active time
+      if (activeTimeRef.current >= 15000) {
         const duration = Math.floor(activeTimeRef.current / 1000);
         
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
-          await fetch('/api/xp/heartbeat', {
+          const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -111,18 +120,24 @@ export function useXP() {
               action: 'active_time',
               duration,
               tabVisible: document.visibilityState === 'visible',
-              mouseMoving: isMouseMovingRef.current
+              mouseMoving: true
             })
           });
-          
-          // Reset after successful ping
-          activeTimeRef.current = 0;
-          lastActivePingRef.current = now;
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.awarded > 0) {
+              triggerXPNotification(data.awarded, 'active_time');
+            }
+            // Deduct the successfully reported duration
+            activeTimeRef.current = Math.max(0, activeTimeRef.current - duration * 1000);
+            lastActivePingRef.current = now;
+          }
         } catch (error) {
           console.error('Failed to send active time heartbeat', error);
         }
       }
-    }, XP_RULES.active_time.checkInterval);
+    }, 30000);
     
     return () => clearInterval(activePingInterval);
   }, []);
@@ -131,22 +146,15 @@ export function useXP() {
     // API Heartbeat for scrolling
     const scrollPingInterval = setInterval(async () => {
       const now = Date.now();
-      
-      // Check if we're on a PDF page
-      if (!window.location.pathname.endsWith('.pdf')) {
-        scrollTimeRef.current = 0;
-        isReachedBottomRef.current = false;
-        return;
-      }
 
-      if (scrollTimeRef.current >= 5000 && isReachedBottomRef.current) {
+      if (scrollTimeRef.current >= 3000 && isReachedBottomRef.current) {
         const duration = Math.floor(scrollTimeRef.current / 1000);
         
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
-          await fetch('/api/xp/heartbeat', {
+          const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -155,20 +163,25 @@ export function useXP() {
             body: JSON.stringify({
               action: 'scrolling',
               duration,
-              scrollSpeed: 50, // We already validated speed during accumulation
+              scrollSpeed: 50,
               reachedBottom: true
             })
           });
-          
-          // Reset after successful ping
-          scrollTimeRef.current = 0;
-          isReachedBottomRef.current = false;
-          lastScrollPingRef.current = now;
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.awarded > 0) {
+              triggerXPNotification(data.awarded, 'scrolling');
+            }
+            scrollTimeRef.current = 0;
+            isReachedBottomRef.current = false;
+            lastScrollPingRef.current = now;
+          }
         } catch (error) {
           console.error('Failed to send scroll heartbeat', error);
         }
       }
-    }, XP_RULES.scrolling.checkInterval);
+    }, 30000);
     
     return () => clearInterval(scrollPingInterval);
   }, []);

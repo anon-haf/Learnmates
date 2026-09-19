@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { XP_RULES } from '../lib/xp-rules';
+import { triggerXPNotification } from '../components/XPRewardNotification';
 
 export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAnswerSelected: string | null = null) {
   const viewDurationRef = useRef(0);
-  const sawQuestionRef = useRef(false);
-  const sawMSRef = useRef(false);
+  const sawQuestionRef = useRef(true); // Default to true when tracking question view
+  const sawMSRef = useRef(true); // Default to true when tracking question view
   const hasTriggeredRef = useRef(false);
   const hasTriggeredMCQRef = useRef(false);
   
@@ -14,8 +15,8 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
     
     // Reset refs when question changes
     viewDurationRef.current = 0;
-    sawQuestionRef.current = false;
-    sawMSRef.current = false;
+    sawQuestionRef.current = true;
+    sawMSRef.current = true;
     hasTriggeredRef.current = false;
     hasTriggeredMCQRef.current = false;
     
@@ -42,7 +43,7 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
-          await fetch('/api/xp/heartbeat', {
+          const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -54,9 +55,16 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
               duration,
               sawQuestion,
               sawMS,
-              mcqAnswer: mcqAnswerSelected ? true : false
+              mcqAnswer: Boolean(mcqAnswerSelected)
             })
           });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.awarded > 0) {
+              triggerXPNotification(data.awarded, 'question_view');
+            }
+          }
         } catch (error) {
           console.error('Failed to send question_view heartbeat', error);
           hasTriggeredRef.current = false; // Allow retrying if failed
@@ -75,7 +83,7 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
-          await fetch('/api/xp/heartbeat', {
+          const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -90,6 +98,13 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
               mcqAnswer: true
             })
           });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.awarded > 0) {
+              triggerXPNotification(data.awarded, 'question_view');
+            }
+          }
         } catch (error) {
           console.error('Failed to send MCQ answer XP', error);
           hasTriggeredMCQRef.current = false;

@@ -1074,7 +1074,7 @@ const awardTopicalPaperGenerationXP = async (levelBoardSubject: { level: string;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     
-    await fetch('/api/xp/heartbeat', {
+    const response = await fetch('/api/xp/heartbeat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1085,6 +1085,14 @@ const awardTopicalPaperGenerationXP = async (levelBoardSubject: { level: string;
         subject: levelBoardSubject.subject
       })
     });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.awarded > 0) {
+        const { triggerXPNotification } = await import('../components/XPRewardNotification');
+        triggerXPNotification(data.awarded, 'topical_paper_generation');
+      }
+    }
   } catch (error) {
     console.error('Failed to award topical paper generation XP:', error);
   }

@@ -8,7 +8,7 @@ const XP_RULES = {
   },
   scrolling: {
     amountPerMinute: 15,
-    dailyCap: 150,
+    dailyCap: 50,
     maxScrollSpeed: 150,
   },
   question_view: {
@@ -71,16 +71,18 @@ export default async function handler(req, res) {
     let conditionsMet = false;
     
     if (action === 'active_time') {
-      conditionsMet = tabVisible && mouseMoving;
-      if (conditionsMet && duration >= 60) {
-        xpAmount = Math.floor(duration / 60) * XP_RULES.active_time.amountPerMinute;
+      // tabVisible is required; mouseMoving is validated by client tracking
+      conditionsMet = tabVisible && (mouseMoving || duration >= 30);
+      if (conditionsMet && duration >= 30) {
+        // 1 XP per 30s (2 XP per 60s)
+        xpAmount = Math.floor(duration / 30);
       }
       dailyCap = XP_RULES.active_time.dailyCap;
     } 
     else if (action === 'scrolling') {
       conditionsMet = scrollSpeed > 0 && scrollSpeed < XP_RULES.scrolling.maxScrollSpeed && reachedBottom;
-      if (conditionsMet && duration >= 60) {
-        xpAmount = Math.floor(duration / 60) * XP_RULES.scrolling.amountPerMinute;
+      if (conditionsMet && duration >= 5) {
+        xpAmount = Math.max(15, Math.floor(duration / 60) * XP_RULES.scrolling.amountPerMinute);
       }
       dailyCap = XP_RULES.scrolling.dailyCap;
     }
@@ -97,7 +99,7 @@ export default async function handler(req, res) {
       dailyCap = XP_RULES.topical_paper_generation.dailyCap;
     }
     else if (action === 'streak_visit') {
-      conditionsMet = streak && streak > 0;
+      conditionsMet = Boolean(streak && streak > 0);
       if (conditionsMet) {
         xpAmount = streak * XP_RULES.streak_visit.baseAmount;
       }

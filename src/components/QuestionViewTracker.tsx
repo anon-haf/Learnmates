@@ -3,15 +3,26 @@ import { useQuestionXP } from '../hooks/useQuestionXP';
 
 interface QuestionViewTrackerProps {
   questionId: string;
+  isMCQ?: boolean;
+  mcqAnswerSelected?: string | null;
   children: React.ReactNode;
 }
 
-export function QuestionViewTracker({ questionId, children }: QuestionViewTrackerProps) {
-  const { markQuestionSeen, markMSSeen } = useQuestionXP(questionId);
+export function QuestionViewTracker({
+  questionId,
+  isMCQ = false,
+  mcqAnswerSelected = null,
+  children
+}: QuestionViewTrackerProps) {
+  const { markQuestionSeen, markMSSeen } = useQuestionXP(questionId, isMCQ, mcqAnswerSelected);
   const containerRef = useRef<HTMLDivElement>(null);
   const observedElements = useRef<Set<Element>>(new Set());
 
   useEffect(() => {
+    // Automatically mark question and MS as seen when component is rendered
+    markQuestionSeen();
+    markMSSeen();
+
     if (!containerRef.current) return;
 
     const intersectionObserver = new IntersectionObserver(
@@ -27,7 +38,7 @@ export function QuestionViewTracker({ questionId, children }: QuestionViewTracke
           }
         });
       },
-      { threshold: 0.1 } // Using 10% threshold to ensure it triggers even for large elements
+      { threshold: 0.1 }
     );
 
     const observeNewElements = () => {
@@ -41,10 +52,8 @@ export function QuestionViewTracker({ questionId, children }: QuestionViewTracke
       });
     };
 
-    // Initial observation
     observeNewElements();
 
-    // Use MutationObserver to watch for dynamic additions (e.g. marking scheme modal/tab)
     const mutationObserver = new MutationObserver(() => {
       observeNewElements();
     });
@@ -59,7 +68,7 @@ export function QuestionViewTracker({ questionId, children }: QuestionViewTracke
       mutationObserver.disconnect();
       observedElements.current.clear();
     };
-  }, [markQuestionSeen, markMSSeen, questionId]); // Added questionId to reset when question changes
+  }, [markQuestionSeen, markMSSeen, questionId]);
 
   return (
     <div ref={containerRef} className="question-tracker-container w-full h-full flex flex-col">

@@ -94,7 +94,8 @@ const Resources: React.FC<ResourcesProps> = ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const response = await fetch('/api/xp/download', {
+        // Fire XP request with keepalive — does not block the download
+        fetch('/api/xp/download', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -106,16 +107,19 @@ const Resources: React.FC<ResourcesProps> = ({
             resourceName: resource.title,
             resourceType: 'file'
           })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.xpAwarded > 0) {
-            triggerXPNotification(data.xpAwarded, 'download');
+        }).then(async (response) => {
+          if (response.ok) {
+            const data = await response.json();
+            if (data.xpAwarded > 0) {
+              triggerXPNotification(data.xpAwarded, 'download');
+            }
           }
-        }
+        }).catch((error) => {
+          console.error('Failed to track download XP', error);
+        });
       }
     } catch (error) {
-      console.error('Failed to track download XP', error);
+      console.error('Failed to get session for download XP', error);
     }
   };
 
