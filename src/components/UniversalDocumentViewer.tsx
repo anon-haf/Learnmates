@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import { Document } from 'react-pdf';
 import { pdfDocumentOptions } from '../utils/pdfjsConfig';
-import { supabase } from '../lib/supabaseClient';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -47,7 +46,7 @@ import {
 } from '../utils/pdfIndexedDBStorage';
 import { useMeaningfulReadTracker } from '../hooks/useMeaningfulReadTracker';
 import { useEngagement } from '../context/EngagementContext';
-import { triggerXPNotification } from './XPRewardNotification';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -122,6 +121,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(100);
   const [debouncedZoom, setDebouncedZoom] = useState<number>(100);
+  const [zoomInputValue, setZoomInputValue] = useState<string>('100');
+  const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pdfFile, setPdfFile] = useState<PdfFileSource | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -205,6 +206,13 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     }, 300);
     return () => clearTimeout(t);
   }, [zoom]);
+
+  // Keep zoom input display in sync when not actively editing
+  useEffect(() => {
+    if (!isEditingZoom) {
+      setZoomInputValue(String(Math.round(zoom)));
+    }
+  }, [zoom, isEditingZoom]);
 
   // Cleanup global PDF document on unmount
   useEffect(() => {
@@ -753,36 +761,14 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         setEngagementFlag(engagementContext.topicId, engagementContext.resourceId, pdfUrl, 'downloaded');
       }
 
-      // Award XP for downloading — fire BEFORE the download so it survives navigation
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Use keepalive so this survives if the user immediately leaves
-          fetch('/api/xp/download', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            keepalive: true,
-            body: JSON.stringify({
-              resourceId: engagementContext.resourceId,
-              resourceName: fileName,
-              resourceType: 'file'
-            })
-          }).then(async (response) => {
-            if (response.ok) {
-              const data = await response.json();
-              if (data.xpAwarded > 0) {
-                triggerXPNotification(data.xpAwarded, 'download');
-              }
-            }
-          }).catch((err) => {
-            console.error('Failed to award download XP from viewer', err);
-          });
-        }
-      } catch (err) {
-        console.error('Failed to get session for download XP', err);
+        await awardDownloadXP({
+          resourceId: engagementContext.resourceId,
+          resourceName: fileName,
+          resourceType: 'file',
+        });
+      } catch (xpError) {
+        console.warn('XP award failed, proceeding with download:', xpError);
       }
     }
 
@@ -991,7 +977,38 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
               <button onClick={() => applyZoomAtCursor(zoom - 5)} className={`${iconBtn} ${iconBtnIdle}`} title="Zoom out">
                 <ZoomOut className={toolbarIconSize} />
               </button>
-              <span className="text-xs sm:text-sm text-gray-300 px-1 text-center tabular-nums">{Math.round(zoom)}%</span>
+              <input
+                type="number"
+                min="25"
+                max="400"
+                value={zoomInputValue}
+                onFocus={() => {
+                  setIsEditingZoom(true);
+                  setZoomInputValue(String(Math.round(zoom)));
+                }}
+                onChange={e => setZoomInputValue(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const val = parseInt(e.currentTarget.value, 10);
+                    if (!isNaN(val) && val >= 25 && val <= 400) {
+                      applyZoomAtCursor(val);
+                    }
+                    e.currentTarget.blur();
+                  }
+                }}
+                onBlur={e => {
+                  setIsEditingZoom(false);
+                  const val = parseInt(e.currentTarget.value, 10);
+                  if (!isNaN(val) && val >= 25 && val <= 400) {
+                    applyZoomAtCursor(val);
+                  } else {
+                    setZoomInputValue(String(Math.round(zoom)));
+                  }
+                }}
+                className="w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
+                title="Zoom percentage (25-400%) - Press Enter to apply"
+              />
+              <span className="text-xs sm:text-sm text-gray-500">%</span>
               <button onClick={() => applyZoomAtCursor(zoom + 5)} className={`${iconBtn} ${iconBtnIdle}`} title="Zoom in">
                 <ZoomIn className={toolbarIconSize} />
               </button>
@@ -1143,13 +1160,39 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
               <ZoomOut className={toolbarIconSize} />
             </button>
 
-            <span
-              className="text-xs sm:text-sm text-gray-300 px-1.5 sm:px-2 min-w-[2.75rem] sm:min-w-[3.25rem] text-center tabular-nums"
-              aria-live="polite"
-              aria-label={`Zoom ${Math.round(zoom)}%`}
-            >
-              {Math.round(zoom)}%
-            </span>
+            <input
+              type="number"
+              min="25"
+              max="400"
+              value={zoomInputValue}
+              onFocus={() => {
+                setIsEditingZoom(true);
+                setZoomInputValue(String(Math.round(zoom)));
+              }}
+              onChange={e => setZoomInputValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const val = parseInt(e.currentTarget.value, 10);
+                  if (!isNaN(val) && val >= 25 && val <= 400) {
+                    applyZoomAtCursor(val);
+                  }
+                  e.currentTarget.blur();
+                }
+              }}
+              onBlur={e => {
+                setIsEditingZoom(false);
+                const val = parseInt(e.currentTarget.value, 10);
+                if (!isNaN(val) && val >= 25 && val <= 400) {
+                  applyZoomAtCursor(val);
+                } else {
+                  setZoomInputValue(String(Math.round(zoom)));
+                }
+              }}
+              className="w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
+              title="Zoom percentage (25-400%) - Press Enter to apply"
+              aria-label="Zoom percentage"
+            />
+            <span className="text-xs sm:text-sm text-gray-500">%</span>
 
             <button
               onClick={() => applyZoomAtCursor(zoom + 5)}

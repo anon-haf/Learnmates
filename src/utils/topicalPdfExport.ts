@@ -3,6 +3,7 @@ import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage, PDFEmbeddedPage } fr
 import { Question } from '../components/TopicalQuiz';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { topicalConfigs } from '../pages/topicalpagesdata';
+import { awardDownloadXP } from './awardDownloadXP';
 
 export type ExportType = 'questions' | 'markschemes';
 
@@ -677,6 +678,7 @@ export const createHeaderPage = async (
   page.drawLine({ start: { x: 0, y: 0 }, end: { x: width, y: 0 }, thickness: 1, color: rgb(0.65, 0.65, 0.65) });
 
   const titleText = question.title || `Question ${questionNumber}`;
+  const questionRefText = `Question ${questionNumber}`;
   const topicsText = question.topicMatches && question.topicMatches.length > 0
     ? formatTopicHeaderText(question.topicMatches)
     : '';
@@ -684,8 +686,14 @@ export const createHeaderPage = async (
   const titleSize = 8 + (headerHeight * 0.15);
   const topicSize = 7 + (headerHeight * 0.1);
   const safeTitle = sanitizeForPdf(titleText);
+  const safeQuestionRef = sanitizeForPdf(questionRefText);
 
-  page.drawText(safeTitle, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+  const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+
+  page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+
+  const centerX = (width - titleWidth) / 2;
+  page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
 
   if (topicsText) {
     const maxWidth = width - 20 - 170;
@@ -865,7 +873,15 @@ export const mergeTopicalPDFs = async (
               newFirstPage.drawRectangle({ x: 0, y: contentHeight, width: contentWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
               newFirstPage.drawLine({ start: { x: 0, y: contentHeight }, end: { x: contentWidth, y: contentHeight }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
 
-              newFirstPage.drawText(titleText, { x: 15, y: contentHeight + (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+              const questionRefText = `Question ${questionNumber}`;
+              const safeQuestionRef = sanitizeForPdf(questionRefText);
+              const safeTitle = sanitizeForPdf(titleText);
+              const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+
+              newFirstPage.drawText(safeQuestionRef, { x: 15, y: contentHeight + (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+
+              const centerX = (contentWidth - titleWidth) / 2;
+              newFirstPage.drawText(safeTitle, { x: centerX, y: contentHeight + (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
 
               if (topicsText) {
                 const maxWidth = contentWidth - 30 - 150;
@@ -952,12 +968,20 @@ export const mergeTopicalPDFs = async (
             });
 
             const titleText = task.question.title || `Question ${questionNumber}`;
+            const questionRefText = `Question ${questionNumber}`;
             const titleSize = 8 + (headerHeight * 0.15);
-            page.drawText(titleText, { x: 15, y: height - (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
+            const topicSize = 7 + (headerHeight * 0.1);
+            const safeTitle = sanitizeForPdf(titleText);
+            const safeQuestionRef = sanitizeForPdf(questionRefText);
+            const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+
+            page.drawText(safeQuestionRef, { x: 15, y: height - (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
+
+            const centerX = (width - titleWidth) / 2;
+            page.drawText(safeTitle, { x: centerX, y: height - (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
 
             if (task.question.topicMatches && task.question.topicMatches.length > 0) {
               const topicsString = formatTopicHeaderText(task.question.topicMatches);
-              const topicSize = 7 + (headerHeight * 0.1);
               const maxWidth = width - 30 - 150;
               let rendered = topicsString;
               while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxWidth && rendered.length > 0) {
@@ -1041,8 +1065,16 @@ export const mergeTopicalPDFs = async (
         page.drawLine({ start: { x: 0, y: 0 }, end: { x: width, y: 0 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
 
         const titleText = task.question.title || `Question ${questionNumber}`;
+        const questionRefText = `Question ${questionNumber}`;
         const titleSize = 11;
-        page.drawText(titleText, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
+        const safeTitle = sanitizeForPdf(titleText);
+        const safeQuestionRef = sanitizeForPdf(questionRefText);
+        const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+
+        page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
+
+        const centerX = (width - titleWidth) / 2;
+        page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
 
         const answerText = `Answer: ${task.question.mcqAnswer || '?'}`;
         const answerSize = 15;
@@ -1067,36 +1099,6 @@ export const mergeTopicalPDFs = async (
 // ---------------------------------------------------------------------------
 // Top-level "download" action
 // ---------------------------------------------------------------------------
-
-const awardTopicalPaperGenerationXP = async (levelBoardSubject: { level: string; board: string; subject: string }) => {
-  try {
-    const { supabase } = await import('../lib/supabaseClient');
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    const response = await fetch('/api/xp/heartbeat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: JSON.stringify({
-        action: 'topical_paper_generation',
-        subject: levelBoardSubject.subject
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.awarded > 0) {
-        const { triggerXPNotification } = await import('../components/XPRewardNotification');
-        triggerXPNotification(data.awarded, 'topical_paper_generation');
-      }
-    }
-  } catch (error) {
-    console.error('Failed to award topical paper generation XP:', error);
-  }
-};
 
 export const downloadMergedTopicalPDFs = async (
   type: ExportType,
@@ -1131,25 +1133,33 @@ export const downloadMergedTopicalPDFs = async (
     return;
   }
 
+  const subjectName = levelBoardSubject.subject.charAt(0).toUpperCase() + levelBoardSubject.subject.slice(1);
+  const filename = `${levelBoardSubject.level}_${levelBoardSubject.board}_${subjectName}_${type === 'questions' ? 'Questions' : 'Mark_Schemes'}.pdf`;
+
   try {
     callbacks.onStart?.();
     callbacks.onProgress?.({ current: 0, total: validQuestions.length });
+
+    try {
+      await awardDownloadXP({
+        resourceId: `${levelBoardSubject.level}_${levelBoardSubject.board}_${levelBoardSubject.subject}_${type}`,
+        resourceName: filename,
+        resourceType: 'topical_paper',
+      });
+    } catch (xpError) {
+      console.warn('XP award failed, proceeding with download:', xpError);
+    }
 
     const mergedBlob = await mergeTopicalPDFs(validQuestions, type, selectedTopics, levelBoardSubject, callbacks.onProgress, options, filters);
 
     const downloadUrl = window.URL.createObjectURL(mergedBlob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    const subjectName = levelBoardSubject.subject.charAt(0).toUpperCase() + levelBoardSubject.subject.slice(1);
-    const filename = `${levelBoardSubject.level}_${levelBoardSubject.board}_${subjectName}_${type === 'questions' ? 'Questions' : 'Mark_Schemes'}.pdf`;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(downloadUrl);
-
-    // Award XP for topical paper generation
-    await awardTopicalPaperGenerationXP(levelBoardSubject);
 
     callbacks.onDone?.();
   } catch (error) {

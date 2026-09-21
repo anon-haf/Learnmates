@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { btnPrimary, btnToggleBase, btnToggleActive, btnToggleInactive } from './ui';
 import Dropdown from './Dropdown';
 import { Filter } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
-
 interface FilterBarProps {
   onLoad: () => void;
   isPaperMode: boolean;
@@ -138,28 +136,10 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const [showAdvanced, setShowAdvanced] = useState(false);
   const hasAdvancedFilters = Boolean(onToggleMonth || onToggleVariant);
 
-  const triggerTopicalPaperXP = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    fetch('/api/xp/heartbeat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`
-      },
-      keepalive: true,
-      body: JSON.stringify({
-        action: 'topical_paper_generation',
-        refId: window.location.pathname,
-        duration: 0
-      })
-    }).catch(err => console.error('Topical paper XP error', err));
-  };
-
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
-      <button className={btnPrimary} onClick={() => { onLoad(); triggerTopicalPaperXP(); }}>
+      <button className={btnPrimary} onClick={onLoad}>
           Load matching questions
         </button>
 

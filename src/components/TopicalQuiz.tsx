@@ -9,6 +9,7 @@ import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -99,6 +100,16 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       if (validQuestions.length === 0) {
         alert(`No files found to merge for ${type === 'questions' ? 'questions' : 'mark schemes'}`);
         return;
+      }
+
+      try {
+        await awardDownloadXP({
+          resourceId: `${quiz.id}_${type}`,
+          resourceName: `${quiz.title}_${type}`,
+          resourceType: 'paper',
+        });
+      } catch (xpError) {
+        console.warn('XP award failed, proceeding with download:', xpError);
       }
 
       // Show non-blocking loading notification

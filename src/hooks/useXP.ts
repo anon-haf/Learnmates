@@ -3,21 +3,13 @@ import { supabase } from '../lib/supabaseClient';
 import { XP_RULES } from '../lib/xp-rules';
 import { triggerXPNotification } from '../components/XPRewardNotification';
 
+const TEN_MINUTES_MS = XP_RULES.active_time.checkInterval;
+
 export function useXP() {
   const activeTimeRef = useRef(0);
-  const scrollTimeRef = useRef(0);
-  
-  const lastActivePingRef = useRef(Date.now());
-  const lastScrollPingRef = useRef(Date.now());
-  
-  const lastScrollPosRef = useRef(0);
-  const lastScrollTimeRef = useRef(Date.now());
-  
   const isMouseMovingRef = useRef(false);
-  const isReachedBottomRef = useRef(false);
 
   useEffect(() => {
-    // Mouse movement tracking
     let mouseTimeout: ReturnType<typeof setTimeout>;
     
     const handleMouseMove = () => {
@@ -25,7 +17,7 @@ export function useXP() {
       clearTimeout(mouseTimeout);
       mouseTimeout = setTimeout(() => {
         isMouseMovingRef.current = false;
-      }, 3000); // Consider active for 3s after mouse movement
+      }, 3000);
     };
     
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -39,56 +31,6 @@ export function useXP() {
   }, []);
 
   useEffect(() => {
-    // Scroll tracking (uses capture true to catch scroll events on any container element)
-    const handleScroll = (event: Event) => {
-      const target = event.target as HTMLElement | Document;
-      let scrollTop = 0;
-      let scrollHeight = 0;
-      let clientHeight = 0;
-
-      if (target === document || target === document.documentElement || target === document.body) {
-        scrollTop = window.scrollY || document.documentElement.scrollTop;
-        scrollHeight = document.documentElement.scrollHeight;
-        clientHeight = window.innerHeight;
-      } else if (target instanceof HTMLElement) {
-        scrollTop = target.scrollTop;
-        scrollHeight = target.scrollHeight;
-        clientHeight = target.clientHeight;
-      }
-
-      if (scrollHeight <= 0) return;
-
-      const currentTime = Date.now();
-      const timeDiff = currentTime - lastScrollTimeRef.current;
-      const distance = Math.abs(scrollTop - lastScrollPosRef.current);
-      
-      // Check if reached near bottom (within 100px or 90% scrolled)
-      if (scrollTop + clientHeight >= scrollHeight - 100 || (scrollHeight > 0 && (scrollTop + clientHeight) / scrollHeight >= 0.9)) {
-        isReachedBottomRef.current = true;
-      }
-
-      if (timeDiff > 0 && distance > 0) {
-        const scrollSpeed = (distance / timeDiff) * 1000; // pixels per second
-        
-        // Require slower scroll speed (more natural reading) and bottom reached
-        const maxAllowedSpeed = XP_RULES.scrolling.maxScrollSpeed * 0.5;
-        const conditionsMet = scrollSpeed > 0 && scrollSpeed < maxAllowedSpeed && isReachedBottomRef.current;
-        
-        if (conditionsMet) {
-          scrollTimeRef.current += timeDiff;
-        }
-      }
-      
-      lastScrollPosRef.current = scrollTop;
-      lastScrollTimeRef.current = currentTime;
-    };
-    
-    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
-    return () => window.removeEventListener('scroll', handleScroll, { capture: true });
-  }, []);
-
-  useEffect(() => {
-    // Active time accumulation interval (runs every second)
     const activeInterval = setInterval(() => {
       const isVisible = document.visibilityState === 'visible';
       
@@ -101,93 +43,44 @@ export function useXP() {
   }, []);
 
   useEffect(() => {
-    // API Heartbeat for active time (every 30 seconds)
     const activePingInterval = setInterval(async () => {
-      const now = Date.now();
-      
-      // Only send if we have accrued at least 15 seconds of active time
-      if (activeTimeRef.current >= 15000) {
-        const duration = Math.floor(activeTimeRef.current / 1000);
-        
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          
-          const res = await fetch('/api/xp/heartbeat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({
-              action: 'active_time',
-              duration,
-              tabVisible: document.visibilityState === 'visible',
-              mouseMoving: true
-            })
-          });
+      if (activeTimeRef.current < TEN_MINUTES_MS) {
+        return;
+      }
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.awarded > 0) {
-              triggerXPNotification(data.awarded, 'active_time');
-            }
-            // Deduct the successfully reported duration
-            activeTimeRef.current = Math.max(0, activeTimeRef.current - duration * 1000);
-            lastActivePingRef.current = now;
+      const duration = Math.floor(activeTimeRef.current / TEN_MINUTES_MS) * 600;
+        
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+          
+        const res = await fetch('/api/xp/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          keepalive: true,
+          body: JSON.stringify({
+            action: 'active_time',
+            duration,
+            tabVisible: document.visibilityState === 'visible',
+            mouseMoving: true
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.awarded > 0) {
+            triggerXPNotification(data.awarded, 'active_time');
           }
-        } catch (error) {
-          console.error('Failed to send active time heartbeat', error);
+          activeTimeRef.current = Math.max(0, activeTimeRef.current - duration * 1000);
         }
+      } catch (error) {
+        console.error('Failed to send active time heartbeat', error);
       }
     }, 30000);
     
     return () => clearInterval(activePingInterval);
-  }, []);
-
-  useEffect(() => {
-    // API Heartbeat for scrolling
-    const scrollPingInterval = setInterval(async () => {
-      const now = Date.now();
-
-      if (scrollTimeRef.current >= 3000 && isReachedBottomRef.current) {
-        const duration = Math.floor(scrollTimeRef.current / 1000);
-        
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          
-          const refId = window.location.pathname; // Use page path as reference ID for scrolling events
-          const res = await fetch('/api/xp/heartbeat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({
-              action: 'scrolling',
-              duration,
-              scrollSpeed: 50,
-              reachedBottom: true,
-              refId
-            })
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.awarded > 0) {
-              triggerXPNotification(data.awarded, 'scrolling');
-            }
-            scrollTimeRef.current = 0;
-            isReachedBottomRef.current = false;
-            lastScrollPingRef.current = now;
-          }
-        } catch (error) {
-          console.error('Failed to send scroll heartbeat', error);
-        }
-      }
-    }, 30000);
-    
-    return () => clearInterval(scrollPingInterval);
   }, []);
 }

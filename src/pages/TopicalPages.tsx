@@ -383,7 +383,7 @@ const TopicalPages: React.FC = () => {
     : paperFilter.size === 0
       ? 'No paper selected'
       : availablePaperNumbers.filter(n => paperFilter.has(n)).map(n => `P${n}`).join(', ');
-  const availableYearNumbers = Array.from(availableYears).sort((a, b) => a - b);
+  const availableYearNumbers = Array.from(availableYears).sort((a, b) => b - a);
   const isAllYearsSelected = availableYearNumbers.length > 0 && availableYearNumbers.every(year => yearFilter.has(year));
   const selectedYearSummary = isAllYearsSelected
     ? 'All years'

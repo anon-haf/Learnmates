@@ -8,10 +8,11 @@ export interface XPEvent {
 
 const EMOJI_MAP: Record<string, string> = {
   active_time: '⏱️',
-  scrolling: '📜',
   question_view: '📝',
   download: '📥',
   paper_download: '📄',
+  topical_paper_download: '📑',
+  streak_visit: '🔥',
 };
 
 // We create a global event emitter for triggering notifications from anywhere

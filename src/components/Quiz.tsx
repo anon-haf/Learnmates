@@ -6,6 +6,7 @@ import MediaViewer from './MediaViewer';
 import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, fetchR2AsBlobUrl, getAssetAuthHeaders } from '../utils/r2Utils';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -87,6 +88,16 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
 
   // Shared download functions
   const handleDownload = async (url: string, filename: string) => {
+    try {
+      await awardDownloadXP({
+        resourceId: url,
+        resourceName: filename,
+        resourceType: 'paper',
+      });
+    } catch (xpError) {
+      console.warn('XP award failed, proceeding with download:', xpError);
+    }
+
     try {
       const resolvedUrl = await resolveAssetUrl(url);
       const isR2Asset = shouldUseR2(resolvedUrl) || shouldUseR2(url);
@@ -498,6 +509,16 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
       if (validQuestions.length === 0) {
         alert(`No files found to merge for ${type === 'questions' ? 'questions' : 'mark schemes'}`);
         return;
+      }
+
+      try {
+        await awardDownloadXP({
+          resourceId: `${quiz.id}_${type}`,
+          resourceName: `${quiz.title}_${type}`,
+          resourceType: 'paper',
+        });
+      } catch (xpError) {
+        console.warn('XP award failed, proceeding with download:', xpError);
       }
 
       // Show non-blocking loading notification

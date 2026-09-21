@@ -9,6 +9,7 @@ import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { ReportModal } from '../components/ReportModal';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
 
 interface PaperEntry {
@@ -526,7 +527,16 @@ const PaperViewerPage: React.FC = () => {
               </button>
               {fullPaperPdfUrl && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    try {
+                      await awardDownloadXP({
+                        resourceId: `${paperKey}_questions`,
+                        resourceName: `${paperDisplayName} - Questions.pdf`,
+                        resourceType: 'paper',
+                      });
+                    } catch (xpError) {
+                      console.warn('XP award failed, proceeding with download:', xpError);
+                    }
                     const a = document.createElement('a');
                     a.href = fullPaperPdfUrl;
                     a.download = `${paperDisplayName} - Questions.pdf`;
@@ -544,7 +554,16 @@ const PaperViewerPage: React.FC = () => {
               )}
               {fullPaperMsUrl && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    try {
+                      await awardDownloadXP({
+                        resourceId: `${paperKey}_markschemes`,
+                        resourceName: `${paperDisplayName} - Mark Scheme.pdf`,
+                        resourceType: 'paper',
+                      });
+                    } catch (xpError) {
+                      console.warn('XP award failed, proceeding with download:', xpError);
+                    }
                     const a = document.createElement('a');
                     a.href = fullPaperMsUrl;
                     a.download = `${paperDisplayName} - Mark Scheme.pdf`;

@@ -8,7 +8,6 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
   const sawQuestionRef = useRef(true); // Default to true when tracking question view
   const sawMSRef = useRef(true); // Default to true when tracking question view
   const hasTriggeredRef = useRef(false);
-  const hasTriggeredMCQRef = useRef(false);
   
   useEffect(() => {
     if (!questionId) return;
@@ -18,7 +17,6 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
     sawQuestionRef.current = true;
     sawMSRef.current = true;
     hasTriggeredRef.current = false;
-    hasTriggeredMCQRef.current = false;
     
     const interval = setInterval(async () => {
       // Accumulate time only if document is visible
@@ -30,7 +28,7 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
       const sawQuestion = sawQuestionRef.current;
       const sawMS = sawMSRef.current;
       
-      // Question view XP (15 seconds minimum)
+      // Question view XP (25 seconds minimum)
       if (
         !hasTriggeredRef.current && 
         duration >= XP_RULES.question_view.minViewDuration && 
@@ -55,7 +53,6 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
               duration,
               sawQuestion,
               sawMS,
-              mcqAnswer: Boolean(mcqAnswerSelected)
             })
           });
 
@@ -68,46 +65,6 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
         } catch (error) {
           console.error('Failed to send question_view heartbeat', error);
           hasTriggeredRef.current = false; // Allow retrying if failed
-        }
-      }
-      
-      // MCQ answer XP (immediate when answer selected)
-      if (
-        isMCQ && 
-        mcqAnswerSelected && 
-        !hasTriggeredMCQRef.current
-      ) {
-        hasTriggeredMCQRef.current = true;
-        
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) return;
-          
-          const res = await fetch('/api/xp/heartbeat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`
-            },
-            body: JSON.stringify({
-              action: 'question_view',
-              refId: questionId,
-              duration: 0, // Instant reward
-              sawQuestion: true,
-              sawMS: true,
-              mcqAnswer: true
-            })
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.awarded > 0) {
-              triggerXPNotification(data.awarded, 'question_view');
-            }
-          }
-        } catch (error) {
-          console.error('Failed to send MCQ answer XP', error);
-          hasTriggeredMCQRef.current = false;
         }
       }
     }, 1000);
