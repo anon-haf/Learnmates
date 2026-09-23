@@ -34,6 +34,7 @@ import { useStreakXP } from './hooks/useStreakXP';
 import { XPRewardNotification } from './components/XPRewardNotification';
 import { LockInProvider } from './components/lock-in/LockInContext';
 import { GlobalLockInManager } from './components/lock-in/GlobalLockInManager';
+import AiChat from './pages/AiChat';
 
 function AppContent() {
   // Global XP tracking
@@ -43,6 +44,9 @@ function AppContent() {
     <>
       <XPRewardNotification />
       <Routes>
+        {/* Standalone AI page — no AuthLayout wrapper */}
+        <Route path="/ai" element={<AiChat />} />
+
         <Route element={<AuthLayout />}> 
         {/* Public routes - rendered inside AuthLayout's PublicLayout */}
         <Route path="/" element={<Home />} />
