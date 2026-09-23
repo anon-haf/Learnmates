@@ -13,7 +13,8 @@ export function AuthLayout() {
   const isTopicalsPath = location.pathname.startsWith('/topicals');
   const isLockInPath = location.pathname.startsWith('/lock_in');
   const isPastpapersPath = location.pathname.startsWith('/pastpapers');
-  const shouldUseDashboardShell = isDashboardPath || (isLeaderboardPath && user) || isLockInPath || (user && (isCurriculumPath || isTopicalsPath || isPastpapersPath));
+  const isAiPath = location.pathname.startsWith('/ai');
+  const shouldUseDashboardShell = isDashboardPath || (isLeaderboardPath && user) || isLockInPath || (user && (isCurriculumPath || isTopicalsPath || isPastpapersPath || isAiPath));
 
   if (loading) {
     return (

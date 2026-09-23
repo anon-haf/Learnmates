@@ -6,16 +6,11 @@ import {
   Send,
   Sparkles,
   Clock,
-  Database,
-  Moon,
-  Sun,
-  ArrowLeft,
-  BookOpen,
   Atom,
   FlaskConical,
   Leaf,
+  User,
 } from 'lucide-react';
-import { useDarkMode } from '../context/DarkModeContext';
 import { useAuth } from '../context/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
 import { Button } from '@/components/ui';
@@ -111,7 +106,6 @@ const AiChat: React.FC = () => {
   const [input, setInput] = useState('');
   const [subject, setSubject] = useState<string>('A_Phy');
   const [loading, setLoading] = useState(false);
-  const { isDarkMode, toggleDarkMode } = useDarkMode();
   const { user: authUser, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(authUser?.id);
   const location = useLocation();
@@ -257,48 +251,11 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-[calc(100vh-7rem)] text-gray-900 dark:text-gray-100">
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />
       </Helmet>
-
-      {/* ── Header ─ mirrors site Header component style ── */}
-      <header className="sticky top-0 z-50 bg-white/95 dark:bg-gray-800 backdrop-blur-sm border-b border-gray-200/80 dark:border-gray-700/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Left — back + logo */}
-            <div className="flex items-center gap-3">
-              <Link
-                to="/"
-                className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                aria-label="Back to home"
-              >
-                <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-              </Link>
-              <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <img src="/logo.svg" alt="Learnmates" className="h-8 w-8" />
-                <span className="hidden sm:inline text-base font-bold bg-blue-600 bg-clip-text text-transparent">
-                  Learnmates
-                </span>
-              </Link>
-              <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 mx-1" />
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">AI Tutor</span>
-              </div>
-              <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-                Beta
-              </span>
-            </div>
-
-            {/* Right — dark mode */}
-            <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label="Toggle dark mode">
-              {isDarkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-600" />}
-            </Button>
-          </div>
-        </div>
-      </header>
 
       {/* ── Main chat area ── */}
       <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto">
@@ -364,13 +321,21 @@ const AiChat: React.FC = () => {
                 >
                   {/* Avatar */}
                   <div
-                    className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                    className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white overflow-hidden ${
                       isBot
                         ? 'bg-blue-400 dark:bg-blue-900'
+                        : authUser?.user_metadata?.avatar_url
+                        ? 'bg-transparent'
                         : 'bg-gray-400 dark:bg-gray-600'
                     }`}
                   >
-                    {isBot ? '✦' : '●'}
+                    {isBot ? (
+                      '✦'
+                    ) : authUser?.user_metadata?.avatar_url ? (
+                      <img src={authUser.user_metadata.avatar_url} alt="You" className="w-full h-full object-cover" />
+                    ) : (
+                      <User size={16} />
+                    )}
                   </div>
 
                   {/* Bubble + meta */}
@@ -406,51 +371,7 @@ const AiChat: React.FC = () => {
                               {(msg.response.timing_ms.total / 1000).toFixed(1)}s
                             </span>
                           )}
-                          {msg.response.chunks_used && (
-                            <span className="flex items-center gap-1">
-                              <Database size={11} />
-                              {(msg.response.chunks_used.past_paper ?? 0) +
-                                (msg.response.chunks_used.main_reference ?? 0)}{' '}
-                              sources
-                            </span>
-                          )}
                         </div>
-
-                        {/* Topic tags */}
-                        {msg.response.topics && (
-                          <div className="flex flex-col gap-1">
-                            {msg.response.topics.book_topics && msg.response.topics.book_topics.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mr-1">
-                                  <BookOpen size={10} className="inline -mt-0.5 mr-0.5" />Book
-                                </span>
-                                {msg.response.topics.book_topics.map((t, i) => (
-                                  <span
-                                    key={i}
-                                    className="rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"
-                                  >
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {msg.response.topics.pp_topics && msg.response.topics.pp_topics.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1">
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mr-1">
-                                  PP
-                                </span>
-                                {msg.response.topics.pp_topics.map((t, i) => (
-                                  <span
-                                    key={i}
-                                    className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400"
-                                  >
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </motion.div>
                     )}
                   </div>

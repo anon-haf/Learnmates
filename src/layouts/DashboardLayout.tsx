@@ -37,8 +37,8 @@ const navItems: { name: string; href: string; icon: typeof Trophy; disabled?: bo
   { name: 'Past Papers', href: '/pastpapers', icon: FileText },
   { name: 'Topicals', href: '/topicals', icon: Layers },
   { name: 'Lock in', href: '/lock_in', icon: Lock },
-  { name: 'Leaderboard', href: '/leaderboard', icon: Trophy }
-  ,
+  { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+  { name: 'AI Tutor', href: '/ai', icon: MessageCircle, beta: true },
 ];
 
 interface ProfileSectionProps {

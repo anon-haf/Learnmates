@@ -44,8 +44,6 @@ function AppContent() {
     <>
       <XPRewardNotification />
       <Routes>
-        {/* Standalone AI page — no AuthLayout wrapper */}
-        <Route path="/ai" element={<AiChat />} />
 
         <Route element={<AuthLayout />}> 
         {/* Public routes - rendered inside AuthLayout's PublicLayout */}
@@ -69,6 +67,7 @@ function AppContent() {
 
         {/* Public routes using DashboardShell */}
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/ai" element={<AiChat />} />
 
         {/* Conditional layout routes - DashboardShell if logged in, PublicLayout if not */}
         <Route element={<ConditionalLayout />}>
