@@ -1,4 +1,4 @@
-import { createServerClient } from './lib/supabase-server.js';
+import { createServerClient } from './_lib/supabase-server.js';
 
 function applyCors(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);

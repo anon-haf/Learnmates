@@ -1,5 +1,5 @@
-import { createServerClient } from '../lib/supabase-server.js';
-import { awardCappedXP } from '../lib/award-xp.js';
+import { createServerClient } from '../_lib/supabase-server.js';
+import { awardCappedXP } from '../_lib/award-xp.js';
 
 // Constants for XP rules
 const XP_RULES = {
