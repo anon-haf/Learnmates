@@ -309,23 +309,7 @@ const AiChat: React.FC = () => {
                 I'm your AI tutor for IGCSE &amp; A-Level Sciences. Ask a question about Physics, Chemistry, or Biology and I'll explain it using your curriculum resources.
               </p>
 
-              {/* Quick prompt suggestions */}
-              <div className="flex flex-wrap justify-center gap-2 mt-8 max-w-lg">
-                {[
-                  'Define gravitational field strength',
-                  'Explain covalent bonding',
-                  'What is osmosis?',
-                ].map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => { setInput(prompt); textareaRef.current?.focus(); }}
-                    className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800 transition-all duration-200"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
+
             </motion.div>
           )}
 
@@ -447,15 +431,6 @@ const AiChat: React.FC = () => {
                 );
               })}
             </div>
-            
-            {/* Clear Button */}
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              Clear
-            </button>
           </div>
 
           {/* Input row */}
