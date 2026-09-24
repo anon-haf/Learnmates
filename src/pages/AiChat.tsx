@@ -277,7 +277,7 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-10rem)] text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-[calc(100dvh-5rem)] text-gray-900 dark:text-gray-100">
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />
