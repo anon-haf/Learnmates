@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
+import { fetchProfile } from '../utils/profileSync';
 import { Button } from '@/components/ui';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
@@ -112,6 +113,15 @@ const AiChat: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typewriterRef = useRef<number | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchProfile(authUser.id).then(profile => {
+        setAvatarUrl(profile?.avatar_url || null);
+      });
+    }
+  }, [authUser]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -238,7 +248,23 @@ const AiChat: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold mb-3">Early Access Only</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
-            The AI Tutor is currently in beta and is only available to registered testers.
+            The AI Tutor is currently in beta and is only available to registered testers. You can get early access if you contact us via{' '}
+            <a
+              href="https://discord.gg/qCQTxTQkRh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+            >
+              Discord
+            </a>{' '}
+            or{' '}
+            <a
+              href="mailto:learnmates.share@gmail.com"
+              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+            >
+              email
+            </a>
+            .
           </p>
           <Link to="/">
             <Button className="w-full h-12 text-base font-semibold bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white shadow-md">
@@ -251,14 +277,14 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-[calc(100dvh-10rem)] text-gray-900 dark:text-gray-100">
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />
       </Helmet>
 
       {/* ── Main chat area ── */}
-      <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto">
+      <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto min-h-0">
         {/* Messages */}
         <div
           ref={scrollRef}
@@ -324,15 +350,15 @@ const AiChat: React.FC = () => {
                     className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white overflow-hidden ${
                       isBot
                         ? 'bg-blue-400 dark:bg-blue-900'
-                        : authUser?.user_metadata?.avatar_url
+                        : avatarUrl
                         ? 'bg-transparent'
                         : 'bg-gray-400 dark:bg-gray-600'
                     }`}
                   >
                     {isBot ? (
                       '✦'
-                    ) : authUser?.user_metadata?.avatar_url ? (
-                      <img src={authUser.user_metadata.avatar_url} alt="You" className="w-full h-full object-cover" />
+                    ) : avatarUrl ? (
+                      <img src={avatarUrl} alt="You" className="w-full h-full object-cover" />
                     ) : (
                       <User size={16} />
                     )}
@@ -398,27 +424,38 @@ const AiChat: React.FC = () => {
         {/* ── Input area ── */}
         <div className="border-t border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-4 sm:px-6 py-4">
           {/* Subject pills */}
-          <div className="flex gap-1.5 flex-wrap mb-3">
-            {SUBJECTS.map((s) => {
-              const Icon = s.icon;
-              const active = subject === s.value;
-              return (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setSubject(s.value)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
-                    active
-                      ? 'bg-blue-400 dark:bg-blue-900 text-white shadow-md shadow-blue-500/20'
-                      : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <Icon size={13} />
-                  <span className="hidden sm:inline">{s.label}</span>
-                  <span className="sm:hidden">{s.shortLabel}</span>
-                </button>
-              );
-            })}
+          <div className="flex gap-1.5 flex-wrap mb-3 items-center justify-between">
+            <div className="flex gap-1.5 flex-wrap">
+              {SUBJECTS.map((s) => {
+                const Icon = s.icon;
+                const active = subject === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setSubject(s.value)}
+                    className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                      active
+                        ? 'bg-blue-400 dark:bg-blue-900 text-white shadow-md shadow-blue-500/20'
+                        : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <Icon size={13} />
+                    <span className="hidden sm:inline">{s.label}</span>
+                    <span className="sm:hidden">{s.shortLabel}</span>
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Clear Button */}
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Clear
+            </button>
           </div>
 
           {/* Input row */}
