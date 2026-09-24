@@ -52,12 +52,15 @@ const SUBJECTS = [
 /* ─── KaTeX + Markdown helpers ───────────────────────── */
 function formatAnswer(raw: string): string {
   // 1. Extract all math blocks, replace with placeholders so markdown won't touch them
-  const placeholders: string[] = [];
+  const placeholders: { html: string; display: boolean }[] = [];
   const placeholder = (tex: string, display: boolean): string => {
     try {
-      placeholders.push(katex.renderToString(tex.trim(), { displayMode: display, throwOnError: false }));
+      placeholders.push({
+        html: katex.renderToString(tex.trim(), { displayMode: display, throwOnError: false }),
+        display,
+      });
     } catch {
-      placeholders.push(`<code>${tex}</code>`);
+      placeholders.push({ html: `<code>${tex}</code>`, display });
     }
     return `%%MATH_${placeholders.length - 1}%%`;
   };
@@ -89,7 +92,11 @@ function formatAnswer(raw: string): string {
   html = html.replace(/\n/g, '<br/>');
 
   // 3. Restore math placeholders with rendered KaTeX HTML
-  html = html.replace(/%%MATH_(\d+)%%/g, (_m, idx) => placeholders[Number(idx)]);
+  html = html.replace(/(?:<br\/>\s*)*%%MATH_(\d+)%%(?:\s*<br\/>)*/g, (match, idxStr) => {
+    const p = placeholders[Number(idxStr)];
+    if (p.display) return p.html;
+    return match.replace(`%%MATH_${idxStr}%%`, p.html);
+  });
 
   return html;
 }
@@ -125,7 +132,9 @@ const AiChat: React.FC = () => {
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      if (scrollRef.current) {
+        scrollRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
     });
   }, []);
 
@@ -277,7 +286,7 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-5rem)] text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-[calc(100dvh-5rem)] lg:h-auto lg:min-h-[calc(100dvh-5rem)] text-gray-900 dark:text-gray-100">
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />
@@ -287,8 +296,7 @@ const AiChat: React.FC = () => {
       <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto min-h-0">
         {/* Messages */}
         <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5"
+          className="flex-1 overflow-y-auto lg:overflow-visible px-4 sm:px-6 py-6 space-y-5"
           style={{ scrollBehavior: 'smooth' }}
         >
           {/* Empty state */}
@@ -403,10 +411,11 @@ const AiChat: React.FC = () => {
               </div>
             </motion.div>
           )}
+          <div ref={scrollRef} />
         </div>
 
         {/* ── Input area ── */}
-        <div className="border-t border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-4 sm:px-6 py-4">
+        <div className="lg:sticky lg:bottom-0 border-t border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-4 sm:px-6 py-4 mt-auto">
           {/* Subject pills */}
           <div className="flex gap-1.5 flex-wrap mb-3 items-center justify-between">
             <div className="flex gap-1.5 flex-wrap">
@@ -437,7 +446,7 @@ const AiChat: React.FC = () => {
           <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
-              className="flex-1 resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2.5 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all duration-200 focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              className="flex-1 resize-none rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-5 py-3 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all duration-200 focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               rows={1}
               placeholder={`Ask about ${selectedSubject?.label ?? 'a subject'}…`}
               value={input}
