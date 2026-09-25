@@ -49,6 +49,7 @@ interface ChatMessage {
 interface ChatSession {
   id: string;
   title: string;
+  subject?: string;
   created_at: string;
 }
 
@@ -153,7 +154,7 @@ const AiChat: React.FC = () => {
       setFetchingSessions(true);
       const { data, error } = await supabase
         .from('chat_sessions')
-        .select('id, title, created_at')
+        .select('id, title, subject, created_at')
         .order('created_at', { ascending: false });
       
       if (!error && data) {
@@ -211,6 +212,12 @@ const AiChat: React.FC = () => {
     setLoading(true);
     if (window.innerWidth < 1024) setSidebarOpen(false);
 
+    // Set the subject to the one used in this session if it exists
+    const session = sessions.find(s => s.id === sessionId);
+    if (session?.subject) {
+      setSubject(session.subject);
+    }
+
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
@@ -248,7 +255,7 @@ const AiChat: React.FC = () => {
         
         const { data: sessionData, error: sessionError } = await supabase
           .from('chat_sessions')
-          .insert({ user_id: authUser.id, title })
+          .insert({ user_id: authUser.id, title, subject })
           .select('id')
           .single();
 
@@ -256,7 +263,7 @@ const AiChat: React.FC = () => {
         
         activeSessionId = sessionData.id;
         setCurrentSessionId(activeSessionId);
-        setSessions(prev => [{ id: activeSessionId, title, created_at: new Date().toISOString() }, ...prev]);
+        setSessions(prev => [{ id: activeSessionId, title, subject, created_at: new Date().toISOString() }, ...prev]);
       }
 
       // Save user message to Supabase
@@ -266,11 +273,18 @@ const AiChat: React.FC = () => {
         content: question,
       });
 
+      // Format contextual question
+      let contextualQuestion = question;
+      if (messages.length > 0) {
+        const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n\n');
+        contextualQuestion = `[Previous Context]\n${historyText}\n\n[Current Question]\n${question}`;
+      }
+
       // Fetch AI response
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Username: 'student', subject, question, topic: null }),
+        body: JSON.stringify({ Username: 'student', subject, question: contextualQuestion, topic: null }),
       });
       const data: AskResponse | { detail?: string; error?: string } = await res.json();
 
