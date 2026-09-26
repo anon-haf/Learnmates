@@ -1,4 +1,5 @@
-import { createServerClient } from '../lib/supabase-server.js';
+import { createServerClient } from '../_lib/supabase-server.js';
+import { awardCappedXP } from '../_lib/award-xp.js';
 
 // Constants for XP rules
 const XP_RULES = {
@@ -7,6 +8,10 @@ const XP_RULES = {
     dailyCap: 75
   },
   paper_download: {
+    amount: 30,
+    dailyCap: 60
+  },
+  topical_paper_download: {
     amount: 30,
     dailyCap: 60
   }
@@ -53,30 +58,25 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing resourceId' });
     }
 
-    const action = resourceType === 'paper' ? 'paper_download' : 'download';
+    const action = resourceType === 'paper' ? 'paper_download' : resourceType === 'topical_paper' ? 'topical_paper_download' : 'download';
     const amount = XP_RULES[action].amount;
     const dailyCap = XP_RULES[action].dailyCap;
 
-    // Call RPC to award XP
-    const { data: awarded, error: rpcError } = await supabase.rpc('fn_award_capped_xp', {
-      p_user_id: user.id,
-      p_action: action,
-      p_ref_id: resourceId,
-      p_amount: amount,
-      p_daily_cap: dailyCap,
-      p_metadata: {
+    const awarded = await awardCappedXP(supabase, {
+      userId: user.id,
+      action,
+      refId: resourceId,
+      amount,
+      dailyCap,
+      metadata: {
         file_name: resourceName || resourceId,
-      }
+        resource_type: resourceType,
+      },
     });
-
-    if (rpcError) {
-      console.error('Failed to award XP:', rpcError);
-      return res.status(500).json({ error: 'Failed to award XP' });
-    }
 
     return res.status(200).json({
       success: true,
-      xpAwarded: awarded || 0
+      xpAwarded: awarded
     });
 
   } catch (error) {

@@ -32,6 +32,8 @@ export function getSubjectPaths(subject: FavoriteSubject, base = '') {
   return {
     resources: withBase(base, `/curriculum/${pathBase}`),
     topicals: withBase(base, `/topicals/${pathBase}`),
+    pastpapers: withBase(base, `/pastpapers/${pathBase}`),
+
   };
 }
 

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { btnPrimary, btnToggleBase, btnToggleActive, btnToggleInactive } from './ui';
 import Dropdown from './Dropdown';
 import { Filter } from 'lucide-react';
-
 interface FilterBarProps {
   onLoad: () => void;
   isPaperMode: boolean;
@@ -141,8 +140,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
       <button className={btnPrimary} onClick={onLoad}>
-        Load matching questions
-      </button>
+          Load matching questions
+        </button>
 
       {isPaperMode ? (
         <Dropdown

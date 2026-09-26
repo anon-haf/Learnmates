@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { pdfjs, pdfGetDocumentOptions } from './pdfjsConfig';
+import { resolveFromR2, getAssetAuthHeaders } from './r2Utils';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -50,13 +51,15 @@ export function clearPdfThumbnailCache(cacheKey?: string) {
 
 export async function loadPdfDocument(file: PdfFileSource): Promise<PDFDocumentProxy> {
   if (typeof file === 'string') {
+    const resolvedUrl = (await resolveFromR2(file)) || file;
     const url =
-      file.startsWith('http') || file.startsWith('blob:')
-        ? file
-        : new URL(file, window.location.origin).href;
+      resolvedUrl.startsWith('http') || resolvedUrl.startsWith('blob:')
+        ? resolvedUrl
+        : new URL(resolvedUrl, window.location.origin).href;
     return pdfjs.getDocument({
       ...pdfGetDocumentOptions,
       url,
+      httpHeaders: getAssetAuthHeaders(),
     } as Parameters<typeof pdfjs.getDocument>[0]).promise;
   }
 
@@ -143,7 +146,7 @@ export async function renderPdfPageThumbnail(
       }).promise;
     }
 
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.45);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     thumbnailCache.set(storageKey, dataUrl);
     pendingRenders.delete(storageKey);
     return dataUrl;

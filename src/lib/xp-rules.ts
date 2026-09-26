@@ -1,22 +1,15 @@
 export const XP_RULES = {
   active_time: {
-    amountPerMinute: 2,
-    dailyCap: 40,
-    checkInterval: 60000, // 60 seconds
+    amountPerTenMinutes: 25,
+    dailyCap: 100,
+    checkInterval: 600000, // 10 minutes
     requireTabVisible: true,
     requireMouseMoving: true
-  },
-  scrolling: {
-    amountPerMinute: 15,
-    dailyCap: 150,
-    checkInterval: 60000, // 60 seconds
-    maxScrollSpeed: 150, // pixels per second (slow/natural reading speed)
-    requireReachedBottom: true
   },
   question_view: {
     amountPerView: 5,
     dailyCap: 100,
-    minViewDuration: 45, // seconds
+    minViewDuration: 25, // seconds
     requireSawQuestion: true,
     requireSawMS: true
   },
@@ -27,6 +20,14 @@ export const XP_RULES = {
   paper_download: {
     amount: 30,
     dailyCap: 60
+  },
+  topical_paper_download: {
+    amount: 30,
+    dailyCap: 60
+  },
+  streak_visit: {
+    baseAmount: 10, // streak * 10
+    dailyCap: 100
   }
 };
 

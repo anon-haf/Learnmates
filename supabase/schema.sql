@@ -135,3 +135,17 @@ $$;
 
 revoke all on function public.is_username_available(text, uuid) from public;
 grant execute on function public.is_username_available(text, uuid) to anon, authenticated;
+
+-- Role-based access control for AI tutor
+create table if not exists public.user_role (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null default 'user',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_role enable row level security;
+
+drop policy if exists "Users can read their own role" on public.user_role;
+create policy "Users can read their own role"
+  on public.user_role for select using (auth.uid() = user_id);

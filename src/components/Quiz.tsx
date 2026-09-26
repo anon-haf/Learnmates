@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { Flag, RotateCcw, Trophy, FileText, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import MediaViewer from './MediaViewer';
+import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, fetchR2AsBlobUrl, getAssetAuthHeaders } from '../utils/r2Utils';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -86,6 +88,16 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
 
   // Shared download functions
   const handleDownload = async (url: string, filename: string) => {
+    try {
+      await awardDownloadXP({
+        resourceId: url,
+        resourceName: filename,
+        resourceType: 'paper',
+      });
+    } catch (xpError) {
+      console.warn('XP award failed, proceeding with download:', xpError);
+    }
+
     try {
       const resolvedUrl = await resolveAssetUrl(url);
       const isR2Asset = shouldUseR2(resolvedUrl) || shouldUseR2(url);
@@ -497,6 +509,16 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
       if (validQuestions.length === 0) {
         alert(`No files found to merge for ${type === 'questions' ? 'questions' : 'mark schemes'}`);
         return;
+      }
+
+      try {
+        await awardDownloadXP({
+          resourceId: `${quiz.id}_${type}`,
+          resourceName: `${quiz.title}_${type}`,
+          resourceType: 'paper',
+        });
+      } catch (xpError) {
+        console.warn('XP award failed, proceeding with download:', xpError);
       }
 
       // Show non-blocking loading notification
@@ -1139,7 +1161,7 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
         {/* Question Content Display (with optional side-by-side mark scheme) */}
         <div className="mb-6 border-2 border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900">
           {currentQ.questionContent ? (
-            <div>
+            <QuestionViewTracker questionId={currentQ.id || `quiz_${quizId || title}_${currentQuestion}`}>
               <MediaViewer
                 url={currentQ.questionContent}
                 type={(currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
@@ -1159,7 +1181,7 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
                 questionIndex={currentQuestion}
                 onChangeQuestion={(i) => setCurrentQuestion(i)}
               />
-            </div>
+            </QuestionViewTracker>
           ) : (
             <p className="text-gray-500 dark:text-gray-400">No question content provided</p>
           )}

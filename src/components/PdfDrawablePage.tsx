@@ -18,6 +18,7 @@ const A4_ASPECT = 297 / 210;
 export type DrawTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'ellipse';
 
 interface PdfDrawablePageProps {
+  mode?: 'inline' | 'modal';
   pageNumber: number;
   pageWidth: number;
   zoom: number; // Kept for interface compatibility, but we use --pdf-zoom via CSS
@@ -33,6 +34,7 @@ interface PdfDrawablePageProps {
   allowTouchNavigation?: boolean;
   restoredAnnotation?: StoredAnnotationPage | null;
   getRestoredAnnotation?: () => StoredAnnotationPage | null;
+  onPageAspectMeasured?: (pageNumber: number, aspect: number) => void;
 }
 
 function shouldAnnotateWithPointer(
@@ -195,6 +197,7 @@ function readCanvasMetrics(canvas: HTMLCanvasElement): CanvasMetrics {
 
 /** PDF page with a drawing canvas overlay for freehand pen annotations. */
 const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
+  mode = 'modal',
   pageNumber,
   pageWidth,
   renderScale,
@@ -209,6 +212,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   allowTouchNavigation = false,
   restoredAnnotation = null,
   getRestoredAnnotation,
+  onPageAspectMeasured,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -240,10 +244,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
   const [rendered, setRendered] = useState(false);
   const [pageHeight, setPageHeight] = useState(() => pageWidth * A4_ASPECT);
-
-  // High-res viewport overlay
-  const hiResCanvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<any>(null);
+  const [pageImgSrc, setPageImgSrc] = useState<string | null>(null);
   const lastViewportKeyRef = useRef<string>('');
 
   useEffect(() => {
@@ -279,11 +280,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
   const getDrawContext = useCallback((canvas: HTMLCanvasElement) => {
     if (!drawCtxRef.current) {
-      drawCtxRef.current = canvas.getContext('2d', {
-        alpha: true,
-        desynchronized: true,
-        willReadFrequently: true,
-      });
+      drawCtxRef.current = canvas.getContext('2d');
     }
     return drawCtxRef.current;
   }, []);
@@ -299,13 +296,14 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     const pageEl = container.querySelector('.react-pdf__Page') as HTMLElement | null;
     if (!pdfCanvas || !pageEl) return;
 
-    // Use a fixed devicePixelRatio for the drawing canvas to keep it static and avoid clearing it on semantic zoom
     const fixedDpr = window.devicePixelRatio || 1;
-    const logicalWidth = pageWidth;
-    const logicalHeight = pageWidth * A4_ASPECT;
+    const logicalWidth = pdfCanvas.clientWidth || pageWidth;
+    const aspect = (pdfCanvas.width && pdfCanvas.height) ? (pdfCanvas.height / pdfCanvas.width) : A4_ASPECT;
+    const unscaledPageHeight = pageWidth * aspect;
+    onPageAspectMeasured?.(pageNumber, aspect);
 
     const nextWidth = Math.round(logicalWidth * fixedDpr);
-    const nextHeight = Math.round(logicalHeight * fixedDpr);
+    const nextHeight = Math.round(unscaledPageHeight * fixedDpr);
 
     if (overlay.width !== nextWidth || overlay.height !== nextHeight) {
       overlay.width = nextWidth;
@@ -315,23 +313,27 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     overlay.style.top = `${pageEl.offsetTop}px`;
     overlay.style.left = `${pageEl.offsetLeft}px`;
     overlay.style.width = `${pdfCanvas.clientWidth || logicalWidth}px`;
-    overlay.style.height = `${pdfCanvas.clientHeight || logicalHeight}px`;
-    setPageHeight(pdfCanvas.clientHeight || logicalHeight);
+    overlay.style.height = `${pdfCanvas.clientHeight || (pageWidth * aspect)}px`;
+    setPageHeight(unscaledPageHeight);
   }, [pageWidth]);
 
   const applyRestoredAnnotationToOverlay = useCallback(async () => {
     const stored =
       getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
     const canvas = drawCanvasRef.current;
-    if (!stored || !canvas) return;
+    if (!canvas) return;
+    
+    const ctx = getDrawContext(canvas);
+    if (!ctx) return;
 
-    if (canvasHasContent(canvas)) return;
+    if (!stored) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      appliedRestoreKeyRef.current = null;
+      return;
+    }
 
     const restoreKey = `${stored.width}x${stored.height}:${stored.actions.length}:${stored.rasterFallback?.length ?? 0}`;
     if (appliedRestoreKeyRef.current === restoreKey) return;
-
-    const ctx = getDrawContext(canvas);
-    if (!ctx) return;
 
     try {
       await applyStoredAnnotation(ctx, canvas, stored);
@@ -346,140 +348,25 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     requestAnimationFrame(() => {
       syncOverlayToPdfCanvas();
       void applyRestoredAnnotationToOverlay();
+
+      if (mode === 'inline') {
+        const container = containerRef.current;
+        if (container) {
+          const pdfCanvas = container.querySelector(
+            'canvas.react-pdf__Page__canvas'
+          ) as HTMLCanvasElement | null;
+          if (pdfCanvas && pdfCanvas.width > 0 && pdfCanvas.height > 0) {
+            try {
+              const dataUrl = pdfCanvas.toDataURL('image/png');
+              setPageImgSrc(dataUrl);
+            } catch (e) {
+              console.warn('Failed to convert PDF canvas to image data URL:', e);
+            }
+          }
+        }
+      }
     });
   };
-
-  // High-res viewport rendering for zoom > 150%
-  const renderHiResViewport = useCallback(async () => {
-    const container = containerRef.current;
-    const scrollContainer = container?.closest('[data-pdf-scroll-container]') as HTMLElement | null;
-    const canvas = hiResCanvasRef.current;
-    if (!container || !scrollContainer || !canvas || !rendered) return;
-
-    const scale = renderScale || 1;
-    if (scale <= 1.5) {
-      // Hide hi-res canvas at low zoom
-      canvas.style.display = 'none';
-      return;
-    }
-
-    // Get PDF document from global (set by PDFViewerModal)
-    const pdfDoc = window.__PDF_DOC__;
-    if (!pdfDoc) return;
-
-    const pageEl = container.querySelector('.react-pdf__Page') as HTMLElement | null;
-    const pdfCanvas = container.querySelector('canvas.react-pdf__Page__canvas') as HTMLCanvasElement | null;
-    if (!pageEl || !pdfCanvas) return;
-
-    // Calculate visible viewport in PDF coordinates
-    const containerRect = pageEl.getBoundingClientRect();
-    const scrollRect = scrollContainer.getBoundingClientRect();
-
-    const visibleLeft = Math.max(0, scrollRect.left - containerRect.left);
-    const visibleTop = Math.max(0, scrollRect.top - containerRect.top);
-    const visibleWidth = Math.min(scrollRect.width, containerRect.width - visibleLeft);
-    const visibleHeight = Math.min(scrollRect.height, containerRect.height - visibleTop);
-
-    if (visibleWidth <= 0 || visibleHeight <= 0) {
-      canvas.style.display = 'none';
-      return;
-    }
-
-    // Convert to PDF page coordinates (page is rendered at pageWidth x pageHeight CSS pixels)
-    const cssScale = containerRect.width / pageWidth;
-    const pdfX = visibleLeft / cssScale;
-    const pdfY = visibleTop / cssScale;
-    const pdfWidth = visibleWidth / cssScale;
-    const pdfHeight = visibleHeight / cssScale;
-
-    // Create viewport key to avoid redundant renders
-    const viewportKey = `${pageNumber}-${Math.round(pdfX)}-${Math.round(pdfY)}-${Math.round(pdfWidth)}-${Math.round(pdfHeight)}-${Math.round(scale * 100)}`;
-    if (viewportKey === lastViewportKeyRef.current) return;
-    lastViewportKeyRef.current = viewportKey;
-
-    try {
-      const page = await pdfDoc.getPage(pageNumber);
-      const baseViewport = page.getViewport({ scale: 1 });
-      
-      // High DPR for sharp text: 3x at 200% zoom, 4x at 400%
-      const hiResDpr = Math.min(4, Math.max(2, scale * 2));
-      const targetScale = hiResDpr;
-      
-      // Calculate source region in hi-res viewport coordinates
-      const srcX = pdfX * targetScale;
-      const srcY = pdfY * targetScale;
-
-      // Set canvas size to visible area in CSS pixels * hiResDpr
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.round(visibleWidth * dpr);
-      canvas.height = Math.round(visibleHeight * dpr);
-      canvas.style.width = `${visibleWidth}px`;
-      canvas.style.height = `${visibleHeight}px`;
-      canvas.style.display = 'block';
-      canvas.style.position = 'absolute';
-      canvas.style.left = `${visibleLeft}px`;
-      canvas.style.top = `${visibleTop}px`;
-      canvas.style.pointerEvents = 'none';
-      canvas.style.zIndex = '15';
-
-      const ctx = canvas.getContext('2d', { alpha: true });
-      if (!ctx) return;
-
-      // Clear and render viewport region
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      
-      // Create a viewport for just the visible region at high res
-      const renderViewport = baseViewport.clone({ 
-        scale: targetScale,
-        offsetX: -srcX,
-        offsetY: -srcY
-      });
-
-      // Cancel previous render
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
-      }
-
-      renderTaskRef.current = page.render({
-        canvasContext: ctx,
-        viewport: renderViewport,
-        renderInteractiveForms: false,
-      });
-
-      await renderTaskRef.current.promise;
-      ctx.restore();
-    } catch (err) {
-      console.warn('Hi-res render failed:', err);
-      canvas.style.display = 'none';
-    }
-  }, [pageNumber, pageWidth, renderScale, rendered]);
-
-  // Trigger hi-res render on scroll/zoom
-  useEffect(() => {
-    if (!rendered) return;
-    const scrollContainer = containerRef.current?.closest('[data-pdf-scroll-container]') as HTMLElement | null;
-    if (!scrollContainer) return;
-
-    const handleScroll = () => {
-      void renderHiResViewport();
-    };
-
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-    // Also render on resize/zoom
-    const ro = new ResizeObserver(() => void renderHiResViewport());
-    ro.observe(scrollContainer);
-
-    // Initial render
-    void renderHiResViewport();
-
-    return () => {
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      ro.disconnect();
-      if (renderTaskRef.current) renderTaskRef.current.cancel();
-    };
-  }, [renderHiResViewport, rendered]);
 
   useEffect(() => {
     if (!rendered) return;
@@ -684,13 +571,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     const canvas = drawCanvasRef.current;
     if (!canvas || !rendered || !drawingEnabled) return;
 
-    const handlePointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      if (!shouldAnnotateWithPointer(e, allowTouchNavigationRef.current)) return;
-
-      e.preventDefault();
-      canvas.setPointerCapture(e.pointerId);
-      activePointerId.current = e.pointerId;
+    const startStrokeAtPoint = (clientX: number, clientY: number) => {
       canvasMetrics.current = readCanvasMetrics(canvas);
 
       isDrawing.current = true;
@@ -705,7 +586,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
         beforeAction.current = null;
       }
 
-      const point = getCanvasCoordsFromClient(e.clientX, e.clientY, canvasMetrics.current);
+      const point = getCanvasCoordsFromClient(clientX, clientY, canvasMetrics.current);
       lastPoint.current = point;
       strokePoints.current = [point];
 
@@ -715,8 +596,23 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       }
     };
 
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.button !== undefined && e.button !== 0 && e.button !== -1) return;
+      if (!shouldAnnotateWithPointer(e, allowTouchNavigationRef.current)) return;
+
+      e.preventDefault();
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback if setPointerCapture fails on certain browsers
+      }
+      activePointerId.current = e.pointerId;
+      startStrokeAtPoint(e.clientX, e.clientY);
+    };
+
     const handlePointerMove = (e: PointerEvent) => {
-      if (!isDrawing.current || activePointerId.current !== e.pointerId) return;
+      if (!isDrawing.current) return;
+      if (activePointerId.current !== null && activePointerId.current !== e.pointerId) return;
 
       const metrics = canvasMetrics.current ?? readCanvasMetrics(canvas);
       canvasMetrics.current = metrics;
@@ -729,8 +625,17 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
       if (tool !== 'pen' && tool !== 'eraser') return;
 
-      const events =
-        typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : [e];
+      let events = [e];
+      if (typeof e.getCoalescedEvents === 'function') {
+        try {
+          const coalesced = e.getCoalescedEvents();
+          if (coalesced && coalesced.length > 0) {
+            events = coalesced;
+          }
+        } catch {
+          events = [e];
+        }
+      }
 
       for (const event of events) {
         addFreehandPoint(getCanvasCoordsFromClient(event.clientX, event.clientY, metrics));
@@ -738,20 +643,64 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
-      if (activePointerId.current !== e.pointerId) return;
+      if (activePointerId.current !== null && activePointerId.current !== e.pointerId) return;
       finishDrawing();
     };
 
-    canvas.addEventListener('pointerdown', handlePointerDown);
-    canvas.addEventListener('pointermove', handlePointerMove);
-    canvas.addEventListener('pointerup', handlePointerUp);
-    canvas.addEventListener('pointercancel', handlePointerUp);
+    // Standard Mouse event fallbacks for browsers with partial pointer event implementations
+    const handleMouseDown = (e: MouseEvent) => {
+      if (isDrawing.current) return;
+      if (e.button !== 0) return;
+
+      e.preventDefault();
+      startStrokeAtPoint(e.clientX, e.clientY);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDrawing.current) return;
+
+      const metrics = canvasMetrics.current ?? readCanvasMetrics(canvas);
+      canvasMetrics.current = metrics;
+
+      const tool = drawToolRef.current;
+      if (isShapeTool(tool)) {
+        scheduleShapePreview(getCanvasCoordsFromClient(e.clientX, e.clientY, metrics));
+        return;
+      }
+
+      if (tool !== 'pen' && tool !== 'eraser') return;
+
+      addFreehandPoint(getCanvasCoordsFromClient(e.clientX, e.clientY, metrics));
+    };
+
+    const handleMouseUp = () => {
+      if (isDrawing.current) {
+        finishDrawing();
+      }
+    };
+
+    if (window.PointerEvent) {
+      canvas.addEventListener('pointerdown', handlePointerDown);
+      canvas.addEventListener('pointermove', handlePointerMove);
+      canvas.addEventListener('pointerup', handlePointerUp);
+      canvas.addEventListener('pointercancel', handlePointerUp);
+    } else {
+      canvas.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
 
     return () => {
-      canvas.removeEventListener('pointerdown', handlePointerDown);
-      canvas.removeEventListener('pointermove', handlePointerMove);
-      canvas.removeEventListener('pointerup', handlePointerUp);
-      canvas.removeEventListener('pointercancel', handlePointerUp);
+      if (window.PointerEvent) {
+        canvas.removeEventListener('pointerdown', handlePointerDown);
+        canvas.removeEventListener('pointermove', handlePointerMove);
+        canvas.removeEventListener('pointerup', handlePointerUp);
+        canvas.removeEventListener('pointercancel', handlePointerUp);
+      } else {
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      }
       cancelPendingFrame();
       if (shapePreviewFrame.current !== null) {
         cancelAnimationFrame(shapePreviewFrame.current);
@@ -823,26 +772,35 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
             />
           </div>
         )}
-        <Page
-          pageNumber={pageNumber}
-          width={pageWidth}
-          // Base layer: moderate quality for smooth scrolling
-          devicePixelRatio={(window.devicePixelRatio || 1) * 1.5}
-          renderMode="canvas"
-          renderTextLayer={!drawingEnabled}
-          renderAnnotationLayer={false}
-          loading={
-            <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
-          }
-          onRenderSuccess={handleRenderSuccess}
-          onRenderError={handleRenderSuccess}
-        />
-        {/* Hi-res viewport overlay for zoom > 150% */}
-        <canvas
-          ref={hiResCanvasRef}
-          className="absolute pointer-events-none"
-          style={{ display: 'none' }}
-        />
+        {(() => {
+          const baseDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+          const effectiveDpr = Math.min(3, baseDpr * Math.max(1.8, (renderScale || 1) * 1.25));
+          return (
+            <Page
+              pageNumber={pageNumber}
+              width={pageWidth}
+              devicePixelRatio={effectiveDpr}
+              renderMode="canvas"
+              renderTextLayer={mode !== 'inline' && !drawingEnabled}
+              renderAnnotationLayer={false}
+              loading={
+                <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
+              }
+              onRenderSuccess={handleRenderSuccess}
+              onRenderError={handleRenderSuccess}
+            />
+          );
+        })()}
+
+        {mode === 'inline' && pageImgSrc && (
+          <img
+            src={pageImgSrc}
+            alt={`Page ${pageNumber}`}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-auto select-none z-10"
+            draggable={false}
+          />
+        )}
+
         {rendered && (
           <canvas
             ref={drawCanvasRef}
@@ -865,6 +823,7 @@ function pdfDrawablePagePropsAreEqual(
   prev: PdfDrawablePageProps,
   next: PdfDrawablePageProps
 ) {
+  if (prev.mode !== next.mode) return false;
   if (prev.pageNumber !== next.pageNumber) return false;
   if (prev.pageWidth !== next.pageWidth) return false;
   if (prev.drawingEnabled !== next.drawingEnabled) return false;

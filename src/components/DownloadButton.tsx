@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { triggerXPNotification } from './XPRewardNotification';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 interface DownloadButtonProps {
   resourceId: string;
   resourceType: 'file' | 'paper';
   resourceName: string;
+  downloadUrl: string;
 }
 
-export function DownloadButton({ resourceId, resourceType, resourceName }: DownloadButtonProps) {
+export function DownloadButton({ resourceId, resourceType, resourceName, downloadUrl }: DownloadButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleDownload = async () => {
@@ -20,33 +20,18 @@ export function DownloadButton({ resourceId, resourceType, resourceName }: Downl
         return;
       }
 
-      const response = await fetch('/api/xp/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ resourceId })
-      });
-
-      if (!response.ok) {
-        throw new Error('Download request failed');
-      }
-
-      const data = await response.json();
-      
-      // Show notification if XP was awarded
-      if (data.xpAwarded > 0) {
-        triggerXPNotification(
-          data.xpAwarded, 
-          resourceType === 'paper' ? 'paper_download' : 'download'
-        );
+      try {
+        await awardDownloadXP({
+          resourceId,
+          resourceName,
+          resourceType,
+        });
+      } catch (xpError) {
+        console.warn('XP award failed, proceeding with download:', xpError);
       }
 
       // Proceed with the actual download
-      if (data.url) {
-        window.open(data.url, '_blank');
-      }
+      window.open(downloadUrl, '_blank');
     } catch (error) {
       console.error('Download error:', error);
       alert('An error occurred during download.');

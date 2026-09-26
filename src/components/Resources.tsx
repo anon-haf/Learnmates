@@ -17,8 +17,7 @@ import {
 } from '../utils/privacyUtils';
 import { DoneItem, isDoneItem } from '../utils/doneItems';
 import { useEngagement } from '../context/EngagementContext';
-import { supabase } from '../lib/supabaseClient';
-import { triggerXPNotification } from './XPRewardNotification';
+import { awardDownloadXP } from '../utils/awardDownloadXP';
 
 interface Resource {
   id: string;
@@ -92,30 +91,13 @@ const Resources: React.FC<ResourcesProps> = ({
       setEngagementFlag(topicId, resource.id, resource.url, 'downloaded');
     }
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const response = await fetch('/api/xp/download', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          keepalive: true,
-          body: JSON.stringify({ 
-            resourceId: resource.id,
-            resourceName: resource.title,
-            resourceType: 'file'
-          })
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.xpAwarded > 0) {
-            triggerXPNotification(data.xpAwarded, 'download');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to track download XP', error);
+      await awardDownloadXP({
+        resourceId: resource.id,
+        resourceName: resource.title,
+        resourceType: 'file',
+      });
+    } catch (xpError) {
+      console.warn('XP award failed, proceeding with download:', xpError);
     }
   };
 

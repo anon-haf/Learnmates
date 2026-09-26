@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import {
@@ -17,6 +17,10 @@ import {
   HeartHandshake,
   AlertTriangle,
   Trash2,
+  Camera,
+  Upload,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { type BoardKey } from "../utils/curriculumData";
 import { useAuth } from "../context/AuthContext";
@@ -26,6 +30,8 @@ import {
   loadFavoriteSubjectsForUser,
   type UserProfile,
   updateProfile,
+  uploadAvatar,
+  deleteAvatar,
 } from "../utils/profileSync";
 import { supabase } from '../lib/supabaseClient';
 import type { FavoriteSubject } from "../utils/favoriteSubjects";
@@ -123,6 +129,11 @@ const ProfilePage = () => {
   const [draftLevel, setDraftLevel] = useState("");
   const [draftBoards, setDraftBoards] = useState<BoardKey[]>([]);
   const [draftSession, setDraftSession] = useState("");
+  const [draftPrivate, setDraftPrivate] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authUser) return;
@@ -141,6 +152,7 @@ const ProfilePage = () => {
         setSelectedLevel(profileData?.study_level ?? null);
         setSelectedBoards((profileData?.boards ?? []) as BoardKey[]);
         setSelectedSession(profileData?.exam_session ?? null);
+        setAvatarUrl(profileData?.avatar_url ?? null);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -204,8 +216,50 @@ const ProfilePage = () => {
     setDraftLevel(selectedLevel ?? "");
     setDraftBoards(selectedBoards);
     setDraftSession(selectedSession ?? "");
+    setDraftPrivate(profile?.is_private ?? false);
+    setAvatarError(null);
     setIsEditing(true);
   };
+
+  const handleAvatarChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !authUser) return;
+
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+
+    try {
+      const { url, error } = await uploadAvatar(authUser.id, file);
+      if (error) {
+        setAvatarError(error);
+      } else if (url) {
+        setAvatarUrl(url);
+      }
+    } catch (err) {
+      setAvatarError('An unexpected error occurred.');
+      console.error(err);
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input so same file can be re-selected
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  }, [authUser]);
+
+  const handleDeleteAvatar = useCallback(async () => {
+    if (!authUser) return;
+    setIsUploadingAvatar(true);
+    setAvatarError(null);
+    try {
+      const { error } = await deleteAvatar(authUser.id);
+      if (error) {
+        setAvatarError(error);
+      } else {
+        setAvatarUrl(null);
+      }
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  }, [authUser]);
 
   const toggleDraftBoard = (board: BoardKey) => {
     setDraftBoards((prev) =>
@@ -240,6 +294,7 @@ const ProfilePage = () => {
         study_level: draftLevel || null,
         boards: draftBoards,
         exam_session: draftSession || null,
+        is_private: draftPrivate,
       });
 
       if (error) {
@@ -249,6 +304,9 @@ const ProfilePage = () => {
         setSelectedLevel(draftLevel || null);
         setSelectedBoards(draftBoards);
         setSelectedSession(draftSession || null);
+        if (profile) {
+          setProfile({ ...profile, is_private: draftPrivate });
+        }
         setIsEditing(false);
       }
     } finally {
@@ -354,6 +412,76 @@ const ProfilePage = () => {
           Your username and email can't be changed.
         </p>
 
+        {/* Avatar upload */}
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Profile picture
+          </span>
+          <div className="mt-2 flex items-center gap-4">
+            <div className="relative group">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="flex h-20 w-20 items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 overflow-hidden transition hover:border-blue-400 dark:hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-60"
+              >
+                {isUploadingAvatar ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                ) : avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <Camera className="h-6 w-6 text-slate-400" />
+                )}
+              </button>
+              {avatarUrl && !isUploadingAvatar && (
+                <div className="absolute -top-1 -right-1 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition"
+                    title="Change photo"
+                  >
+                    <Upload className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAvatar}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 transition"
+                    title="Remove photo"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-60"
+              >
+                {avatarUrl ? 'Change photo' : 'Upload a photo'}
+              </button>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                JPEG, PNG, WebP, or GIF. Max 2 MB.
+              </p>
+              {avatarError && (
+                <p className="mt-1 text-xs text-red-500 dark:text-red-400">
+                  {avatarError}
+                </p>
+              )}
+            </div>
+          </div>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            onChange={handleAvatarChange}
+            className="sr-only"
+          />
+        </div>
+
         {/* Editable fields */}
         <div>
           <label
@@ -445,6 +573,42 @@ const ProfilePage = () => {
           </div>
         </div>
 
+        {/* Privacy toggle */}
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 px-4 py-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {draftPrivate ? (
+              <EyeOff className="h-5 w-5 text-slate-400 shrink-0" />
+            ) : (
+              <Eye className="h-5 w-5 text-slate-400 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">
+                Private account
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Your profile won't appear on the leaderboard
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={draftPrivate}
+            onClick={() => setDraftPrivate((prev) => !prev)}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+              draftPrivate
+                ? 'bg-blue-600'
+                : 'bg-slate-200 dark:bg-slate-600'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                draftPrivate ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
         {/* Save button */}
         <div className="pt-4">
           <button
@@ -493,12 +657,20 @@ const ProfilePage = () => {
 
           <div className="mt-3 grid w-full max-w-[520px] grid-cols-[4rem_1fr] gap-x-3 gap-y-3">
             {/* Avatar — top left */}
-            <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl font-semibold text-white ring-1 ring-white/20"
-              style={{ fontFamily: "'Fraunces', serif" }}
-            >
-              {(displayName || "S").charAt(0).toUpperCase()}
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName || 'Avatar'}
+                className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-white/20"
+              />
+            ) : (
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl font-semibold text-white ring-1 ring-white/20"
+                style={{ fontFamily: "'Fraunces', serif" }}
+              >
+                {(displayName || "S").charAt(0).toUpperCase()}
+              </div>
+            )}
 
             {/* Name + badge — top right */}
             <div className="min-w-0 flex items-start flex-col">
@@ -585,12 +757,20 @@ const ProfilePage = () => {
 
           <div className="mt-3 grid w-full max-w-[520px] grid-cols-[4rem_1fr] gap-x-3 gap-y-3">
             {/* Avatar — top left */}
-            <div
-              className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-600/10 text-2xl font-semibold text-blue-700 ring-1 ring-blue-200"
-              style={{ fontFamily: "'Fraunces', serif" }}
-            >
-              {(displayName || "S").charAt(0).toUpperCase()}
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName || 'Avatar'}
+                className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-blue-200"
+              />
+            ) : (
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-blue-600/10 text-2xl font-semibold text-blue-700 ring-1 ring-blue-200"
+                style={{ fontFamily: "'Fraunces', serif" }}
+              >
+                {(displayName || "S").charAt(0).toUpperCase()}
+              </div>
+            )}
 
             {/* Name + badge — top right */}
             <div className="min-w-0 flex items-start flex-col">

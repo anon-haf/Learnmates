@@ -203,7 +203,7 @@ const Dashboard: React.FC = () => {
         />
       </Helmet>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="visible">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <motion.div variants={itemVariants}>
@@ -314,6 +314,20 @@ const Dashboard: React.FC = () => {
                                 </Button>
                               </>
                             )}
+                            {showTopicals && (
+                              <>
+                                <div className="w-px shrink-0 bg-slate-200 dark:bg-slate-700" aria-hidden="true" />
+                                <Button
+                                  asChild
+                                  variant="ghost"
+                                  size="lg"
+                                  fullWidth
+                                  className="py-4 text-sm font-semibold text-slate-900 dark:text-slate-100 bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700 rounded-none transition-colors duration-200"
+                                >
+                                  <Link to={paths.pastpapers}>Past Papers</Link>
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </Card>
                       </motion.div>
@@ -396,8 +410,8 @@ const Dashboard: React.FC = () => {
                         >
                           <div
                             className={`w-5 h-5 rounded text-xs flex items-center justify-center font-semibold ${day.isVisited
-                                ? 'bg-green-400 text-white shadow-sm'
-                                : 'bg-slate-100 dark:bg-slate-800/30 text-slate-700 dark:text-slate-200 text-[0.6rem]'
+                              ? 'bg-green-400 text-white shadow-sm'
+                              : 'bg-slate-100 dark:bg-slate-800/30 text-slate-700 dark:text-slate-200 text-[0.6rem]'
                               }`}
                           >
                             {day.dayOfMonth}

@@ -76,12 +76,11 @@ const ResourcePreviewThumbnail: React.FC<ResourcePreviewThumbnailProps> = ({
         canvas.width = scaledViewport.width;
         canvas.height = scaledViewport.height;
 
-        // Set rendering options for better quality and image rendering
         (canvas as any).mozOpaque = true;
 
-        await page.render({ 
-          canvasContext: context, 
-          viewport: scaledViewport, 
+        await page.render({
+          canvasContext: context,
+          viewport: scaledViewport,
           intent: 'display'
         }).promise;
 
@@ -104,11 +103,12 @@ const ResourcePreviewThumbnail: React.FC<ResourcePreviewThumbnailProps> = ({
 
   if (driveThumbnail && !error) {
     return (
-      <div className={`relative bg-gray-100 dark:bg-gray-700 overflow-hidden flex items-start justify-center ${className}`}>
+      // overflow-hidden + absolute fill ensures parent's aspect-ratio class is respected
+      <div className={`relative bg-gray-100 dark:bg-gray-700 overflow-hidden ${className}`}>
         <img
           src={driveThumbnail}
           alt={title}
-          className="w-full h-auto object-contain"
+          className="absolute inset-0 w-full h-full object-cover"
           onError={() => {
             setError(true);
             setLoading(false);
@@ -124,8 +124,8 @@ const ResourcePreviewThumbnail: React.FC<ResourcePreviewThumbnailProps> = ({
 
   if (isLocalPdf(url) && pdfThumbnail && !error) {
     return (
-      <div className={`relative bg-gray-100 dark:bg-gray-700 overflow-hidden flex items-start justify-center ${className}`}>
-        <img src={pdfThumbnail} alt={title} className="w-full h-auto object-contain" />
+      <div className={`relative bg-gray-100 dark:bg-gray-700 overflow-hidden ${className}`}>
+        <img src={pdfThumbnail} alt={title} className="absolute inset-0 w-full h-full object-cover" />
       </div>
     );
   }

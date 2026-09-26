@@ -194,10 +194,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       const lastSlash = urlPath.lastIndexOf('/');
       const dirPath = urlPath.substring(0, lastSlash);
       const fileName = urlPath.substring(lastSlash + 1);
-      
+
       // Remove file extension to get the base name (e.g., "Jan 2021 Q1" from "Jan 2021 Q1.pdf")
       const baseFileName = fileName.replace(/\.(pdf|png|jpg|jpeg|gif|webp)$/i, '');
-      
+
       // Try to fetch info.json from the same directory
       const infoJsonPath = `${dirPath}/info.json`;
       const resolvedInfoUrl = shouldUseR2(fileUrl) ? await resolveFromR2(infoJsonPath) : null;
@@ -205,15 +205,15 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
         return;
       }
       const response = await fetch(resolvedInfoUrl, { headers: getAssetAuthHeaders() });
-      
+
       if (response.ok) {
         const infoData = await response.json();
-        
+
         // Find the entry that matches this file name
-        const matchingEntry = Array.isArray(infoData) 
+        const matchingEntry = Array.isArray(infoData)
           ? infoData.find((item) => item.file_name === baseFileName)
           : null;
-        
+
         if (matchingEntry && Array.isArray(matchingEntry.topic_matches)) {
           setTopicTags(matchingEntry.topic_matches);
         }
@@ -243,7 +243,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     const load = async () => {
       const currentUrl = effectiveUrl;
       const currentType = effectiveType;
-      
+
       try {
         setLoading(true);
         setError(null);
@@ -269,7 +269,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
               }
             }
           });
-          
+
           let pdfUrl = currentUrl;
           if (!pdfUrl.startsWith('http') && !pdfUrl.startsWith('blob:')) {
             pdfUrl = new URL(pdfUrl, window.location.origin).href;
@@ -321,7 +321,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
           setNumPages(1);
           setImageLoaded(false);
           imageFallbackUrlRef.current = removeExtension(currentUrl); // Store base URL without extension
-          
+
           if (shouldUseR2(currentUrl) && !disableR2) {
             console.log(`[MediaViewer] Using assets URL only for image: ${currentUrl}`);
             resolveFromR2(currentUrl).then(async r2Url => {
@@ -360,18 +360,18 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
           setError(`Failed to load managed asset from R2: ${errMsg}`);
           return;
         }
-        
+
         // If PDF parsing fails (or R2 fallback failed), try treating it as an image instead
         if (currentType === 'pdf') {
           console.warn('PDF parsing failed, attempting to load as image:', errMsg);
           try {
             setNumPages(1);
             setImageLoaded(false);
-            
+
             // Extract base URL without extension
             const baseUrl = removeExtension(currentUrl);
             imageFallbackUrlRef.current = baseUrl;
-            
+
             // Try image extensions in order: first try original URL, then alternatives
             // Start with attempt 0 which will use the original URL as-is
             if (imageRef.current) {
@@ -384,7 +384,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
             // Both PDF and image load failed
           }
         }
-        
+
         const errorMsg = errMsg;
         setError(`Failed to load: ${errorMsg}`);
         console.error('Error loading:', err);
@@ -396,7 +396,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     };
 
     load();
-    
+
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -570,35 +570,35 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
           const canvas = pageRef?.canvas;
           const annotationCanvas = pageRef?.annotationCanvas;
           if (!canvas) return;
-          
+
           try {
             const page = await pdfRef.current.getPage(pageNum);
             const viewport = page.getViewport({ scale: ZOOM_SCALE });
             const context = canvas.getContext('2d');
             if (!context) return;
-            
+
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             if (annotationCanvas) {
               annotationCanvas.width = viewport.width;
               annotationCanvas.height = viewport.height;
             }
-            
+
             const renderContext = {
               canvasContext: context,
               viewport: viewport,
             };
-            
+
             await page.render(renderContext).promise;
-            
+
             // Remove the placeholder minHeight and set aspect ratio
             canvas.style.minHeight = 'auto';
             canvas.style.aspectRatio = `${viewport.width} / ${viewport.height}`;
-            
+
             if (pageNum === 1) {
               setLoading(false); // Show page 1 immediately
             }
-            
+
             // Restore annotations after this page is rendered so strokes on it appear
             if (annotationToRestore) {
               restoreAnnotationToPageCanvases(annotationToRestore);
@@ -623,22 +623,22 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
               }
             }
           });
-        }, { 
-          root: pagesContainerRef.current, 
+        }, {
+          root: pagesContainerRef.current,
           // Load 1.5 screens ahead and behind to make scrolling seamless
-          rootMargin: '150% 0px 150% 0px' 
+          rootMargin: '150% 0px 150% 0px'
         });
 
         // Observe all canvases
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
           const pageRef = canvasRefsMap.current.get(pageNum);
           if (pageRef?.canvas) {
-             pageRef.canvas.dataset.page = String(pageNum);
-             if (pageNum > 1) {
-               // Give a placeholder minHeight to prevent all pages from intersecting at once initially
-               pageRef.canvas.style.minHeight = '80vh';
-             }
-             observer.observe(pageRef.canvas);
+            pageRef.canvas.dataset.page = String(pageNum);
+            if (pageNum > 1) {
+              // Give a placeholder minHeight to prevent all pages from intersecting at once initially
+              pageRef.canvas.style.minHeight = '80vh';
+            }
+            observer.observe(pageRef.canvas);
           }
         }
 
@@ -651,9 +651,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
         if (!signal?.aborted) setLoading(false);
       }
     };
-    
+
     renderAllPages();
-    
+
     return () => {
       if (observer) {
         observer.disconnect();
@@ -819,7 +819,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     setIsDrawing(false);
     setCurrentDrawingPageNum(null);
     lastPointRef.current = null;
-    
+
     // Save annotation after stroke ends
     let data: string | null = null;
     if (effectiveType === 'pdf') {
@@ -1353,7 +1353,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     modalImgRefs.current.clear();
     // If main content is too small, disable annotation mode
     if (!canAnnotate) setAnnotationMode(false);
-  }; 
+  };
 
   // Load PDF pages for modal - same as normal but with higher zoom
   const loadPdfPagesForModal = async (pdfUrl: string) => {
@@ -1364,9 +1364,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       if (!url.startsWith('http') && !url.startsWith('blob:')) {
         url = new URL(url, window.location.origin).href;
       }
-      
+
       let pdf: PDFDocumentProxy;
-      
+
       if (shouldUseR2(pdfUrl) && !disableR2) {
         const r2Url = await resolveFromR2(pdfUrl);
         if (!r2Url) {
@@ -1383,9 +1383,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       } else {
         pdf = await pdfjs.getDocument({ ...pdfGetDocumentOptions, url }).promise;
       }
-      
+
       const total = Math.min(pdf.numPages, 50);
-      
+
       // Get first page to determine target width
       let targetWidth = 1000; // default fallback
       try {
@@ -1439,9 +1439,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       if (!url.startsWith('http') && !url.startsWith('blob:')) {
         url = new URL(url, window.location.origin).href;
       }
-      
+
       let pdf: PDFDocumentProxy;
-      
+
       if (shouldUseR2(pdfUrl) && !disableR2) {
         const r2Url = await resolveFromR2(pdfUrl);
         if (!r2Url) {
@@ -1458,7 +1458,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       } else {
         pdf = await pdfjs.getDocument({ ...pdfGetDocumentOptions, url }).promise;
       }
-      
+
       const total = Math.min(pdf.numPages, 50);
       // Just use simple zoom scale for basic PDF rendering (fallback function)
       const ZOOM_SCALE = 5.0;
@@ -1503,8 +1503,8 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         setModalZoom(prev => {
-          const newZoom = e.deltaY > 0 
-            ? Math.max(0.5, prev - 0.1) 
+          const newZoom = e.deltaY > 0
+            ? Math.max(0.5, prev - 0.1)
             : Math.min(3, prev + 0.1);
           return newZoom;
         });
@@ -1540,7 +1540,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [zoomOpen, modalQuestionIndex, modalMode, questionList, onChangeQuestion]);
-  
+
   const clearAnnotations = () => {
     canvasRefsMap.current.forEach((pageRef) => {
       if (pageRef.annotationCanvas) {
@@ -1571,7 +1571,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
         if (onSaveAnnotation) onSaveAnnotation(data);
       }
     }
-  }; 
+  };
 
   // Current MCQ answer for the modal question (if it is an MCQ question)
   const currentMcqAnswer = questionList?.[modalQuestionIndex]?.mcqAnswer;
@@ -1593,75 +1593,72 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
     >
       {/* Toolbar */}
       {!hideToolbar && (
-      <div className="bg-gray-200 dark:bg-gray-800 p-3 flex items-center justify-between border-b border-gray-300 dark:border-gray-700 sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700 dark:text-gray-300">
-            {loading ? 'Loading...' : (effectiveType === 'pdf' ? `${numPages || '?'} pages` : (markSchemeOpen ? 'Mark Scheme Image' : 'Question Image'))}
-          </span>
-          {hasMarkScheme && (
-            <span className={`text-xs font-semibold px-2 py-1 rounded ${
-              markSchemeOpen ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
-            }`}>
-              {markSchemeOpen ? 'MARK SCHEME' : 'QUESTION'}
+        <div className="bg-gray-200 dark:bg-gray-800 p-3 flex items-center justify-between border-b border-gray-300 dark:border-gray-700 sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {loading ? 'Loading...' : (effectiveType === 'pdf' ? `${numPages || '?'} pages` : (markSchemeOpen ? 'Mark Scheme Image' : 'Question Image'))}
             </span>
-          )}
-        </div>
+            {hasMarkScheme && (
+              <span className={`text-xs font-semibold px-2 py-1 rounded ${markSchemeOpen ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                {markSchemeOpen ? 'MARK SCHEME' : 'QUESTION'}
+              </span>
+            )}
+          </div>
 
-        <div className="flex items-center gap-2">
-          {hasMarkScheme && (
-            <>
-              <div className="w-px h-6 bg-gray-400 dark:bg-gray-600" />
+          <div className="flex items-center gap-2">
+            {hasMarkScheme && (
+              <>
+                <div className="w-px h-6 bg-gray-400 dark:bg-gray-600" />
+                <button
+                  onClick={() => onToggleMarkScheme && onToggleMarkScheme(!markSchemeOpen)}
+                  className={`px-3 py-1.5 rounded text-sm transition-colors ${markSchemeOpen
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
+                    }`}
+                  title="Toggle mark scheme"
+                >
+                  {markSchemeOpen ? 'Question' : 'Mark Scheme'}
+                </button>
+              </>
+            )}
+
+            {canAnnotate && (
               <button
-                onClick={() => onToggleMarkScheme && onToggleMarkScheme(!markSchemeOpen)}
-                className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                  markSchemeOpen
-                    ? 'bg-orange-500 text-white'
+                onClick={() => setAnnotationMode(prev => !prev)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-colors ${annotationMode
+                    ? 'bg-purple-500 text-white'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-                title="Toggle mark scheme"
+                  }`}
+                title="Toggle annotation mode"
               >
-                {markSchemeOpen ? 'Question' : 'Mark Scheme'}
+                <Pen className="w-4 h-4" />
+                Annotate
               </button>
-            </>
-          )}
-
-          {canAnnotate && (
-            <button
-              onClick={() => setAnnotationMode(prev => !prev)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm transition-colors ${
-                annotationMode
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
-              }`}
-              title="Toggle annotation mode"
-            >
-              <Pen className="w-4 h-4" />
-              Annotate
-            </button>
-          )}  
+            )}
 
 
-          {showMarkingButtons && !showMarkingBelow && (
-            <>
-              <div className="w-px h-6 bg-gray-400 dark:bg-gray-600" />
-              <button
-                onClick={onMarkCorrect}
-                className="px-3 py-1.5 rounded text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors"
-                title="Mark as correct"
-              >
-                ✓ Correct
-              </button>
-              <button
-                onClick={onMarkIncorrect}
-                className="px-3 py-1.5 rounded text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors"
-                title="Mark as incorrect"
-              >
-                ✗ Wrong
-              </button>
-            </>
-          )} 
+            {showMarkingButtons && !showMarkingBelow && (
+              <>
+                <div className="w-px h-6 bg-gray-400 dark:bg-gray-600" />
+                <button
+                  onClick={onMarkCorrect}
+                  className="px-3 py-1.5 rounded text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-colors"
+                  title="Mark as correct"
+                >
+                  ✓ Correct
+                </button>
+                <button
+                  onClick={onMarkIncorrect}
+                  className="px-3 py-1.5 rounded text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors"
+                  title="Mark as incorrect"
+                >
+                  ✗ Wrong
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Topic Tags Section */}
@@ -1703,7 +1700,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
       {zoomOpen && (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black bg-opacity-60 p-6">
           <div ref={modalWrapperRef} className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden max-w-[90vw] max-h-[90vh] w-full flex flex-col">
-                  <div className="p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <div className="p-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2 sm:gap-3">
                 <h3 className="text-base sm:text-lg font-semibold whitespace-nowrap">Large View</h3>
                 {modalLoading && (
@@ -1793,11 +1790,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                 {/* Annotate toggle inside modal */}
                 <button
                   onClick={() => setModalAnnotate(prev => !prev)}
-                  className={`hidden sm:flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm md:text-base transition-colors ${
-                    modalAnnotate
+                  className={`hidden sm:flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm md:text-base transition-colors ${modalAnnotate
                       ? 'bg-purple-500 text-white'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
+                    }`}
                   title="Toggle annotation mode"
                 >
                   <Pen className="w-4 h-4" />
@@ -1830,21 +1826,19 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
               <div className="bg-gray-300 dark:bg-gray-700 p-2 flex flex-wrap items-center gap-2 border-b border-gray-400 dark:border-gray-600">
                 <button
                   onClick={() => setDrawMode('pen')}
-                  className={`px-2 py-1 rounded text-sm ${
-                    drawMode === 'pen'
+                  className={`px-2 py-1 rounded text-sm ${drawMode === 'pen'
                       ? 'bg-blue-500 text-white'
                       : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   Pen
                 </button>
                 <button
                   onClick={() => setDrawMode('eraser')}
-                  className={`px-2 py-1 rounded text-sm ${
-                    drawMode === 'eraser'
+                  className={`px-2 py-1 rounded text-sm ${drawMode === 'eraser'
                       ? 'bg-blue-500 text-white'
                       : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200'
-                  }`}
+                    }`}
                 >
                   Eraser
                 </button>
@@ -1886,9 +1880,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
               </div>
             )}
 
-            <div 
-              ref={modalContentRef} 
-              className="p-4 overflow-auto flex-1 min-h-0 flex flex-col items-center justify-start" 
+            <div
+              ref={modalContentRef}
+              className="p-4 overflow-auto flex-1 min-h-0 flex flex-col items-center justify-start"
               style={{ minHeight: 320 }}
             >
               {modalLoading ? (
@@ -1903,7 +1897,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     const marginRem = 1 * marginMultiplier;
                     const widthVw = 10 * marginMultiplier;
                     const widthRem = 2 * marginMultiplier;
-                    
+
                     return (
                       <div key={i} className="relative" style={{
                         maxWidth: `calc(100% - max(${widthVw}vw, ${widthRem}rem))`,
@@ -2027,11 +2021,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     <button
                       type="button"
                       onClick={() => { if (onMcqLiveCheckToggle) onMcqLiveCheckToggle(); }}
-                      className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${
-                        mcqLiveCheck
+                      className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${mcqLiveCheck
                           ? 'bg-purple-500 text-white hover:bg-purple-600'
                           : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
-                      }`}
+                        }`}
                     >
                       {mcqLiveCheck ? 'Live check: On' : 'Live check: Off'}
                     </button>
@@ -2041,22 +2034,22 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     <div className="flex items-stretch gap-4 w-full max-w-md mx-auto">
                       {['A', 'B', 'C', 'D'].map(option => {
                         const isSelected = mcqSelection === option;
-                        const isCorrect = mcqLiveCheck && isSelected && currentMcqAnswer === option;
-                        const isWrong = mcqLiveCheck && isSelected && currentMcqAnswer !== option;
+                        const showAnswers = mcqLiveCheck && mcqSelection !== null;
+                        const isCorrectOption = showAnswers && currentMcqAnswer === option;
+                        const isSelectedWrong = showAnswers && isSelected && currentMcqAnswer !== option;
                         return (
                           <button
                             key={option}
                             type="button"
                             onClick={() => { if (onMcqSelect) onMcqSelect(option); }}
-                            className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${
-                              isCorrect
+                            className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
                                 ? 'border-green-600 bg-green-600 text-white'
-                                : isWrong
+                                : isSelectedWrong
                                   ? 'border-red-600 bg-red-600 text-white'
                                   : isSelected
                                     ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
                                     : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                            }`}
+                              }`}
                           >
                             {option}
                           </button>
@@ -2065,18 +2058,12 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between h-5">
                     {mcqSelection ? (
-                      mcqLiveCheck ? (
-                        <p className={`text-xs sm:text-sm font-semibold ${mcqSelection === currentMcqAnswer ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-400'}`}>
-                          {mcqSelection === currentMcqAnswer ? 'Correct!' : `Correct answer: ${currentMcqAnswer}`}
-                        </p>
-                      ) : (
-                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Live check is off. Toggle it on to reveal the answer.</p>
+                      !mcqLiveCheck && (
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400"></p>
                       )
-                    ) : (
-                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Tap an option to check your answer.</p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2090,11 +2077,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
         <div className="bg-gray-300 dark:bg-gray-700 p-2 flex items-center gap-2 border-b border-gray-400 dark:border-gray-600">
           <button
             onClick={() => setDrawMode('pen')}
-            className={`px-2 py-1 rounded text-sm ${
-              drawMode === 'pen'
+            className={`px-2 py-1 rounded text-sm ${drawMode === 'pen'
                 ? 'bg-blue-500 text-white'
                 : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200'
-            }`}
+              }`}
           >
             Pen
           </button>
@@ -2112,11 +2098,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
           </label>
           <button
             onClick={() => setDrawMode('eraser')}
-            className={`px-2 py-1 rounded text-sm ${
-              drawMode === 'eraser'
+            className={`px-2 py-1 rounded text-sm ${drawMode === 'eraser'
                 ? 'bg-blue-500 text-white'
                 : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200'
-            }`}
+              }`}
           >
             Eraser
           </button>
@@ -2169,122 +2154,122 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
           className={`h-full w-full bg-gray-50 dark:bg-gray-950 p-0 overflow-y-auto overflow-x-hidden`}
           style={{ minHeight: 0 }}
         >
-        <div className="flex flex-col gap-2 items-start w-full justify-start">
-          {effectiveType === 'pdf' && numPages ? (
-            Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => {
-              if (!canvasRefsMap.current.has(pageNum)) {
-                canvasRefsMap.current.set(pageNum, {
-                  canvas: null,
-                  annotationCanvas: null
-                });
-              }
+          <div className="flex flex-col gap-2 items-start w-full justify-start">
+            {effectiveType === 'pdf' && numPages ? (
+              Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => {
+                if (!canvasRefsMap.current.has(pageNum)) {
+                  canvasRefsMap.current.set(pageNum, {
+                    canvas: null,
+                    annotationCanvas: null
+                  });
+                }
 
-              return (
-                <div key={pageNum} className="relative inline-block">
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
-                    <canvas
-                      ref={(el) => {
-                        if (el) {
-                          const pageRef = canvasRefsMap.current.get(pageNum) || {
-                            canvas: null,
-                            annotationCanvas: null
-                          };
-                          pageRef.canvas = el;
-                          canvasRefsMap.current.set(pageNum, pageRef);
-                        }
-                      }}
-                      className="bg-white shadow-lg rounded block"
-                      style={{
-                        height: 'auto',
-                        display: 'block',
-                        width: '100%'
-                      }}
-                    />
-                    <canvas
-                      ref={(el) => {
-                        if (el) {
-                          const pageRef = canvasRefsMap.current.get(pageNum) || {
-                            canvas: null,
-                            annotationCanvas: null
-                          };
-                          pageRef.annotationCanvas = el;
-                          canvasRefsMap.current.set(pageNum, pageRef);
-                        }
-                      }}
-                      className={`absolute top-0 left-0 rounded ${annotationMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        height: '100%',
-                        zIndex: 10
-                      }}
-                      onMouseDown={(e) => { e.stopPropagation(); startDrawing(e, pageNum); }}
-                      onMouseMove={(e) => { e.stopPropagation(); draw(e, pageNum); }}
-                      onMouseUp={(e) => { e.stopPropagation(); stopDrawing(e); }}
-                      onMouseLeave={(e) => { e.stopPropagation(); stopDrawing(e); }}
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onTouchStart={(e) => { e.stopPropagation(); startDrawingTouch(e, pageNum); }}
-                      onTouchMove={(e) => { e.stopPropagation(); drawTouch(e, pageNum); }}
-                      onTouchEnd={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
-                      onTouchCancel={(e) => { e.stopPropagation(); stopDrawingTouch(); }} 
-                    />
+                return (
+                  <div key={pageNum} className="relative inline-block">
+                    <div style={{ position: 'relative', display: 'inline-block' }}>
+                      <canvas
+                        ref={(el) => {
+                          if (el) {
+                            const pageRef = canvasRefsMap.current.get(pageNum) || {
+                              canvas: null,
+                              annotationCanvas: null
+                            };
+                            pageRef.canvas = el;
+                            canvasRefsMap.current.set(pageNum, pageRef);
+                          }
+                        }}
+                        className="bg-white shadow-lg rounded block"
+                        style={{
+                          height: 'auto',
+                          display: 'block',
+                          width: '100%'
+                        }}
+                      />
+                      <canvas
+                        ref={(el) => {
+                          if (el) {
+                            const pageRef = canvasRefsMap.current.get(pageNum) || {
+                              canvas: null,
+                              annotationCanvas: null
+                            };
+                            pageRef.annotationCanvas = el;
+                            canvasRefsMap.current.set(pageNum, pageRef);
+                          }
+                        }}
+                        className={`absolute top-0 left-0 rounded ${annotationMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          height: '100%',
+                          zIndex: 10
+                        }}
+                        onMouseDown={(e) => { e.stopPropagation(); startDrawing(e, pageNum); }}
+                        onMouseMove={(e) => { e.stopPropagation(); draw(e, pageNum); }}
+                        onMouseUp={(e) => { e.stopPropagation(); stopDrawing(e); }}
+                        onMouseLeave={(e) => { e.stopPropagation(); stopDrawing(e); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onTouchStart={(e) => { e.stopPropagation(); startDrawingTouch(e, pageNum); }}
+                        onTouchMove={(e) => { e.stopPropagation(); drawTouch(e, pageNum); }}
+                        onTouchEnd={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
+                        onTouchCancel={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
+                      />
+                    </div>
+                    <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      Page {pageNum}
+                    </div>
                   </div>
-                  <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    Page {pageNum}
-                  </div>
+                );
+              })
+            ) : effectiveType === 'image' ? (
+              <div className="relative inline-block">
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <img
+                    ref={imageRef}
+                    onLoad={() => {
+                      setImageLoaded(true);
+                      setLoading(false);
+                    }}
+                    onError={() => {
+                      console.error(`[MediaViewer] Failed to load image from asset URL: ${effectiveUrl}`);
+                      setError('Failed to load image from R2 storage');
+                      setLoading(false);
+                    }}
+                    className="bg-white shadow-lg rounded max-w-full h-auto"
+                    alt="Content"
+                    style={{
+                      display: 'block',
+                      width: '100%'
+                    }}
+                  />
+                  <canvas
+                    ref={annotationCanvasRef}
+                    className={`absolute top-0 left-0 rounded ${annotationMode && imageLoaded ? 'cursor-crosshair' : 'pointer-events-none'}`}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      height: '100%',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      zIndex: 10
+                    }}
+                    width={imageRef.current?.width || 0}
+                    height={imageRef.current?.height || 0}
+                    onMouseDown={(e) => { e.stopPropagation(); startImageDrawing(e); }}
+                    onMouseMove={(e) => { e.stopPropagation(); drawImage(e); }}
+                    onMouseUp={(e) => { e.stopPropagation(); stopDrawing(e); }}
+                    onMouseLeave={(e) => { e.stopPropagation(); stopDrawing(e); }}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onTouchStart={(e) => { e.stopPropagation(); startImageDrawingTouch(e); }}
+                    onTouchMove={(e) => { e.stopPropagation(); drawImageTouch(e); }}
+                    onTouchEnd={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
+                    onTouchCancel={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
+                  />
                 </div>
-              );
-            })
-          ) : effectiveType === 'image' ? (
-            <div className="relative inline-block">
-              <div style={{ position: 'relative', display: 'inline-block' }}>
-                <img
-                  ref={imageRef}
-                  onLoad={() => {
-                    setImageLoaded(true);
-                    setLoading(false);
-                  }}
-                  onError={() => {
-                    console.error(`[MediaViewer] Failed to load image from asset URL: ${effectiveUrl}`);
-                    setError('Failed to load image from R2 storage');
-                    setLoading(false);
-                  }}
-                  className="bg-white shadow-lg rounded max-w-full h-auto"
-                  alt="Content"
-                  style={{
-                    display: 'block',
-                    width: '100%'
-                  }}
-                />
-                <canvas
-                  ref={annotationCanvasRef}
-                  className={`absolute top-0 left-0 rounded ${annotationMode && imageLoaded ? 'cursor-crosshair' : 'pointer-events-none'}`}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    height: '100%',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    zIndex: 10
-                  }}
-                  width={imageRef.current?.width || 0}
-                  height={imageRef.current?.height || 0}
-                  onMouseDown={(e) => { e.stopPropagation(); startImageDrawing(e); }}
-                  onMouseMove={(e) => { e.stopPropagation(); drawImage(e); }}
-                  onMouseUp={(e) => { e.stopPropagation(); stopDrawing(e); }}
-                  onMouseLeave={(e) => { e.stopPropagation(); stopDrawing(e); }}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                  onTouchStart={(e) => { e.stopPropagation(); startImageDrawingTouch(e); }}
-                  onTouchMove={(e) => { e.stopPropagation(); drawImageTouch(e); }}
-                  onTouchEnd={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
-                  onTouchCancel={(e) => { e.stopPropagation(); stopDrawingTouch(); }}
-                />
               </div>
-            </div>
-          ) : null}
+            ) : null}
           </div>
         </div>
       </div>
@@ -2294,4 +2279,3 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
 };
 
 export default MediaViewer;
- 

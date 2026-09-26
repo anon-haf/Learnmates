@@ -31,14 +31,14 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const navItems = [
+const navItems: { name: string; href: string; icon: typeof Trophy; disabled?: boolean; beta?: boolean }[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Curriculum', href: '/curriculum', icon: LibraryBig },
   { name: 'Past Papers', href: '/pastpapers', icon: FileText },
   { name: 'Topicals', href: '/topicals', icon: Layers },
   { name: 'Lock in', href: '/lock_in', icon: Lock },
-  { name: 'Leaderboard', href: '#', icon: Trophy, disabled: true }
-  ,
+  { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
+  { name: 'AI Tutor', href: '/ai', icon: MessageCircle, beta: true },
 ];
 
 interface ProfileSectionProps {
@@ -420,7 +420,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
         )}
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

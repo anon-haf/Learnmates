@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ZoomIn, ZoomOut, Pen } from 'lucide-react';
 import { pdfjs, pdfGetDocumentOptions } from '../utils/pdfjsConfig';
+import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 
 interface PDFViewerProps {
   pdfUrl: string;
@@ -54,14 +55,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         // Use the appropriate PDF URL based on showMarkScheme state
         const currentPdfUrl = showMarkScheme && markSchemePdfUrl ? markSchemePdfUrl : pdfUrl;
 
-        let url = currentPdfUrl;
+        const resolvedUrl = (await resolveFromR2(currentPdfUrl)) || currentPdfUrl;
+        let url = resolvedUrl;
         if (!url.startsWith('http') && !url.startsWith('blob:')) {
-          url = new URL(currentPdfUrl, window.location.origin).href;
+          url = new URL(resolvedUrl, window.location.origin).href;
         }
 
         const pdf = await pdfjs.getDocument({
           ...pdfGetDocumentOptions,
           url,
+          httpHeaders: getAssetAuthHeaders(),
         }).promise;
 
         pdfRef.current = pdf;

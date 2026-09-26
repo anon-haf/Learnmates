@@ -9,7 +9,7 @@
 // subjects we keep the same workflow but limit the available options to papers 1, 2 and 4.
 const normalizeSubject = (subject: string) => subject.trim().toLowerCase();
 
-export const PAPER_FILTER_SUBJECTS = ['Biology', 'Physics', 'Chemistry', 'Math', 'Additional Mathematics','Mathematics'];
+export const PAPER_FILTER_SUBJECTS = ['Biology', 'Physics', 'Chemistry', 'Math', 'Additional Mathematics', 'Mathematics', 'Further Mathematics', 'Computer Science'];
 export const CAMBRIDGE_SCIENCE_MCQ_SUBJECTS = ['Biology', 'Physics', 'Chemistry'];
 
 export const isPaperFilterSubject = (level: string, board: string, subject: string) =>
@@ -22,25 +22,29 @@ export const isCambridgeScienceMcqSubject = (level: string, board: string, subje
 
 export const isEdexcelALevelPureMathSubject = (level: string, board: string, subject: string) =>
   level === 'a-level' && board === 'edexcel' &&
-  ['pure mathematics', 'pure maths', 'math', 'mathematics'].some(candidate => normalizeSubject(candidate) === normalizeSubject(subject));
+  ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(candidate => normalizeSubject(candidate) === normalizeSubject(subject));
 
 export const getDefaultPaperOptions = (level: string, board: string, subject: string): number[] => {
   const normalized = normalizeSubject(subject);
-  
+
   if (level === 'a-level' && board === 'cambridge' &&
-      CAMBRIDGE_SCIENCE_MCQ_SUBJECTS.some(candidate => normalizeSubject(candidate) === normalized)) {
+    CAMBRIDGE_SCIENCE_MCQ_SUBJECTS.some(candidate => normalizeSubject(candidate) === normalized)) {
     return [1, 2, 4];
   }
-  
+
   if (normalized === 'additional mathematics' || normalized === 'add math' || normalized === 'add maths') {
     return [1, 2];
   }
-  
+
   if (level === 'a-level' && board === 'cambridge' &&
-      ['Mathematics', 'math', 'maths'].some(candidate => normalizeSubject(candidate) === normalized)) {
+    ['Mathematics', 'math', 'maths'].some(candidate => normalizeSubject(candidate) === normalized)) {
     return [1, 3, 4, 5];  // Cambridge A-Level Math papers P1-P6
   }
-  
+  if (level === 'a-level' && board === 'cambridge' &&
+    ['Further Mathematics'].some(candidate => normalizeSubject(candidate) === normalized)) {
+    return [1, 2, 3, 4];  // Cambridge A-Level Math papers P1-P6
+  }
+
 
   return [1, 2, 3, 4];
 };

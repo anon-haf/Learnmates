@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { XP_RULES } from '../lib/xp-rules';
+import { triggerXPNotification } from '../components/XPRewardNotification';
 
-export function useQuestionXP(questionId: string) {
+export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAnswerSelected: string | null = null) {
   const viewDurationRef = useRef(0);
-  const sawQuestionRef = useRef(false);
-  const sawMSRef = useRef(false);
+  const sawQuestionRef = useRef(true); // Default to true when tracking question view
+  const sawMSRef = useRef(true); // Default to true when tracking question view
   const hasTriggeredRef = useRef(false);
   
   useEffect(() => {
@@ -13,8 +14,8 @@ export function useQuestionXP(questionId: string) {
     
     // Reset refs when question changes
     viewDurationRef.current = 0;
-    sawQuestionRef.current = false;
-    sawMSRef.current = false;
+    sawQuestionRef.current = true;
+    sawMSRef.current = true;
     hasTriggeredRef.current = false;
     
     const interval = setInterval(async () => {
@@ -27,6 +28,7 @@ export function useQuestionXP(questionId: string) {
       const sawQuestion = sawQuestionRef.current;
       const sawMS = sawMSRef.current;
       
+      // Question view XP (25 seconds minimum)
       if (
         !hasTriggeredRef.current && 
         duration >= XP_RULES.question_view.minViewDuration && 
@@ -39,7 +41,7 @@ export function useQuestionXP(questionId: string) {
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
           
-          await fetch('/api/xp/heartbeat', {
+          const res = await fetch('/api/xp/heartbeat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -50,9 +52,16 @@ export function useQuestionXP(questionId: string) {
               refId: questionId,
               duration,
               sawQuestion,
-              sawMS
+              sawMS,
             })
           });
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.awarded > 0) {
+              triggerXPNotification(data.awarded, 'question_view');
+            }
+          }
         } catch (error) {
           console.error('Failed to send question_view heartbeat', error);
           hasTriggeredRef.current = false; // Allow retrying if failed
@@ -61,7 +70,7 @@ export function useQuestionXP(questionId: string) {
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [questionId]);
+  }, [questionId, isMCQ, mcqAnswerSelected]);
   
   return {
     markQuestionSeen: () => { sawQuestionRef.current = true; },

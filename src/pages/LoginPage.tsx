@@ -1260,6 +1260,98 @@ function LoginForm({
   signInWithGoogle,
   onToggleAuth,
 }: LoginFormProps) {
+  const { resetPassword } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleForgotPassword = async (e: FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    setForgotError('');
+    setForgotSuccess('');
+
+    if (!forgotEmail.trim()) {
+      setForgotError('Enter your email address.');
+      setForgotLoading(false);
+      return;
+    }
+
+    const { error: resetError } = await resetPassword(forgotEmail.trim().toLowerCase());
+    if (resetError) {
+      setForgotError(resetError);
+    } else {
+      setForgotSuccess('Password reset email sent! Check your inbox.');
+      setForgotEmail('');
+      setTimeout(() => setShowForgotPassword(false), 3000);
+    }
+    setForgotLoading(false);
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold uppercase tracking-wider text-primary-600 dark:text-primary-400">
+            Reset password
+          </p>
+          <h1 className="mt-4 text-3xl sm:text-4xl font-extrabold text-neutral-900 dark:text-neutral-50">
+            Forgot your password?
+          </h1>
+          <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-300 max-w-xl mx-auto">
+            Enter your email and we&apos;ll send you a link to reset your password.
+          </p>
+        </div>
+
+        <form onSubmit={handleForgotPassword} className="space-y-6">
+          <Input
+            label="Email address"
+            type="email"
+            value={forgotEmail}
+            onChange={(e) => setForgotEmail(e.target.value)}
+            required
+            autoFocus
+          />
+
+          {forgotError && (
+            <div className="rounded-xl border border-danger-300 dark:border-danger-700 px-4 py-3 text-sm bg-danger-50 dark:bg-danger-900/20">
+              <p className="text-danger-600 dark:text-danger-300">{forgotError}</p>
+            </div>
+          )}
+
+          {forgotSuccess && (
+            <div className="rounded-xl border border-success-300 dark:border-success-700 px-4 py-3 text-sm bg-success-50 dark:bg-success-900/20">
+              <p className="text-success-700 dark:text-success-300">{forgotSuccess}</p>
+            </div>
+          )}
+
+          <Button type="submit" fullWidth size="lg" loading={forgotLoading}>
+            Send reset link
+          </Button>
+
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              fullWidth
+              size="sm"
+              onClick={() => {
+                setShowForgotPassword(false);
+                setForgotError('');
+                setForgotSuccess('');
+                setForgotEmail('');
+              }}
+            >
+              ← Back to sign in
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <div className="space-y-6">
@@ -1315,6 +1407,20 @@ function LoginForm({
           {isCreatingAccount ? 'Back to sign in' : 'Create account'}
         </Button>
       </div>
+
+      {!isCreatingAccount && (
+        <div className="mt-4 text-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-sm"
+          >
+            Forgot password?
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

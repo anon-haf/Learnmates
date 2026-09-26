@@ -43,6 +43,7 @@ public/Questions/**/*.webp
 # Ignore topical question assets as well since they are served from R2
 public/topicals/
 public/topicals/**
+supabase
 # Optionally exclude documents folder if it's also too large:
 # public/documents/**/*.pdf
 # public/documents/**/*.png

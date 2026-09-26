@@ -26,9 +26,12 @@ const LevelBoardSubjectPicker: React.FC<LevelBoardSubjectPickerProps> = ({
   selectedSubject,
   onSubjectChange,
 }) => {
+  const hasLevel = !!selectedLevel;
+  const hasBoard = !!selectedBoard;
+
   return (
-    <div className="flex flex-col sm:flex-row gap-4 mb-4">
-      <div className="flex-1">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
         <Dropdown
           label="Level"
           fullWidth
@@ -39,31 +42,29 @@ const LevelBoardSubjectPicker: React.FC<LevelBoardSubjectPickerProps> = ({
         />
       </div>
 
-      {selectedLevel && (
-        <div className="flex-1">
-          <Dropdown
-            label="Board"
-            fullWidth
-            buttonLabel={selectedBoard || 'Select Board'}
-            options={boardsForLevel(selectedLevel).map(b => ({ value: b, label: b }))}
-            selectedValue={selectedBoard}
-            onSelect={onBoardChange}
-          />
-        </div>
-      )}
+      <div>
+        <Dropdown
+          label="Board"
+          fullWidth
+          buttonLabel={selectedBoard ? selectedBoard.charAt(0).toUpperCase() + selectedBoard.slice(1) : 'Select Board'}
+          options={boardsForLevel(selectedLevel).map(b => ({ value: b, label: b.charAt(0).toUpperCase() + b.slice(1) }))}
+          selectedValue={selectedBoard}
+          onSelect={onBoardChange}
+          disabled={!hasLevel}
+        />
+      </div>
 
-      {selectedLevel && selectedBoard && (
-        <div className="flex-1">
-          <Dropdown
-            label="Subject"
-            fullWidth
-            buttonLabel={selectedSubject || 'Select Subject'}
-            options={subjectsForLevelBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: s }))}
-            selectedValue={selectedSubject}
-            onSelect={onSubjectChange}
-          />
-        </div>
-      )}
+      <div>
+        <Dropdown
+          label="Subject"
+          fullWidth
+          buttonLabel={selectedSubject || 'Select Subject'}
+          options={subjectsForLevelBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: s }))}
+          selectedValue={selectedSubject}
+          onSelect={onSubjectChange}
+          disabled={!hasLevel || !hasBoard}
+        />
+      </div>
     </div>
   );
 };

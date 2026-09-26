@@ -383,7 +383,7 @@ const TopicalPages: React.FC = () => {
     : paperFilter.size === 0
       ? 'No paper selected'
       : availablePaperNumbers.filter(n => paperFilter.has(n)).map(n => `P${n}`).join(', ');
-  const availableYearNumbers = Array.from(availableYears).sort((a, b) => a - b);
+  const availableYearNumbers = Array.from(availableYears).sort((a, b) => b - a);
   const isAllYearsSelected = availableYearNumbers.length > 0 && availableYearNumbers.every(year => yearFilter.has(year));
   const selectedYearSummary = isAllYearsSelected
     ? 'All years'
@@ -736,17 +736,19 @@ const TopicalPages: React.FC = () => {
         <p className="mb-6 text-gray-700 dark:text-gray-300">Choose a level, board and subject from the dropdowns.</p>
       </motion.div>
 
-      <LevelBoardSubjectPicker
-        levels={levels}
-        selectedLevel={selectedLevel}
-        onLevelChange={setSelectedLevel}
-        boardsForLevel={boardsForLevel}
-        selectedBoard={selectedBoard}
-        onBoardChange={setSelectedBoard}
-        subjectsForLevelBoard={subjectsForLvlBoard}
-        selectedSubject={selectedSubject}
-        onSubjectChange={setSelectedSubject}
-      />
+      <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <LevelBoardSubjectPicker
+          levels={levels}
+          selectedLevel={selectedLevel}
+          onLevelChange={setSelectedLevel}
+          boardsForLevel={boardsForLevel}
+          selectedBoard={selectedBoard}
+          onBoardChange={setSelectedBoard}
+          subjectsForLevelBoard={subjectsForLvlBoard}
+          selectedSubject={selectedSubject}
+          onSubjectChange={setSelectedSubject}
+        />
+      </div>
 
       {!selectedLevel || !selectedBoard || !selectedSubject ? (
         <p className="text-gray-500">Please select a level, board, and subject to get started.</p>

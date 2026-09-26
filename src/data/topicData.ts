@@ -18,11 +18,11 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
   'P3-Math-T1': {
     videos: [],
     resources: [],
-    quizzes: [{ id: 'q1', title: 'Algebra Topical', questionFile: '/Questions/alevel/edexcel/math/Pure/P3/1-Algebra/P3 Topic 1 Algebra QS.pdf', markSchemeFile: '/Questions/alevel/edexcel/math/Pure/P3/1-Algebra/P3 Topic 1 Algebra MS.pdf' },{ id: 'q1', title: 'Functions Topical', questionFile: '/Questions/alevel/edexcel/math/Pure/P3/2-Functions/P3 Topic 2 Functions QS.pdf', markSchemeFile: '/Questions/alevel/edexcel/math/Pure/P3/2-Functions/P3 Topic 2 Functions MS.pdf' }]
+    quizzes: [{ id: 'q1', title: 'Algebra Topical', questionFile: '/Questions/alevel/edexcel/math/Pure/P3/1-Algebra/P3 Topic 1 Algebra QS.pdf', markSchemeFile: '/Questions/alevel/edexcel/math/Pure/P3/1-Algebra/P3 Topic 1 Algebra MS.pdf' }, { id: 'q1', title: 'Functions Topical', questionFile: '/Questions/alevel/edexcel/math/Pure/P3/2-Functions/P3 Topic 2 Functions QS.pdf', markSchemeFile: '/Questions/alevel/edexcel/math/Pure/P3/2-Functions/P3 Topic 2 Functions MS.pdf' }]
 
 
   },
-  
+
   'P3-Math-T3': {
     videos: [],
     resources: [],
@@ -66,7 +66,7 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
     ]
 
   },
-  
+
   'P1-Math-T2': {
     videos: [],
     resources: [],
@@ -113,7 +113,7 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
     quizzes: [{ id: 'q1', title: 'Coordinate Geometry (Circles) Topical', markSchemeFile: '/Questions/alevel/edexcel/math/Pure/P2/3-Coordinate Geometry/Coordinate Geometry.pdf', questionFile: '/Questions/alevel/edexcel/math/Pure/P2/3-Coordinate Geometry/p2-chapter-2-coordinate-geometry Copy.pdf' }]
 
   },
-  
+
   'P2-Math-T4': {
     videos: [],
     resources: [],
@@ -717,17 +717,17 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'physics-2': {
     videos: [],
-    resources: [ { id: 'r3', title: 'Thermal Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics (@Jme).pdf' },
-      { id: 'r1', title: 'Thermal Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics (a.aseer).pdf' },
-      { id: 'r2', title: 'Thermal Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics.pdf' }],
+    resources: [{ id: 'r3', title: 'Thermal Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics (@Jme).pdf' },
+    { id: 'r1', title: 'Thermal Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics (a.aseer).pdf' },
+    { id: 'r2', title: 'Thermal Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/2-Thermal physics/Thermal physics.pdf' }],
     quizzes: []
   },
 
   'physics-3': {
     videos: [],
-    resources: [ {id: 'r3', title: 'Waves (@Jme)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves (@Jme).pdf' },
-      { id: 'r1', title: 'Waves (a.aseer)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves (a.aseer).pdf' },
-      { id: 'r2', title: 'Waves (Eshal)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves.pdf' }],
+    resources: [{ id: 'r3', title: 'Waves (@Jme)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves (@Jme).pdf' },
+    { id: 'r1', title: 'Waves (a.aseer)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves (a.aseer).pdf' },
+    { id: 'r2', title: 'Waves (Eshal)', url: '/documents/igcse/cambridge/Physics/3-Waves/Waves.pdf' }],
     quizzes: []
   },
 
@@ -735,27 +735,27 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
     description: 'Explore electric circuits, electric fields, magnetic fields, and electromagnetic induction.',
     videos: [],
     resources: [{ id: 'r5', title: 'Electricity and magnetism (@Jme)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electricity & magnetism (@Jme).pdf' },
-      { id: 'r1', title: 'Electricity (a.aseer)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electricity (a.aseer).pdf' },
-      { id: 'r2', title: 'Magnetism (a.aseer)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Magnetism (a.aseer).pdf' },
-      { id: 'r3', title: 'Electricity and magnetism (Eshal)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electricity and magnetism.pdf' },
+    { id: 'r1', title: 'Electricity (a.aseer)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electricity (a.aseer).pdf' },
+    { id: 'r2', title: 'Magnetism (a.aseer)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Magnetism (a.aseer).pdf' },
+    { id: 'r3', title: 'Electricity and magnetism (Eshal)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electricity and magnetism.pdf' },
 
-      { id: 'r4', title: 'Electromagnetism (Eshal)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electromagnetism.pdf' }],
+    { id: 'r4', title: 'Electromagnetism (Eshal)', url: '/documents/igcse/cambridge/Physics/4-Electricity and magnetism/Electromagnetism.pdf' }],
     quizzes: []
   },
 
   'physics-5': {
     videos: [],
-    resources: [{id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
-      { id: 'r1', title: 'Nuclear Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (a.aseer).pdf' },
-      { id: 'r2', title: 'Nuclear Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics.pdf' }],
+    resources: [{ id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
+    { id: 'r1', title: 'Nuclear Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (a.aseer).pdf' },
+    { id: 'r2', title: 'Nuclear Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics.pdf' }],
     quizzes: []
   },
 
   'physics-6': {
     videos: [],
-    resources: [ { id: 'r3', title: 'Space Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics (@Jme).pdf' },
-      { id: 'r1', title: 'Space Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics (a.aseer).pdf' },
-      { id: 'r2', title: 'Space Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics.pdf' }],
+    resources: [{ id: 'r3', title: 'Space Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics (@Jme).pdf' },
+    { id: 'r1', title: 'Space Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics (a.aseer).pdf' },
+    { id: 'r2', title: 'Space Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/6-Space physics/Space physics.pdf' }],
     quizzes: []
   },
 
@@ -1683,7 +1683,9 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH12': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Motion in a circle Notes (HAF)', url: '/documents/alevel/cambridge/Physics/12-Motion in a circle/12 Motion in a circle.pdf' },
+    resources: [{ id: 'r3', title: 'Motion in a circle Notes (HAF)', url: '/documents/alevel/cambridge/Physics/12-Motion in a circle/Circular Motion (HAF).pdf' },
+
+    { id: 'r2', title: 'Motion in a circle Notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/12-Motion in a circle/12 Motion in a circle.pdf' },
 
     { id: 'r1', title: 'Motion in a circle Notes', url: '/documents/alevel/cambridge/Physics/12-Motion in a circle/Motion in a circle.pdf' }],
     quizzes: []
@@ -1693,8 +1695,10 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
   },
   'Physics-CH13': {
     videos: [],
-    resources: [{id: 'r2', title: 'Gravitational fields Notes (HAF)', url: '/documents/alevel/cambridge/Physics/13-Gravitational fields/13 Gravitational fields.pdf' },
-      { id: 'r1', title: 'Gravitational fields Notes', url: '/documents/alevel/cambridge/Physics/13-Gravitational fields/Gravitational fields.pdf' }],
+    resources: [{ id: 'r3', title: 'Gravitational fields Notes (HAF)', url: '/documents/alevel/cambridge/Physics/13-Gravitational fields/Gravitational Fields (HAF).pdf' },
+    { id: 'r2', title: 'Gravitational fields Notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/13-Gravitational fields/13 Gravitational fields.pdf' },
+
+    { id: 'r1', title: 'Gravitational fields Notes', url: '/documents/alevel/cambridge/Physics/13-Gravitational fields/Gravitational fields.pdf' }],
     quizzes: []
 
 
@@ -1704,8 +1708,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH14': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Temperature Notes (HAF)', url: '/documents/alevel/cambridge/Physics/14-Temperature/14 Temperature.pdf' },
-      { id: 'r1', title: 'Temperature Notes ', url: '/documents/alevel/cambridge/Physics/14-Temperature/Temperature.pdf' }],
+    resources: [{ id: 'r2', title: 'Temperature Notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/14-Temperature/14 Temperature.pdf' },
+    { id: 'r1', title: 'Temperature Notes ', url: '/documents/alevel/cambridge/Physics/14-Temperature/Temperature.pdf' }],
     quizzes: []
   },
 
@@ -1713,24 +1717,24 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH15': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Ideal gases notes (HAF)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
-      { id: 'r1', title: 'Ideal gases notes ', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal gases.pdf' }],
+    resources: [{ id: 'r2', title: 'Ideal gases notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
+    { id: 'r1', title: 'Ideal gases notes ', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal gases.pdf' }],
     quizzes: []
   },
 
 
   'Physics-CH16': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Thermodynamics notes (HAF)', url: '/documents/alevel/cambridge/Physics/16-Thermodynamics/16 Thermodynamics.pdf' },
-      { id: 'r1', title: 'Thermodynamics notes ', url: '/documents/alevel/cambridge/Physics/16-Thermodynamics/Thermodynamics.pdf' }],
+    resources: [{ id: 'r2', title: 'Thermodynamics notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/16-Thermodynamics/16 Thermodynamics.pdf' },
+    { id: 'r1', title: 'Thermodynamics notes ', url: '/documents/alevel/cambridge/Physics/16-Thermodynamics/Thermodynamics.pdf' }],
     quizzes: []
   },
 
 
   'Physics-CH17': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Oscillations notes (HAF)', url: '/documents/alevel/cambridge/Physics/17-Oscillations/17 Oscillations.pdf' },
-      { id: 'r1', title: 'Oscillations notes ', url: '/documents/alevel/cambridge/Physics/17-Oscillations/Oscillations.pdf' }],
+    resources: [{ id: 'r2', title: 'Oscillations notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/17-Oscillations/17 Oscillations.pdf' },
+    { id: 'r1', title: 'Oscillations notes ', url: '/documents/alevel/cambridge/Physics/17-Oscillations/Oscillations.pdf' }],
     quizzes: []
   },
 
@@ -1738,8 +1742,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH18': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Electric fields notes (HAF)', url: '/documents/alevel/cambridge/Physics/18-Electric fields/18 Electric fields.pdf' },
-      { id: 'r1', title: 'Electric fields notes ', url: '/documents/alevel/cambridge/Physics/18-Electric fields/Electric fields.pdf' }],
+    resources: [{ id: 'r2', title: 'Electric fields notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/18-Electric fields/18 Electric fields.pdf' },
+    { id: 'r1', title: 'Electric fields notes ', url: '/documents/alevel/cambridge/Physics/18-Electric fields/Electric fields.pdf' }],
     quizzes: []
 
 
@@ -1749,8 +1753,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH19': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Capacitance notes (HAF)', url: '/documents/alevel/cambridge/Physics/19-Capacitance/19 Capacitance.pdf' },
-      { id: 'r1', title: 'Capacitance notes ', url: '/documents/alevel/cambridge/Physics/19-Capacitance/Capacitance.pdf' }],
+    resources: [{ id: 'r2', title: 'Capacitance notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/19-Capacitance/19 Capacitance.pdf' },
+    { id: 'r1', title: 'Capacitance notes ', url: '/documents/alevel/cambridge/Physics/19-Capacitance/Capacitance.pdf' }],
     quizzes: []
   },
 
@@ -1758,8 +1762,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH20': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Magnetic fields notes (HAF)', url: '/documents/alevel/cambridge/Physics/20-Magnetic fields/20 Magnetic fields.pdf' },
-      { id: 'r1', title: 'Magnetic fields notes ', url: '/documents/alevel/cambridge/Physics/20-Magnetic fields/Magnetic fields.pdf' }],
+    resources: [{ id: 'r2', title: 'Magnetic fields notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/20-Magnetic fields/20 Magnetic fields.pdf' },
+    { id: 'r1', title: 'Magnetic fields notes ', url: '/documents/alevel/cambridge/Physics/20-Magnetic fields/Magnetic fields.pdf' }],
     quizzes: []
 
 
@@ -1769,8 +1773,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH21': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Alternating current notes (HAF)', url: '/documents/alevel/cambridge/Physics/21-Alternating current/21 Alternating current.pdf' },
-      { id: 'r1', title: 'Alternating current notes ', url: '/documents/alevel/cambridge/Physics/21-Alternating current/Alternating current.pdf' }],
+    resources: [{ id: 'r2', title: 'Alternating current notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/21-Alternating current/21 Alternating current.pdf' },
+    { id: 'r1', title: 'Alternating current notes ', url: '/documents/alevel/cambridge/Physics/21-Alternating current/Alternating current.pdf' }],
     quizzes: []
   },
 
@@ -1778,8 +1782,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH22': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Quantum physics notes (HAF)', url: '/documents/alevel/cambridge/Physics/22-Quantum physics/22 Quantum physics.pdf' },
-      { id: 'r1', title: 'Quantum physics notes ', url: '/documents/alevel/cambridge/Physics/22-Quantum physics/Quantum physics.pdf' }],
+    resources: [{ id: 'r2', title: 'Quantum physics notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/22-Quantum physics/22 Quantum physics.pdf' },
+    { id: 'r1', title: 'Quantum physics notes ', url: '/documents/alevel/cambridge/Physics/22-Quantum physics/Quantum physics.pdf' }],
     quizzes: []
   },
 
@@ -1787,23 +1791,23 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH23': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Nuclear physics notes (HAF)', url: '/documents/alevel/cambridge/Physics/23-Nuclear physics/23 Nuclear physics.pdf' },
-      { id: 'r1', title: 'Nuclear physics notes ', url: '/documents/alevel/cambridge/Physics/23-Nuclear physics/Nuclear physics.pdf' }],
+    resources: [{ id: 'r2', title: 'Nuclear physics notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/23-Nuclear physics/23 Nuclear physics.pdf' },
+    { id: 'r1', title: 'Nuclear physics notes ', url: '/documents/alevel/cambridge/Physics/23-Nuclear physics/Nuclear physics.pdf' }],
     quizzes: []
 
   },
   'Physics-CH24': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Medical Physics notes (HAF)', url: '/documents/alevel/cambridge/Physics/24-Medical physics/24 Medical physics.pdf' },
-      { id: 'r1', title: 'Medical Physics notes ', url: '/documents/alevel/cambridge/Physics/24-Medical physics/Medical physics.pdf' }],
+    resources: [{ id: 'r2', title: 'Medical Physics notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/24-Medical physics/24 Medical physics.pdf' },
+    { id: 'r1', title: 'Medical Physics notes ', url: '/documents/alevel/cambridge/Physics/24-Medical physics/Medical physics.pdf' }],
     quizzes: []
 
   },
 
   'Physics-CH25': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Astronomy and cosmology notes (HAF)', url: '/documents/alevel/cambridge/Physics/25-Astronomy and cosmology/25 Astronomy and cosmology.pdf' },
-      { id: 'r1', title: 'Astronomy and cosmology notes ', url: '/documents/alevel/cambridge/Physics/25-Astronomy and cosmology/Astronomy and cosmology.pdf' }],
+    resources: [{ id: 'r2', title: 'Astronomy and cosmology notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/25-Astronomy and cosmology/25 Astronomy and cosmology.pdf' },
+    { id: 'r1', title: 'Astronomy and cosmology notes ', url: '/documents/alevel/cambridge/Physics/25-Astronomy and cosmology/Astronomy and cosmology.pdf' }],
     quizzes: []
 
   },
