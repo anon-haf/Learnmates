@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  height: 200px;
+  background: #eee;
+  padding: 10px;
+}
+.child-auto {
+  margin-top: auto;
+  margin-bottom: auto;
+  background: blue;
+  color: white;
+  height: 300px;
+  width: 100px;
+  flex-shrink: 0;
+}
+.child-auto-small {
+  margin-top: auto;
+  margin-bottom: auto;
+  background: red;
+  color: white;
+  height: 100px;
+  width: 100px;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="child-auto">large</div>
+</div>
+<br>
+<div class="container">
+  <div class="child-auto-small">small</div>
+</div>
+</body>
+</html>

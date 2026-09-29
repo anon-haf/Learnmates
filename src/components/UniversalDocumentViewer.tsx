@@ -32,6 +32,7 @@ import {
   Trash2,
   Shapes,
   PenTool,
+  Moon,
 } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { PdfDocumentSkeleton } from './PdfPageSkeleton';
@@ -124,6 +125,47 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [zoomInputValue, setZoomInputValue] = useState<string>('100');
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [invertColors, setInvertColors] = useState(() => {
+    try {
+      const stored = localStorage.getItem('universal-pdf-invert-colors');
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleInvertColors = useCallback(() => {
+    setInvertColors(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('universal-pdf-invert-colors', String(next));
+        window.dispatchEvent(new Event('pdf-invert-colors-changed'));
+      } catch (e) {
+        console.warn('Failed to save invertColors', e);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'universal-pdf-invert-colors') {
+        setInvertColors(e.newValue === 'true');
+      }
+    };
+    const handleCustom = () => {
+      try {
+        setInvertColors(localStorage.getItem('universal-pdf-invert-colors') === 'true');
+      } catch {}
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('pdf-invert-colors-changed', handleCustom);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('pdf-invert-colors-changed', handleCustom);
+    };
+  }, []);
+
   const [pdfFile, setPdfFile] = useState<PdfFileSource | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
@@ -251,9 +293,6 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   const documentOptions = useMemo(() => pdfDocumentOptions, []);
 
-  const showPenOptions = drawingEnabled && drawTool === 'pen';
-  const showShapeOptions = drawingEnabled && isShapeTool(drawTool);
-  const showEraserOptions = drawingEnabled && drawTool === 'eraser';
 
   const handleCanvasMount = useCallback(
     (pageNumber: number, canvas: HTMLCanvasElement | null) => {
@@ -1016,6 +1055,15 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
               <div className="w-px h-6 bg-gray-700 mx-0.5" />
 
               <button
+                onClick={toggleInvertColors}
+                className={`${iconBtn} ${invertColors ? iconBtnActive : iconBtnIdle}`}
+                title="Invert PDF colors"
+                aria-pressed={invertColors}
+              >
+                <Moon className={toolbarIconSize} />
+              </button>
+
+              <button
                 onClick={() => {
                   setDrawingEnabled(prev => {
                     if (!prev) setDrawTool('pen');
@@ -1205,6 +1253,15 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             <div className="w-px h-6 sm:h-7 bg-gray-700 mx-0.5 hidden sm:block" />
 
             <button
+              onClick={toggleInvertColors}
+              className={`${iconBtn} ${invertColors ? iconBtnActive : iconBtnIdle}`}
+              title="Invert PDF colors"
+              aria-pressed={invertColors}
+            >
+              <Moon className={toolbarIconSize} />
+            </button>
+
+            <button
               onClick={() => {
                 setDrawingEnabled(prev => {
                   if (!prev) setDrawTool('pen');
@@ -1364,100 +1421,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             </button>
           </div>
 
-          {showPenOptions && (
-            <div className="flex items-center gap-3 sm:gap-4 mt-2 pt-2 border-t border-gray-700/70">
-              <input
-                type="color"
-                value={penColor}
-                onChange={e => setPenColor(e.target.value)}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded cursor-pointer border-0 bg-transparent"
-                title="Pen color"
-              />
-              <label className="flex items-center gap-2 sm:gap-3 text-gray-400 text-xs sm:text-sm flex-1 max-w-sm">
-                <span>Size</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={20}
-                  value={penSize}
-                  onChange={e => setPenSize(Number(e.target.value))}
-                  className="flex-1 min-w-[4rem]"
-                />
-                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
-              </label>
-            </div>
-          )}
 
-          {showShapeOptions && (
-            <div className="flex items-center gap-3 sm:gap-4 mt-2 pt-2 border-t border-gray-700/70 flex-wrap">
-              <div className="flex items-center rounded-md overflow-hidden border border-gray-600">
-                <button
-                  onClick={() => setDrawTool('line')}
-                  className={`p-2 sm:p-2.5 transition ${drawTool === 'line' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'
-                    }`}
-                  title="Line"
-                >
-                  <Minus className={toolbarIconSize} />
-                </button>
-                <button
-                  onClick={() => setDrawTool('rectangle')}
-                  className={`p-2 sm:p-2.5 transition border-x border-gray-600 ${drawTool === 'rectangle'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-700'
-                    }`}
-                  title="Rectangle"
-                >
-                  <Square className={toolbarIconSize} />
-                </button>
-                <button
-                  onClick={() => setDrawTool('ellipse')}
-                  className={`p-2 sm:p-2.5 transition ${drawTool === 'ellipse'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-700'
-                    }`}
-                  title="Ellipse"
-                >
-                  <Circle className={toolbarIconSize} />
-                </button>
-              </div>
-              <input
-                type="color"
-                value={penColor}
-                onChange={e => setPenColor(e.target.value)}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded cursor-pointer border-0 bg-transparent"
-                title="Shape color"
-              />
-              <label className="flex items-center gap-2 sm:gap-3 text-gray-400 text-xs sm:text-sm flex-1 max-w-sm">
-                <span>Size</span>
-                <input
-                  type="range"
-                  min={1}
-                  max={20}
-                  value={penSize}
-                  onChange={e => setPenSize(Number(e.target.value))}
-                  className="flex-1 min-w-[4rem]"
-                />
-                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
-              </label>
-            </div>
-          )}
-
-          {showEraserOptions && (
-            <div className="flex items-center gap-3 sm:gap-4 mt-2 pt-2 border-t border-gray-700/70">
-              <label className="flex items-center gap-2 sm:gap-3 text-gray-400 text-xs sm:text-sm flex-1 max-w-sm">
-                <span>Eraser size</span>
-                <input
-                  type="range"
-                  min={5}
-                  max={60}
-                  value={eraserSize}
-                  onChange={e => setEraserSize(Number(e.target.value))}
-                  className="flex-1 min-w-[4rem]"
-                />
-                <span className="w-5 tabular-nums text-gray-300">{eraserSize}</span>
-              </label>
-            </div>
-          )}
         </div>
       )}
 
@@ -1518,6 +1482,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
           {!pdfFile ? (
             <PdfDocumentSkeleton pageCount={2} />
           ) : (
+
             <div style={{ width: `max(100%, calc(${pageWidth}px * var(--pdf-zoom, 1)))` }} className="flex flex-col items-center">
               <Document
                 file={pdfFile}
@@ -1526,7 +1491,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 loading={<PdfDocumentSkeleton pageCount={2} />}
                 error={<div className="text-red-400 p-8 text-center">Failed to load PDF</div>}
                 onLoadError={(error) => console.error('PDF Load Error:', error)}
-                className="flex flex-col gap-[calc(12px*var(--pdf-zoom,1))]"
+                className={`flex flex-col gap-[calc(12px*var(--pdf-zoom,1))] ${invertColors ? 'invert hue-rotate-180' : ''}`}
               >
                 {numPages > 0 &&
                   Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => {

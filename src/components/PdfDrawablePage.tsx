@@ -756,7 +756,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     >
       <div
         ref={containerRef}
-        className={`pdf-viewer-page relative origin-top-left rounded shadow-2xl ${
+        className={`pdf-viewer-page relative origin-top-left rounded ${
           rendered ? 'bg-white' : 'bg-gray-200 dark:bg-gray-800'
         }`}
         style={{

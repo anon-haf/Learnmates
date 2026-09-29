@@ -34,7 +34,7 @@ interface PdfPageSkeletonProps {
 
 export const PdfPageSkeleton: React.FC<PdfPageSkeletonProps> = ({ label, className = '' }) => (
   <div
-    className={`w-full max-w-3xl rounded shadow-2xl overflow-hidden bg-gray-200 dark:bg-gray-800 ${className}`}
+    className={`w-full max-w-3xl rounded overflow-hidden bg-gray-200 dark:bg-gray-800 ${className}`}
     role="status"
     aria-label={label ?? 'Loading page'}
   >
@@ -72,7 +72,7 @@ export const PdfViewerPage: React.FC<PdfViewerPageProps> = ({ pageNumber, scale 
 
   return (
     <div
-      className={`relative w-full max-w-3xl scroll-mt-4 rounded shadow-2xl overflow-hidden ${
+      className={`relative w-full max-w-3xl scroll-mt-4 rounded overflow-hidden ${
         rendered ? 'bg-white' : 'bg-gray-200 dark:bg-gray-800'
       }`}
     >

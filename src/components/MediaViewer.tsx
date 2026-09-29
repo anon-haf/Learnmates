@@ -3,6 +3,7 @@ import { Pen, Maximize2 } from 'lucide-react';
 import { pdfjs, pdfGetDocumentOptions } from '../utils/pdfjsConfig';
 import { resolveFromR2, fetchR2AsBlobUrl, getAssetAuthHeaders } from '../utils/r2Utils';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { McqCheckerHeader, McqOptionButton } from './McqChecker';
 
 interface MediaViewerProps {
   url: string;
@@ -1882,9 +1883,10 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
 
             <div
               ref={modalContentRef}
-              className="p-4 overflow-auto flex-1 min-h-0 flex flex-col items-center justify-start"
+              className="p-4 overflow-auto flex-1 min-h-0"
               style={{ minHeight: 320 }}
             >
+              <div className="flex flex-col items-center">
               {modalLoading ? (
                 <div className="text-center text-gray-500">Loading pages…</div>
               ) : modalPages.length > 0 ? (
@@ -1955,7 +1957,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                   })}
                 </div>
               ) : zoomImageSrc ? (
-                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', transform: `scale(${modalZoom})`, transformOrigin: 'top center', transition: 'transform 0.15s ease-out' }}>
                   <img
                     ref={(el) => {
                       zoomImageRef.current = el;
@@ -2007,63 +2009,37 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
               ) : (
                 <p className="text-gray-500">Unable to prepare zoom view</p>
               )}
+              </div>
             </div>
 
-            {/* MCQ practice panel (shown below content for MCQ questions) */}
+            {/* MCQ Checker panel (shown below content for MCQ questions) */}
             {currentMcqAnswer && (
               <div className="shrink-0 mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/60 p-3 sm:p-4 w-full">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">MCQ practice</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Choose A–D below. Live checking is optional.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { if (onMcqLiveCheckToggle) onMcqLiveCheckToggle(); }}
-                      className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${mcqLiveCheck
-                          ? 'bg-purple-500 text-white hover:bg-purple-600'
-                          : 'bg-gray-800 text-gray-200 hover:bg-gray-700'
-                        }`}
-                    >
-                      {mcqLiveCheck ? 'Live check: On' : 'Live check: Off'}
-                    </button>
-                  </div>
-
+                  <McqCheckerHeader
+                    surface="themed"
+                    enabled={mcqLiveCheck}
+                    onToggle={() => { if (onMcqLiveCheckToggle) onMcqLiveCheckToggle(); }}
+                  />
                   <div className="flex items-stretch justify-center py-4">
                     <div className="flex items-stretch gap-4 w-full max-w-md mx-auto">
                       {['A', 'B', 'C', 'D'].map(option => {
                         const isSelected = mcqSelection === option;
                         const showAnswers = mcqLiveCheck && mcqSelection !== null;
-                        const isCorrectOption = showAnswers && currentMcqAnswer === option;
-                        const isSelectedWrong = showAnswers && isSelected && currentMcqAnswer !== option;
                         return (
-                          <button
+                          <McqOptionButton
                             key={option}
-                            type="button"
+                            option={option}
+                            answer={currentMcqAnswer}
+                            selected={isSelected}
+                            showAnswer={showAnswers}
+                            surface="themed"
+                            className="flex-1 aspect-square min-w-[56px] max-w-[120px] text-lg"
                             onClick={() => { if (onMcqSelect) onMcqSelect(option); }}
-                            className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
-                                ? 'border-green-600 bg-green-600 text-white'
-                                : isSelectedWrong
-                                  ? 'border-red-600 bg-red-600 text-white'
-                                  : isSelected
-                                    ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                              }`}
-                          >
-                            {option}
-                          </button>
+                          />
                         );
                       })}
                     </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between h-5">
-                    {mcqSelection ? (
-                      !mcqLiveCheck && (
-                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400"></p>
-                      )
-                    ) : null}
                   </div>
                 </div>
               </div>

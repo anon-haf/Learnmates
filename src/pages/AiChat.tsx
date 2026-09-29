@@ -15,6 +15,7 @@ import {
   Plus,
   Menu,
   X,
+  Trash2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useUserRole } from '../hooks/useUserRole';
@@ -101,14 +102,73 @@ function formatAnswer(raw: string): string {
   html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
   html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+  // -- Table Processing Start --
+  const lines = html.split('\n');
+  const newLines = [];
+  let inTable = false;
+  let hasTbody = false;
+  let tableHtml = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (!inTable) {
+        inTable = true;
+        tableHtml = '<div class="table-container"><table class="markdown-table">';
+        hasTbody = false;
+      }
+      
+      if (/^\|[\s-:]+\|$/.test(line)) {
+        if (!hasTbody) {
+          tableHtml += '<tbody>';
+          hasTbody = true;
+        }
+        continue;
+      }
+      
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      const isHeaderRow = !hasTbody && i + 1 < lines.length && /^\|[\s-:]+\|$/.test(lines[i + 1].trim());
+      const cellTag = isHeaderRow ? 'th' : 'td';
+      
+      const rowHtml = '<tr>' + cells.map(c => `<${cellTag}>${c}</${cellTag}>`).join('') + '</tr>';
+      
+      if (isHeaderRow) {
+        tableHtml += '<thead>' + rowHtml + '</thead>';
+      } else {
+        tableHtml += rowHtml;
+      }
+    } else {
+      if (inTable) {
+        if (hasTbody) tableHtml += '</tbody>';
+        tableHtml += '</table></div>';
+        newLines.push(tableHtml);
+        inTable = false;
+        hasTbody = false;
+        tableHtml = "";
+      }
+      newLines.push(lines[i]); // Keep original line
+    }
+  }
+  if (inTable) {
+    if (hasTbody) tableHtml += '</tbody>';
+    tableHtml += '</table></div>';
+    newLines.push(tableHtml);
+  }
+  html = newLines.join('\n');
+  // -- Table Processing End --
+
   html = html.replace(/\n{2,}/g, '<div style="height: 0.5rem; width: 100%"></div>');
   html = html.replace(/\n/g, '<br/>');
 
   // 3. Restore math placeholders with rendered KaTeX HTML
-  html = html.replace(/(?:<br\/>\s*)*%%MATH_(\d+)%%(?:\s*<br\/>)*/g, (match, idxStr) => {
+  html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(%%MATH_(\d+)%%)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
     const p = placeholders[Number(idxStr)];
-    if (p.display) return p.html;
-    return match.replace(`%%MATH_${idxStr}%%`, p.html);
+    if (p.display) {
+      return p.html; // Strip surrounding spacing for display math
+    }
+    // Keep surrounding spacing for inline math
+    return prefix + p.html + suffix;
   });
 
   return html;
@@ -204,6 +264,19 @@ const AiChat: React.FC = () => {
     setCurrentSessionId(null);
     setMessages([]);
     if (window.innerWidth < 1024) setSidebarOpen(false);
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this chat?")) return;
+    
+    // Optimistic UI update
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (currentSessionId === sessionId) {
+      handleNewChat();
+    }
+    
+    await supabase.from('chat_sessions').delete().eq('id', sessionId);
   };
 
   const handleLoadSession = async (sessionId: string) => {
@@ -451,14 +524,23 @@ const AiChat: React.FC = () => {
               <button
                 key={s.id}
                 onClick={() => handleLoadSession(s.id)}
-                className={`w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center gap-3 transition-colors ${
+                className={`group w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center justify-between transition-colors ${
                   currentSessionId === s.id
                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
-                <MessageSquare size={16} className="shrink-0 opacity-70" />
-                <span className="truncate">{s.title}</span>
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <MessageSquare size={16} className="shrink-0 opacity-70" />
+                  <span className="truncate">{s.title}</span>
+                </div>
+                <div
+                  onClick={(e) => handleDeleteSession(e, s.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-opacity"
+                  title="Delete chat"
+                >
+                  <Trash2 size={14} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" />
+                </div>
               </button>
             ))
           )}
@@ -591,6 +673,18 @@ const AiChat: React.FC = () => {
                 </div>
               </motion.div>
             )}
+
+            {/* Long chat warning */}
+            {messages.filter(m => m.role === 'assistant').length >= 4 && !loading && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center mt-2 pb-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs px-4 py-2.5 rounded-full border border-blue-100 dark:border-blue-800/50 flex items-center gap-2 shadow-sm">
+                  <Sparkles size={14} className="opacity-70" />
+                  <span>This chat is getting long. Starting a new chat helps the AI maintain better context!</span>
+                  <button onClick={handleNewChat} className="font-semibold underline ml-1 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">New Chat</button>
+                </div>
+              </motion.div>
+            )}
+
             <div ref={scrollRef} />
           </div>
         </div>
@@ -604,16 +698,22 @@ const AiChat: React.FC = () => {
                 {SUBJECTS.map((s) => {
                   const Icon = s.icon;
                   const active = subject === s.value;
+                  const isSessionActive = currentSessionId !== null;
+                  
+                  // Hide inactive subjects if chat has already started
+                  if (isSessionActive && !active) return null;
+                  
                   return (
                     <button
                       key={s.value}
                       type="button"
-                      onClick={() => setSubject(s.value)}
+                      onClick={() => !isSessionActive && setSubject(s.value)}
+                      disabled={isSessionActive}
                       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
                         active
                           ? 'bg-blue-400 dark:bg-blue-900 text-white shadow-md shadow-blue-500/20'
                           : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800'
-                      }`}
+                      } ${isSessionActive ? 'cursor-default' : ''}`}
                     >
                       <Icon size={13} />
                       <span className="hidden sm:inline">{s.label}</span>

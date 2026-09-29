@@ -104,3 +104,49 @@
   color: #94a3b8;
   border-left-color: #60a5fa;
 }
+
+/* ── Markdown Tables ─────────────────────────────────── */
+.table-container {
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+}
+.dark .table-container {
+  border-color: #334155;
+}
+
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.9em;
+}
+
+.markdown-table th,
+.markdown-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.dark .markdown-table th,
+.dark .markdown-table td {
+  border-bottom-color: #334155;
+}
+
+.markdown-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+.dark .markdown-table th {
+  background-color: #1e293b;
+}
+
+.markdown-table tr:last-child td {
+  border-bottom: none;
+}
+.markdown-table tbody tr:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+.dark .markdown-table tbody tr:hover {
+  background-color: rgba(96, 165, 250, 0.05);
+}

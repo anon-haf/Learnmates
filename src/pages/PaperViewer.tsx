@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Download, Flag, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
 import { useRouteBase, withBase } from '../utils/routeBase';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { ReportModal } from '../components/ReportModal';
+import { McqCheckerHeader, McqOptionButton } from '../components/McqChecker';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { awardDownloadXP } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
@@ -70,6 +71,7 @@ const PaperViewerPage: React.FC = () => {
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
 
   useEffect(() => {
@@ -439,69 +441,58 @@ const PaperViewerPage: React.FC = () => {
             </div>
             <div className="flex flex-col gap-4 w-full @container">
               <div className="w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
-                <UniversalDocumentViewer
-                  key={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
-                  mode="inline"
-                  pdfUrl={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
-                  type="pdf"
-                  savedAnnotation={markSchemeOpen && currentPdf.msUrl ? msAnnotations[currentPdf.msUrl] : annotations[currentPdf.pdfUrl]}
-                  onSaveAnnotation={(data) => {
-                    if (markSchemeOpen && currentPdf.msUrl) {
-                      setMsAnnotations(prev => ({ ...prev, [currentPdf.msUrl!]: data }));
-                    } else {
-                      setAnnotations(prev => ({ ...prev, [currentPdf.pdfUrl]: data }));
-                    }
-                  }}
-                />
+                {!showLargeView ? (
+                  <UniversalDocumentViewer
+                    key={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
+                    mode="inline"
+                    pdfUrl={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
+                    type="pdf"
+                    savedAnnotation={markSchemeOpen && currentPdf.msUrl ? msAnnotations[currentPdf.msUrl] : annotations[currentPdf.pdfUrl]}
+                    onSaveAnnotation={(data) => {
+                      if (markSchemeOpen && currentPdf.msUrl) {
+                        setMsAnnotations(prev => ({ ...prev, [currentPdf.msUrl!]: data }));
+                      } else {
+                        setAnnotations(prev => ({ ...prev, [currentPdf.pdfUrl]: data }));
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 p-8 text-center min-h-[50vh]">
+                    <Maximize2 className="w-12 h-12 mb-4 opacity-50" />
+                    <p className="text-lg font-medium">Viewing in expanded mode</p>
+                    <p className="text-sm opacity-80 mt-1">Inline view is suspended to conserve memory.</p>
+                  </div>
+                )}
               </div>
 
               {currentPdf.mcqAnswer && (
                 <div className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/60 p-3 sm:p-4">
                   <div className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">MCQ Checker</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Choose A–D below.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-                        className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${liveMcqCheckEnabled
-                          ? 'dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600 bg-purple-500 text-gray-200 hover:bg-purple-300'
-                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-                          }`}
-                      >
-                        {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
-                      </button>
-                    </div>
-                    <div className="flex items-stretch justify-center py-2">
+                    <McqCheckerHeader
+                      surface="themed"
+                      enabled={liveMcqCheckEnabled}
+                      onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+                    />
+                    <div className="flex items-stretch justify-center py-4">
                       <div className="flex items-stretch gap-4 w-full max-w-md mx-auto">
                         {['A', 'B', 'C', 'D'].map(option => {
                           const isSelected = selectedOption === option;
                           const showAnswers = liveMcqCheckEnabled && selectedOption !== null;
-                          const isCorrectOption = showAnswers && currentPdf.mcqAnswer === option;
-                          const isSelectedWrong = showAnswers && isSelected && currentPdf.mcqAnswer !== option;
                           return (
-                            <button
+                            <McqOptionButton
                               key={option}
-                              type="button"
+                              option={option}
+                              answer={currentPdf.mcqAnswer}
+                              selected={isSelected}
+                              showAnswer={showAnswers}
+                              surface="themed"
+                              className="flex-1 aspect-square min-w-[56px] max-w-[120px] text-lg"
                               onClick={() => setSelectedOption(option)}
-                              className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
-                                ? 'border-green-600 bg-green-600 text-white'
-                                : isSelectedWrong
-                                  ? 'border-red-600 bg-red-600 text-white'
-                                  : isSelected
-                                    ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                }`}
-                            >
-                              {option}
-                            </button>
+                            />
                           );
                         })}
                       </div>
                     </div>
-                    {selectedOption && !liveMcqCheckEnabled}
                   </div>
                 </div>
               )}
@@ -620,36 +611,40 @@ const PaperViewerPage: React.FC = () => {
               <div className="flex flex-col lg:flex-row gap-4 relative min-w-0 @container">
                 <div className="flex-1 flex flex-col relative min-w-0 min-h-0">
                   <div className="w-full min-w-0 relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
-                    <UniversalDocumentViewer
-                      key={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
-                      mode="inline"
-                      pdfUrl={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
-                      type="pdf"
-                      savedAnnotation={markSchemeOpenFull && fullPaperMsUrl ? msAnnotations[fullPaperMsUrl] : annotations[fullPaperPdfUrl]}
-                      onSaveAnnotation={(data) => {
-                        if (markSchemeOpenFull && fullPaperMsUrl) {
-                          setMsAnnotations(prev => ({ ...prev, [fullPaperMsUrl]: data }));
-                        } else {
-                          setAnnotations(prev => ({ ...prev, [fullPaperPdfUrl]: data }));
-                        }
-                      }}
-                    />
+                    {!showLargeView ? (
+                      <UniversalDocumentViewer
+                        key={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
+                        mode="inline"
+                        pdfUrl={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
+                        type="pdf"
+                        savedAnnotation={markSchemeOpenFull && fullPaperMsUrl ? msAnnotations[fullPaperMsUrl] : annotations[fullPaperPdfUrl]}
+                        onSaveAnnotation={(data) => {
+                          if (markSchemeOpenFull && fullPaperMsUrl) {
+                            setMsAnnotations(prev => ({ ...prev, [fullPaperMsUrl]: data }));
+                          } else {
+                            setAnnotations(prev => ({ ...prev, [fullPaperPdfUrl]: data }));
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 p-8 text-center min-h-[50vh]">
+                        <Maximize2 className="w-12 h-12 mb-4 opacity-50" />
+                        <p className="text-lg font-medium">Viewing in expanded mode</p>
+                        <p className="text-sm opacity-80 mt-1">Inline view is suspended to conserve memory.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {papers.some(p => p.mcqAnswer) && mcqPanelOpenFull && (
                   <div className="w-full lg:w-72 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl lg:shadow-none flex flex-col shrink-0 min-h-0 overflow-hidden h-[50vh] lg:h-auto" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl shrink-0 flex justify-between items-center">
-                      <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">MCQ Answer Sheet</h4>
-                      <button
-                        type="button"
-                        onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-                        className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors ${liveMcqCheckEnabled
-                          ? 'dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600 bg-purple-500 text-gray-200 hover:bg-purple-300'
-                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-                          }`}
-                      >
-                        {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
-                      </button>
+                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl shrink-0">
+                      <McqCheckerHeader
+                        title="MCQ Answer Sheet"
+                        subtitle={null}
+                        surface="themed"
+                        enabled={liveMcqCheckEnabled}
+                        onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+                      />
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
                       {papers.filter(p => p.mcqAnswer).map((p) => {
@@ -662,24 +657,17 @@ const PaperViewerPage: React.FC = () => {
                               {['A', 'B', 'C', 'D'].map(opt => {
                                 const isSelected = selected === opt;
                                 const showAnswers = liveMcqCheckEnabled && selected !== undefined;
-                                const isCorrectOption = showAnswers && p.mcqAnswer === opt;
-                                const isSelectedWrong = showAnswers && isSelected && p.mcqAnswer !== opt;
                                 return (
-                                  <button
+                                  <McqOptionButton
                                     key={opt}
-                                    type="button"
+                                    option={opt}
+                                    answer={p.mcqAnswer}
+                                    selected={isSelected}
+                                    showAnswer={showAnswers}
+                                    surface="themed"
+                                    className="aspect-square w-full max-w-[44px] h-10 shrink-0 mx-auto text-sm"
                                     onClick={() => setFullMcqSelections(prev => ({ ...prev, [qNum]: opt }))}
-                                    className={`aspect-square w-full max-w-[44px] h-10 shrink-0 rounded-full border text-sm font-bold uppercase transition-colors duration-200 flex items-center justify-center mx-auto ${isCorrectOption
-                                      ? 'border-green-600 bg-green-600 text-white'
-                                      : isSelectedWrong
-                                        ? 'border-red-600 bg-red-600 text-white'
-                                        : isSelected
-                                          ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                      }`}
-                                  >
-                                    {opt}
-                                  </button>
+                                  />
                                 );
                               })}
                             </div>
@@ -696,8 +684,8 @@ const PaperViewerPage: React.FC = () => {
       )}
 
       {showLargeView && (
-        <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 shadow-sm shrink-0 gap-2">
+        <div className="fixed inset-0 z-[100] bg-[#0d1520] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <button
                 onClick={() => setShowLargeView(false)}
@@ -747,6 +735,20 @@ const PaperViewerPage: React.FC = () => {
                   {mcqPanelOpenFull ? 'Hide MCQ' : 'Show MCQ'}
                 </button>
               )}
+              {viewMode === 'single' && currentPdf && !currentPdf.mcqAnswer && (
+                <button
+                  type="button"
+                  onClick={() => setNonMcqSidebarOpen(o => !o)}
+                  className={`p-1.5 sm:p-2 rounded-md transition-colors border ${
+                    nonMcqSidebarOpen
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700 border-transparent'
+                  }`}
+                  title={nonMcqSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                >
+                  <PanelRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+              )}
 
               {viewMode === 'single' && (
                 <>
@@ -777,7 +779,7 @@ const PaperViewerPage: React.FC = () => {
           </div>
 
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative flex flex-col lg:flex-row">
-            <div className="flex-1 relative bg-gray-900 flex flex-col min-h-0 min-w-0">
+            <div className="flex-1 relative bg-[#0d1520] flex flex-col min-h-0 min-w-0">
               <UniversalDocumentViewer
                 key={viewMode === 'single' ? (currentPdf?.pdfUrl || 'empty') : (fullPaperPdfUrl || 'empty')}
                 mode="inline"
@@ -793,8 +795,71 @@ const PaperViewerPage: React.FC = () => {
                 }}
               />
             </div>
+
+            {/* Non-MCQ overlay sidebar (single view only) */}
+            {viewMode === 'single' && currentPdf && !currentPdf.mcqAnswer && (
+              <div
+                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${
+                  nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                }`}
+              >
+                {/* Topics and Report */}
+                <div className="flex items-start justify-between shrink-0">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Topics</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentPdf.topicMatches && currentPdf.topicMatches.length > 0 ? (
+                        currentPdf.topicMatches.map(topic => (
+                          <span key={topic} className="px-2 py-1 text-[10px] font-medium bg-gray-700/50 text-gray-200 rounded">
+                            {topic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">None</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"
+                    title="Report this question"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>Report</span>
+                  </button>
+                </div>
+
+                <div className="w-full h-px bg-[#1a2d47] shrink-0" />
+
+                {/* Question navigation */}
+                <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                    {papers.map((p, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setQuestionIndex(idx);
+                          setCurrentPdf(papers[idx]);
+                          setMarkSchemeOpen(false);
+                          setSelectedOption(null);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                          questionIndex === idx
+                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <span>Q{p.questionNumber || idx + 1}</span>
+                        {questionIndex === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {((viewMode === 'single' && markSchemeOpen && currentPdf?.msUrl) || (viewMode === 'full' && markSchemeOpenFull && fullPaperMsUrl)) && (
-              <div className="flex-1 relative bg-gray-800 flex flex-col min-h-0 min-w-0 border-t md:border-t-0 md:border-l border-gray-700">
+              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t md:border-t-0 md:border-l border-[#1a2d47]">
                 <UniversalDocumentViewer
                   key={viewMode === 'single' ? currentPdf!.msUrl! : fullPaperMsUrl!}
                   mode="inline"
@@ -813,55 +878,91 @@ const PaperViewerPage: React.FC = () => {
             )}
 
             {viewMode === 'single' && currentPdf?.mcqAnswer && (
-              <div className="w-full lg:w-80 flex flex-col bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 overflow-y-auto max-h-[50vh] lg:max-h-full shrink-0 p-4 gap-4">
-                <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-3 sm:p-4 shrink-0">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-col gap-0.5">
-                        <p className="text-sm font-semibold text-gray-100">MCQ Checker</p>
-                        <p className="text-xs text-gray-400">Choose A–D below.</p>
-                      </div>
+              <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
+                {/* Topics and Report - hidden on small screens, shown on large */}
+                <div className="hidden lg:flex flex-col lg:flex-row items-start justify-between bg-transparent shrink-0 lg:min-w-0">
+                  <div className="flex flex-col gap-2 mb-3 lg:mb-0">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Topics</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentPdf.topicMatches && currentPdf.topicMatches.length > 0 ? (
+                        currentPdf.topicMatches.map(topic => (
+                          <span key={topic} className="px-2 py-1 text-[10px] font-medium bg-gray-700/50 text-gray-200 rounded">
+                            {topic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">None</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"
+                    title="Report this question"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>Report</span>
+                  </button>
+                </div>
+
+                <div className="hidden lg:block w-full h-px bg-gray-700/50 shrink-0" />
+
+                {/* MCQ Checker - grows on small screens to fill 50% */}
+                <div className="shrink-0 flex flex-col flex-1 lg:flex-none lg:w-auto min-w-0">
+                  <div className="flex flex-col gap-3 lg:gap-4">
+                    <McqCheckerHeader
+                      surface="dark"
+                      compact
+                      enabled={liveMcqCheckEnabled}
+                      onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+                    />
+
+                    <div className="flex flex-row lg:flex-col w-full gap-2 lg:gap-2.5 justify-start lg:justify-between">
+                      {['A', 'B', 'C', 'D'].map(opt => {
+                        const isSelected = selectedOption === opt;
+                        const showAnswers = liveMcqCheckEnabled && selectedOption !== null;
+                        return (
+                          <McqOptionButton
+                            key={opt}
+                            option={opt}
+                            answer={currentPdf.mcqAnswer}
+                            selected={isSelected}
+                            showAnswer={showAnswers}
+                            surface="dark"
+                            className="flex-1 h-10 lg:w-full lg:h-auto lg:py-2.5 text-sm shrink-0 min-w-0"
+                            onClick={() => setSelectedOption(opt)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-px h-auto lg:w-full lg:h-px bg-gray-700/50 shrink-0" />
+
+                {/* Jump to Question - fixed narrow on mobile */}
+                <div className="flex-1 min-w-[120px] lg:overflow-y-auto min-h-0 flex flex-col gap-2 lg:gap-3 lg:w-auto">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Q</h3>
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                    {papers.map((p, idx) => (
                       <button
-                        type="button"
-                        onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-                        className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${liveMcqCheckEnabled
-                          ? 'bg-purple-500 text-gray-200 hover:bg-purple-300 dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600'
-                          : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-                          }`}
+                        key={idx}
+                        onClick={() => {
+                          setQuestionIndex(idx);
+                          setCurrentPdf(papers[idx]);
+                          setMarkSchemeOpen(false);
+                          setSelectedOption(null);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                          questionIndex === idx
+                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
                       >
-                        {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
+                        <span>Q{p.questionNumber || idx + 1}</span>
+                        {questionIndex === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
                       </button>
-                    </div>
-
-                    <div className="flex items-center justify-center py-2">
-                      <div className="flex flex-row lg:flex-col items-center justify-center gap-3 sm:gap-4 w-full max-w-md mx-auto lg:max-w-none">
-                        {['A', 'B', 'C', 'D'].map(opt => {
-                          const isSelected = selectedOption === opt;
-                          const showAnswers = liveMcqCheckEnabled && selectedOption !== null;
-                          const isCorrectOption = showAnswers && currentPdf.mcqAnswer === opt;
-                          const isSelectedWrong = showAnswers && isSelected && currentPdf.mcqAnswer !== opt;
-                          return (
-                            <button
-                              key={opt}
-                              type="button"
-                              onClick={() => setSelectedOption(opt)}
-                              className={`flex-1 aspect-square min-w-[52px] max-w-[100px] lg:max-w-[72px] lg:w-14 lg:h-14 shrink-0 rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
-                                ? 'border-green-600 bg-green-600 text-white'
-                                : isSelectedWrong
-                                  ? 'border-red-600 bg-red-600 text-white'
-                                  : isSelected
-                                    ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                }`}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {selectedOption && !liveMcqCheckEnabled}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -870,18 +971,14 @@ const PaperViewerPage: React.FC = () => {
             {viewMode === 'full' && papers.some(p => p.mcqAnswer) && mcqPanelOpenFull && (
               <div className="w-full lg:w-72 h-1/2 lg:h-auto max-h-[50vh] lg:max-h-full flex flex-col bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 shrink-0 min-h-0 overflow-hidden">
                 {/* Fixed header - never scrolls */}
-                <div className="shrink-0 px-4 py-3 border-b border-gray-700 flex justify-between items-center bg-gray-900/60">
-                  <h4 className="text-sm font-semibold text-gray-200">MCQ Answer Sheet</h4>
-                  <button
-                    type="button"
-                    onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-                    className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${liveMcqCheckEnabled
-                      ? 'bg-purple-500 text-gray-200 hover:bg-purple-300 dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600'
-                      : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-                      }`}
-                  >
-                    {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
-                  </button>
+                <div className="shrink-0 px-4 py-3 border-b border-gray-700 bg-gray-900/60">
+                  <McqCheckerHeader
+                    title="MCQ Answer Sheet"
+                    subtitle={null}
+                    surface="dark"
+                    enabled={liveMcqCheckEnabled}
+                    onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+                  />
                 </div>
                 {/* Scrollable answers */}
                 <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
@@ -895,24 +992,17 @@ const PaperViewerPage: React.FC = () => {
                           {['A', 'B', 'C', 'D'].map(opt => {
                             const isSelected = selected === opt;
                             const showAnswers = liveMcqCheckEnabled && selected !== undefined;
-                            const isCorrectOption = showAnswers && p.mcqAnswer === opt;
-                            const isSelectedWrong = showAnswers && isSelected && p.mcqAnswer !== opt;
                             return (
-                              <button
+                              <McqOptionButton
                                 key={opt}
-                                type="button"
+                                option={opt}
+                                answer={p.mcqAnswer}
+                                selected={isSelected}
+                                showAnswer={showAnswers}
+                                surface="dark"
+                                className="w-full aspect-square lg:max-w-[44px] lg:h-10 lg:aspect-auto shrink-0 text-sm"
                                 onClick={() => setFullMcqSelections(prev => ({ ...prev, [qNum]: opt }))}
-                                className={`aspect-square w-full max-w-[44px] h-10 shrink-0 rounded-full border text-sm font-bold uppercase transition-colors duration-200 flex items-center justify-center mx-auto ${isCorrectOption
-                                  ? 'border-green-600 bg-green-600 text-white'
-                                  : isSelectedWrong
-                                    ? 'border-red-600 bg-red-600 text-white'
-                                    : isSelected
-                                      ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                  }`}
-                              >
-                                {opt}
-                              </button>
+                              />
                             );
                           })}
                         </div>

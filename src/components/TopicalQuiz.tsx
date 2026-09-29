@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { ReportModal } from './ReportModal';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import { QuestionViewTracker } from './QuestionViewTracker';
+import { McqCheckerHeader, McqOptionButton } from './McqChecker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
@@ -64,6 +65,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showMarkScheme, setShowMarkScheme] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [annotations, setAnnotations] = useState<Map<string, string>>(new Map());
   const [mcqSelections, setMcqSelections] = useState<Record<number, string>>({});
   const [selectedMcqOption, setSelectedMcqOption] = useState<string | null>(null);
@@ -643,58 +645,35 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const mcqBlock = currentQ.mcqAnswer && (
     <div className="mt-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-800/60 p-3 sm:p-4">
       <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">MCQ Checker</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Choose A–D below.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-            className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${liveMcqCheckEnabled
-              ? 'dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600 bg-purple-500 text-gray-200 hover:bg-purple-300'
-              : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-              }`}
-          >
-            {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
-          </button>
-        </div>
+        <McqCheckerHeader
+          surface="themed"
+          enabled={liveMcqCheckEnabled}
+          onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+        />
         <div className="flex items-stretch justify-center py-4">
           <div className="flex items-stretch gap-4 w-full max-w-md mx-auto">
             {['A', 'B', 'C', 'D'].map(option => {
               const isSelected = selectedMcqOption === option;
               const showAnswers = liveMcqCheckEnabled && selectedMcqOption !== null;
-              const isCorrectOption = showAnswers && currentQ.mcqAnswer === option;
-              const isSelectedWrong = showAnswers && isSelected && currentQ.mcqAnswer !== option;
               return (
-                <button
+                <McqOptionButton
                   key={option}
-                  type="button"
+                  option={option}
+                  answer={currentQ.mcqAnswer}
+                  selected={isSelected}
+                  showAnswer={showAnswers}
+                  surface="themed"
+                  className="flex-1 aspect-square min-w-[56px] max-w-[120px] text-lg"
                   onClick={() => {
                     setSelectedMcqOption(option);
                     if (quizId) {
                       setMcqSelections(prev => ({ ...prev, [currentQuestion]: option }));
                     }
                   }}
-                  className={`flex-1 aspect-square min-w-[56px] max-w-[120px] rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
-                    ? 'border-green-600 bg-green-600 text-white'
-                    : isSelectedWrong
-                      ? 'border-red-600 bg-red-600 text-white'
-                      : isSelected
-                        ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                >
-                  {option}
-                </button>
+                />
               );
             })}
           </div>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between h-5">
-          {selectedMcqOption ? (
-            !liveMcqCheckEnabled
-          ) : null}
         </div>
       </div>
     </div>
@@ -931,8 +910,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       </div>
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} question={currentQ} />
       {showLargeView && (
-        <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 shadow-sm shrink-0 gap-2">
+        <div className="fixed inset-0 z-[100] bg-[#0d1520] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <button
                 onClick={() => setShowLargeView(false)}
@@ -948,7 +927,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-              {Boolean(currentQ.markScheme) && (
+              {Boolean(currentQ.markScheme) && !currentQ.mcqAnswer && (
                 <button
                   type="button"
                   onClick={() => setShowMarkScheme(!showMarkScheme)}
@@ -958,6 +937,20 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                     }`}
                 >
                   {showMarkScheme ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
+                </button>
+              )}
+              {!currentQ.mcqAnswer && (
+                <button
+                  type="button"
+                  onClick={() => setNonMcqSidebarOpen(o => !o)}
+                  className={`p-1.5 sm:p-2 rounded-md transition-colors border ${
+                    nonMcqSidebarOpen
+                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700 border-transparent'
+                  }`}
+                  title={nonMcqSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                >
+                  <PanelRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
               <span className="text-gray-400 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap">
@@ -984,96 +977,200 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden relative flex flex-col lg:flex-row">
-            <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-start min-h-0">
+          <div className="flex-1 overflow-hidden relative flex flex-col lg:flex-row min-w-0">
+            {/* Main Question Viewer */}
+            <div className="flex-1 relative flex flex-col items-center justify-start min-h-0 min-w-0 bg-[#0d1520]">
               <UniversalDocumentViewer
-                key={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || 'empty')}
+                key={currentQ.questionContent || 'empty'}
                 mode="inline"
-                pdfUrl={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || '')}
-                type={
-                  showMarkScheme && currentQ.markScheme
-                    ? ((currentQ.markSchemeType || currentQ.questionContentType || 'pdf') as 'pdf' | 'image')
-                    : ((currentQ.questionContentType || 'pdf') as 'pdf' | 'image')
-                }
+                pdfUrl={currentQ.questionContent || ''}
+                type={(currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
               />
             </div>
 
-            {(currentQ.mcqAnswer || (showMarkScheme && currentQ.markScheme)) && (
-              <div className="w-full lg:w-80 flex flex-col bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 overflow-y-auto max-h-[50vh] lg:max-h-full shrink-0 p-4 gap-4">
-                {currentQ.mcqAnswer && (
-                  <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-3 sm:p-4 shrink-0">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex flex-col gap-0.5">
-                          <p className="text-sm font-semibold text-gray-100">MCQ Checker</p>
-                          <p className="text-xs text-gray-400">Choose A–D below.</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setLiveMcqCheckEnabled(prev => !prev)}
-                          className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors mt-0.5 ${liveMcqCheckEnabled
-                            ? 'bg-purple-500 text-gray-200 hover:bg-purple-300 dark:bg-purple-500 dark:text-white dark:hover:bg-purple-600'
-                            : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-500 hover:bg-gray-300'
-                            }`}
-                        >
-                          {liveMcqCheckEnabled ? 'Live check: On' : 'Live check: Off'}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-center py-2">
-                        <div className="flex flex-row lg:flex-col items-center justify-center gap-3 sm:gap-4 w-full max-w-md mx-auto lg:max-w-none">
-                          {['A', 'B', 'C', 'D'].map(option => {
-                            const isSelected = selectedMcqOption === option;
-                            const showAnswers = liveMcqCheckEnabled && selectedMcqOption !== null;
-                            const isCorrectOption = showAnswers && currentQ.mcqAnswer === option;
-                            const isSelectedWrong = showAnswers && isSelected && currentQ.mcqAnswer !== option;
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedMcqOption(option);
-                                  if (quizId) {
-                                    setMcqSelections(prev => ({ ...prev, [currentQuestion]: option }));
-                                  }
-                                }}
-                                className={`flex-1 aspect-square min-w-[52px] max-w-[100px] lg:max-w-[72px] lg:w-14 lg:h-14 shrink-0 rounded-full border text-lg font-bold uppercase transition-colors duration-200 flex items-center justify-center ${isCorrectOption
-                                  ? 'border-green-600 bg-green-600 text-white'
-                                  : isSelectedWrong
-                                    ? 'border-red-600 bg-red-600 text-white'
-                                    : isSelected
-                                      ? 'border-gray-700 bg-gray-700 dark:border-gray-500 dark:bg-gray-600 text-white'
-                                      : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
-                                  }`}
-                              >
-                                {option}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {selectedMcqOption && !liveMcqCheckEnabled}
+            {/* Non-MCQ overlay sidebar */}
+            {!currentQ.mcqAnswer && (
+              <div
+                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${
+                  nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                }`}
+              >
+                {/* Topics and Report */}
+                <div className="flex items-start justify-between shrink-0">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Topics</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentQ.topicMatches && currentQ.topicMatches.length > 0 ? (
+                        currentQ.topicMatches.map(topic => (
+                          <span key={topic} className="px-2 py-1 text-[10px] font-medium bg-gray-700/50 text-gray-200 rounded">
+                            {topic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">None</span>
+                      )}
                     </div>
                   </div>
-                )}
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"
+                    title="Report this question"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>Report</span>
+                  </button>
+                </div>
 
-                {showMarkScheme && currentQ.markScheme && (
-                  <div className="flex-1 relative overflow-hidden flex flex-col min-h-[300px] rounded-lg border border-gray-700 bg-gray-900/60">
-                    <div className="p-2.5 border-b border-gray-700 bg-gray-900 flex justify-between items-center shrink-0">
-                      <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Mark Scheme</h4>
-                      <button onClick={() => setShowMarkScheme(false)} className="text-xs text-gray-400 hover:text-white">Close</button>
-                    </div>
-                    <div className="flex-1 relative min-h-0">
-                      <UniversalDocumentViewer
-                        key={currentQ.markScheme}
-                        mode="inline"
-                        pdfUrl={currentQ.markScheme}
-                        type={(currentQ.markSchemeType || currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
-                      />
+                <div className="w-full h-px bg-[#1a2d47] shrink-0" />
+
+                {/* Question navigation */}
+                <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                    {questions.map((q, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentQuestion(idx)}
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                          currentQuestion === idx
+                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <span>{q.title || `Q${idx + 1}`}</span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                              currentQuestion === idx ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              {q.unit}
+                            </span>
+                          )}
+                          {currentQuestion === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Mark Scheme Viewer (side-by-side like PaperViewer) */}
+            {showMarkScheme && currentQ.markScheme && (
+              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]">
+                <div className="p-2.5 border-b border-gray-700 bg-gray-900 flex justify-between items-center shrink-0">
+                  <h4 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">Mark Scheme</h4>
+                  <button onClick={() => setShowMarkScheme(false)} className="text-xs text-gray-400 hover:text-white transition-colors">Close</button>
+                </div>
+                <div className="flex-1 relative min-h-0">
+                  <UniversalDocumentViewer
+                    key={currentQ.markScheme}
+                    mode="inline"
+                    pdfUrl={currentQ.markScheme}
+                    type={(currentQ.markSchemeType || currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Sidebar (MCQ Options & Navigation) */}
+            {currentQ.mcqAnswer && (
+              <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
+                {/* Topics and Report - hidden on small screens */}
+                <div className="hidden lg:flex flex-col lg:flex-row items-start justify-between bg-transparent shrink-0 lg:min-w-0">
+                  <div className="flex flex-col gap-2 mb-3 lg:mb-0">
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Topics</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {currentQ.topicMatches && currentQ.topicMatches.length > 0 ? (
+                        currentQ.topicMatches.map(topic => (
+                          <span key={topic} className="px-2 py-1 text-[10px] font-medium bg-gray-700/50 text-gray-200 rounded">
+                            {topic}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-500">None</span>
+                      )}
                     </div>
                   </div>
-                )}
+                  <button
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 shrink-0"
+                    title="Report this question"
+                  >
+                    <Flag className="w-3.5 h-3.5" />
+                    <span>Report</span>
+                  </button>
+                </div>
+
+                <div className="hidden lg:block w-full h-px bg-gray-700/50 shrink-0" />
+
+                {/* MCQ Checker - grows on mobile */}
+                <div className="shrink-0 flex flex-col flex-1 lg:flex-none lg:w-auto min-w-0">
+                  <div className="flex flex-col gap-3 lg:gap-4">
+                    <McqCheckerHeader
+                      surface="dark"
+                      compact
+                      enabled={liveMcqCheckEnabled}
+                      onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
+                    />
+
+                    <div className="flex flex-row lg:flex-col w-full gap-2 lg:gap-2.5 justify-start lg:justify-between">
+                      {['A', 'B', 'C', 'D'].map(option => {
+                        const isSelected = selectedMcqOption === option;
+                        const showAnswers = liveMcqCheckEnabled && selectedMcqOption !== null;
+                        return (
+                          <McqOptionButton
+                            key={option}
+                            option={option}
+                            answer={currentQ.mcqAnswer}
+                            selected={isSelected}
+                            showAnswer={showAnswers}
+                            surface="dark"
+                            className="flex-1 h-10 lg:w-full lg:h-auto lg:py-2.5 text-sm shrink-0 min-w-0"
+                            onClick={() => {
+                              setSelectedMcqOption(option);
+                              if (quizId) {
+                                setMcqSelections(prev => ({ ...prev, [currentQuestion]: option }));
+                              }
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-px h-auto lg:w-full lg:h-px bg-gray-700/50 shrink-0" />
+
+                {/* Jump to Question */}
+                <div className="flex-1 min-w-[120px] lg:overflow-y-auto min-h-0 flex flex-col gap-2 lg:gap-3 lg:w-auto">
+                  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Q</h3>
+                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                    {questions.map((q, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentQuestion(idx)}
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                          currentQuestion === idx
+                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        <span>{q.title || `Q${idx + 1}`}</span>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                              currentQuestion === idx ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-700 text-gray-400'
+                            }`}>
+                              {q.unit}
+                            </span>
+                          )}
+                          {currentQuestion === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>
