@@ -73,7 +73,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  // Download merged PDFs for a quiz
   const handleDownloadMergedPDFs = async (
     quiz: MultiQuiz,
     type: 'questions' | 'markschemes',
@@ -335,6 +334,35 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     }
   };
 
+  const getFilenameFromUrl = (url: string, defaultName: string) => {
+    try {
+      const parts = new URL(url).pathname.split('/');
+      const last = parts[parts.length - 1];
+      return last ? decodeURIComponent(last) : defaultName;
+    } catch {
+      return defaultName;
+    }
+  };
+
+  const handleDownload = async (url: string, filename: string, resourceName: string) => {
+    try {
+      await awardDownloadXP({
+        resourceId: url,
+        resourceName: resourceName,
+        resourceType: 'file',
+      });
+    } catch (xpError) {
+      console.warn('XP award failed, proceeding with download:', xpError);
+    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (isQuizMenu) {
     if (!selectedQuizId) {
       if (quizzes.length === 0) {
@@ -389,7 +417,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                             e.stopPropagation();
                             handleDownload(
                               firstQuestion.questionContent!,
-                              getFilenameFromUrl(firstQuestion.questionContent!, `Question_Paper.${firstQuestion.questionContentType === 'pdf' ? 'pdf' : 'png'}`)
+                              getFilenameFromUrl(firstQuestion.questionContent!, `Question_Paper.${firstQuestion.questionContentType === 'pdf' ? 'pdf' : 'png'}`),
+                              `${q.title} - Question Paper`
                             );
                           }}
                           className="flex items-center justify-center gap-2 px-3 py-2 text-xs bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
@@ -404,7 +433,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                             e.stopPropagation();
                             handleDownload(
                               firstQuestion.markScheme!,
-                              getFilenameFromUrl(firstQuestion.markScheme!, `Mark_Scheme.${firstQuestion.markSchemeType === 'pdf' ? 'pdf' : 'png'}`)
+                              getFilenameFromUrl(firstQuestion.markScheme!, `Mark_Scheme.${firstQuestion.markSchemeType === 'pdf' ? 'pdf' : 'png'}`),
+                              `${q.title} - Mark Scheme`
                             );
                           }}
                           className="flex items-center justify-center gap-2 px-3 py-2 text-xs bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors"
@@ -595,13 +625,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {currentQ.questionContent && (
               <button
                 onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = currentQ.questionContent!;
-                  link.download = `Question_Paper.${currentQ.questionContentType === 'pdf' ? 'pdf' : 'png'}`;
-                  link.target = '_blank';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  handleDownload(
+                    currentQ.questionContent!,
+                    `Question_Paper.${currentQ.questionContentType === 'pdf' ? 'pdf' : 'png'}`,
+                    `${currentQ.title || 'Download'} - Question Paper`
+                  );
                 }}
                 className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 min-w-[200px] justify-center"
                 title="Download question paper"
@@ -613,13 +641,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {currentQ.markScheme && (
               <button
                 onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = currentQ.markScheme!;
-                  link.download = `Mark_Scheme.${currentQ.markSchemeType === 'pdf' ? 'pdf' : 'png'}`;
-                  link.target = '_blank';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  handleDownload(
+                    currentQ.markScheme!,
+                    `Mark_Scheme.${currentQ.markSchemeType === 'pdf' ? 'pdf' : 'png'}`,
+                    `${currentQ.title || 'Download'} - Mark Scheme`
+                  );
                 }}
                 className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 dark:hover:from-orange-700 dark:hover:to-orange-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 min-w-[200px] justify-center"
                 title="Download mark scheme"

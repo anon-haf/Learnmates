@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { supabase } from '../lib/supabaseClient';
 
 interface DownloadButtonProps {
   resourceId: string;

@@ -90,7 +90,8 @@ function formatAnswer(raw: string): string {
 
   // 2. Markdown → HTML (now math-free, so <br/> won't leak into formulas)
   let html = raw;
-  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  // Strip optional language tag (```python\n...) so it doesn't appear in the rendered block
+  html = html.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -158,8 +159,20 @@ function formatAnswer(raw: string): string {
   html = newLines.join('\n');
   // -- Table Processing End --
 
+  // Protect <pre> blocks from the newline → <br/> pass.
+  // Without this, every \n inside an ASCII diagram becomes <br/>,
+  // which collapses leading spaces and destroys column alignment.
+  const preBlocks: string[] = [];
+  html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (_m, inner) => {
+    preBlocks.push(inner);
+    return `%%PRE_${preBlocks.length - 1}%%`;
+  });
+
   html = html.replace(/\n{2,}/g, '<div style="height: 0.5rem; width: 100%"></div>');
   html = html.replace(/\n/g, '<br/>');
+
+  // Restore <pre> blocks with their original (untouched) content
+  html = html.replace(/%%PRE_(\d+)%%/g, (_m, idx) => `<pre><code>${preBlocks[Number(idx)]}</code></pre>`);
 
   // 3. Restore math placeholders with rendered KaTeX HTML
   html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(%%MATH_(\d+)%%)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
@@ -332,7 +345,11 @@ const AiChat: React.FC = () => {
           .select('id')
           .single();
 
-        if (sessionError || !sessionData) throw new Error('Failed to create session');
+        if (sessionError || !sessionData) {
+          const code = sessionError?.code ? ` (code: ${sessionError.code})` : '';
+          const msg = sessionError?.message || 'Unknown database error';
+          throw new Error(`Failed to create chat session: ${msg}${code}. Please refresh the page and try again.`);
+        }
         
         activeSessionId = sessionData.id;
         setCurrentSessionId(activeSessionId);
@@ -362,8 +379,25 @@ const AiChat: React.FC = () => {
       const data: AskResponse | { detail?: string; error?: string } = await res.json();
 
       if (!res.ok) {
-        const errText = (data as any).detail || (data as any).error || 'Something went wrong';
-        setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: `⚠️ ${errText}` }]);
+        const errDetail = (data as any).detail || (data as any).error || (data as any).message || null;
+        const statusLabel: Record<number, string> = {
+          400: 'Bad request',
+          401: 'Unauthorised — your session may have expired',
+          403: 'Access forbidden',
+          404: 'AI endpoint not found',
+          422: 'Invalid request data',
+          429: 'Rate limit reached — please wait a moment before trying again',
+          500: 'AI server error',
+          502: 'AI server is temporarily unavailable',
+          503: 'AI server is temporarily down for maintenance',
+          504: 'AI server timed out',
+        };
+        const statusText = statusLabel[res.status] ?? `HTTP ${res.status}`;
+        const detail = errDetail ? `: ${errDetail}` : '';
+        setMessages((prev) => [
+          ...prev,
+          { id: `a-${Date.now()}`, role: 'assistant', text: `⚠️ ${statusText}${detail}` },
+        ]);
         return;
       }
 
@@ -384,8 +418,23 @@ const AiChat: React.FC = () => {
       };
       setMessages((prev) => [...prev, botMsg]);
       startTypewriter(botMsg.id, answer);
-    } catch {
-      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: '⚠️ Network error — could not reach the server.' }]);
+    } catch (err: unknown) {
+      const isOffline = !navigator.onLine;
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      const isSessionErr = err instanceof Error && err.message.startsWith('Failed to create');
+      let errMsg: string;
+      if (isOffline) {
+        errMsg = '⚠️ You appear to be offline. Please check your internet connection and try again.';
+      } else if (isTimeout) {
+        errMsg = '⚠️ The request timed out. The AI server may be busy — please try again in a moment.';
+      } else if (isSessionErr) {
+        errMsg = `⚠️ ${(err as Error).message}`;
+      } else if (err instanceof Error && err.message) {
+        errMsg = `⚠️ Unexpected error: ${err.message}`;
+      } else {
+        errMsg = '⚠️ Could not reach the server. Please check your connection and try again.';
+      }
+      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: errMsg }]);
     } finally {
       setLoading(false);
     }

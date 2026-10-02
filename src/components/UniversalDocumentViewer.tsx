@@ -794,15 +794,15 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   }, [applyZoomAtPoint, drawingEnabled, touchScrollInDrawMode]);
 
   const handleDownload = async () => {
-    if (engagementContext && !engagementRecordedRef.current.downloaded) {
+    if (!engagementRecordedRef.current.downloaded) {
       engagementRecordedRef.current.downloaded = true;
-      if (setEngagementFlag) {
+      if (engagementContext && setEngagementFlag) {
         setEngagementFlag(engagementContext.topicId, engagementContext.resourceId, pdfUrl, 'downloaded');
       }
 
       try {
         await awardDownloadXP({
-          resourceId: engagementContext.resourceId,
+          resourceId: engagementContext?.resourceId || pdfUrl,
           resourceName: fileName,
           resourceType: 'file',
         });

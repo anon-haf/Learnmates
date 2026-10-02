@@ -99,6 +99,13 @@ const Resources: React.FC<ResourcesProps> = ({
     } catch (xpError) {
       console.warn('XP award failed, proceeding with download:', xpError);
     }
+    const link = document.createElement('a');
+    link.href = stripTrackingParams(resource.url);
+    link.download = '';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const renderActionButtons = (
@@ -197,15 +204,16 @@ const Resources: React.FC<ResourcesProps> = ({
           <ExternalLink className="w-4 h-4" />
         </a>
       )}
-      <a
-        href={stripTrackingParams(resource.url)}
-        download
-        onClick={() => handleDownload(resource)}
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          handleDownload(resource);
+        }}
         className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
         title="Download Resource"
       >
         <Download className="w-4 h-4" />
-      </a>
+      </button>
       <Link
         to="/contact"
         className="p-2 text-gray-400 hover:text-red-500 transition-colors"

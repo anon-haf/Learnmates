@@ -9,7 +9,7 @@ const ACTION_BY_TYPE: Record<DownloadResourceType, string> = {
   topical_paper: 'topical_paper_download',
 };
 
-const XP_TIMEOUT_MS = 1500;
+const XP_TIMEOUT_MS = 5000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -57,6 +57,10 @@ export async function awardDownloadXP({
       if (data.xpAwarded > 0) {
         triggerXPNotification(data.xpAwarded, ACTION_BY_TYPE[resourceType]);
       }
+      
+      // Small safety delay to ensure the server had time to commit the XP and the browser isn't rushing a navigation
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       return data.xpAwarded;
     }
     return 0;

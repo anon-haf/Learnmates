@@ -6,7 +6,7 @@ import { ArrowRight, BookOpen, CheckCircle, Sparkles, Users } from 'lucide-react
 import { useAuth } from '../context/AuthContext';
 import { fetchProfile } from '../utils/profileSync';
 import { Card, Button, Badge } from '@/components/ui';
-
+import NibrasIcon from '../assets/logos/nibras_icon.svg?react';
 
 const Home: React.FC = () => {
   const { user: authUser, loading: authLoading } = useAuth();
@@ -63,7 +63,7 @@ const Home: React.FC = () => {
 
   const features = [
     {
-      icon: <Sparkles className="h-7 w-7" />,
+      icon: <NibrasIcon className="h-7 w-7" />,
       title: 'Fastest Topical Questions',
       description: 'Generate the fastest topical questions for free instantly to test your knowledge on specific subjects.',
     },

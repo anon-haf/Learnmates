@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../context/DarkModeContext';
 import { useUser } from '../context/UserContext';
 import { fetchProfile } from '../utils/profileSync';
+import NibrasIcon from '../assets/logos/nibras_icon.svg?react';
 import { useLockInSession } from '../components/lock-in/LockInContext';
 
 interface DashboardLayoutProps {
@@ -38,7 +39,7 @@ const navItems: { name: string; href: string; icon: typeof Trophy; disabled?: bo
   { name: 'Topicals', href: '/topicals', icon: Layers },
   { name: 'Lock in', href: '/lock_in', icon: Lock },
   { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-  { name: 'AI Tutor', href: '/ai', icon: MessageCircle, beta: true },
+  { name: 'AI Tutor', href: '/ai', icon: NibrasIcon, beta: true },
 ];
 
 interface ProfileSectionProps {
