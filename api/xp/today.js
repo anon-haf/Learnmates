@@ -36,13 +36,14 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Fetch today's breakdown
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Fetch today's breakdown — use UTC midnight as consistent boundary
+    const now = new Date();
+    const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
     const { data: eventsData, error: eventsError } = await supabase
       .from('xp_events')
       .select('action, xp_awarded')
       .eq('user_id', user.id)
-      .gte('created_at', `${todayStr}T00:00:00Z`);
+      .gte('created_at', windowStart);
 
     if (eventsError) {
       throw eventsError;

@@ -47,13 +47,14 @@ export default async function handler(req, res) {
     const level = Math.floor(total_xp / 100) + 1;
     const nextLevelXP = level * 100;
 
-    // Fetch today's breakdown
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Fetch today's breakdown — use same UTC midnight window as award-xp.js for consistency
+    const now = new Date();
+    const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
     const { data: eventsData, error: eventsError } = await supabase
       .from('xp_events')
       .select('action, xp_awarded')
       .eq('user_id', user.id)
-      .gte('created_at', `${todayStr}T00:00:00Z`);
+      .gte('created_at', windowStart);
 
     const today = {};
     if (eventsData) {

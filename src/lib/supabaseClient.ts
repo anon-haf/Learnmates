@@ -16,9 +16,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-/** Redirect URL for OAuth — must match an entry in Supabase → Auth → URL Configuration. */
 export function getAuthRedirectUrl(path = '/login'): string {
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const configuredOrigin = import.meta.env.VITE_APP_URL?.replace(/\/$/, '');
-  const origin = configuredOrigin || window.location.origin;
+  const origin = isLocal ? window.location.origin : (configuredOrigin || window.location.origin);
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 }

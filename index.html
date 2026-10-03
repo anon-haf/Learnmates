@@ -3,6 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var savedPreference = localStorage.getItem('prefers-reduced-motion');
+          var isReducedMotion = savedPreference !== null ? savedPreference === 'true' : window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (isReducedMotion) {
+            document.documentElement.classList.add('reduce-motion');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <!-- Favicons and touch icon (served from /logos/) -->
     <link rel="icon" type="image/png" sizes="32x32" href="/logos/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/logos/favicon-16x16.png" />

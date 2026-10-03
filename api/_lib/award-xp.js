@@ -1,6 +1,7 @@
 /**
  * Awards capped XP with guaranteed xp_events logging.
- * Replaces fn_award_capped_xp RPC which was updating user_xp without inserting events.
+ * xp_events is always inserted BEFORE user_xp is updated.
+ * Uses a 24-hour rolling window for daily cap checks to avoid timezone issues.
  */
 export async function awardCappedXP(supabase, {
   userId,
@@ -14,16 +15,20 @@ export async function awardCappedXP(supabase, {
     return 0;
   }
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Use a 24h rolling window anchored to midnight UTC to avoid timezone edge cases.
+  const now = new Date();
+  const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const windowStart = startOfTodayUTC.toISOString();
 
   const { data: events, error: fetchError } = await supabase
     .from('xp_events')
     .select('xp_awarded')
     .eq('user_id', userId)
     .eq('action', action)
-    .gte('created_at', `${todayStr}T00:00:00Z`);
+    .gte('created_at', windowStart);
 
   if (fetchError) {
+    console.error('[awardCappedXP] Failed to fetch xp_events for cap check:', fetchError);
     throw fetchError;
   }
 
@@ -48,12 +53,19 @@ export async function awardCappedXP(supabase, {
     eventRow.metadata = metadata;
   }
 
-  const { error: insertError } = await supabase.from('xp_events').insert(eventRow);
+  // Step 1: Insert xp_events row first.
+  const { data: insertedEvent, error: insertError } = await supabase
+    .from('xp_events')
+    .insert(eventRow)
+    .select('id')
+    .single();
 
   if (insertError) {
+    console.error('[awardCappedXP] Failed to insert xp_events row:', insertError);
     throw insertError;
   }
 
+  // Step 2: Update user_xp. If this fails, we log clearly so it can be reconciled.
   const { data: xpRow, error: xpFetchError } = await supabase
     .from('user_xp')
     .select('total_xp')
@@ -61,6 +73,7 @@ export async function awardCappedXP(supabase, {
     .maybeSingle();
 
   if (xpFetchError) {
+    console.error('[awardCappedXP] Failed to fetch user_xp (event already logged, id=%s):', insertedEvent?.id, xpFetchError);
     throw xpFetchError;
   }
 
@@ -74,6 +87,7 @@ export async function awardCappedXP(supabase, {
       .eq('user_id', userId);
 
     if (updateError) {
+      console.error('[awardCappedXP] Failed to update user_xp (event already logged, id=%s):', insertedEvent?.id, updateError);
       throw updateError;
     }
   } else {
@@ -83,6 +97,7 @@ export async function awardCappedXP(supabase, {
     });
 
     if (createError) {
+      console.error('[awardCappedXP] Failed to create user_xp row (event already logged, id=%s):', insertedEvent?.id, createError);
       throw createError;
     }
   }

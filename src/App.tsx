@@ -35,6 +35,7 @@ import { XPRewardNotification } from './components/XPRewardNotification';
 import { LockInProvider } from './components/lock-in/LockInContext';
 import { GlobalLockInManager } from './components/lock-in/GlobalLockInManager';
 import AiChat from './pages/AiChat';
+import { ReducedMotionProvider } from './context/ReducedMotionContext';
 
 function AppContent() {
   // Global XP tracking
@@ -95,21 +96,23 @@ function ConditionalLayout() {
 
 function App() {
   return (
-    <DarkModeProvider>
-      <UserProvider>
-        <AuthProvider>
-          <EngagementProvider>
-            <Router>
-              <LockInProvider>
-                <GlobalLockInManager>
-                  <AppContent />
-                </GlobalLockInManager>
-              </LockInProvider>
-            </Router>
-          </EngagementProvider>
-        </AuthProvider>
-      </UserProvider>
-    </DarkModeProvider>
+    <ReducedMotionProvider>
+      <DarkModeProvider>
+        <UserProvider>
+          <AuthProvider>
+            <EngagementProvider>
+              <Router>
+                <LockInProvider>
+                  <GlobalLockInManager>
+                    <AppContent />
+                  </GlobalLockInManager>
+                </LockInProvider>
+              </Router>
+            </EngagementProvider>
+          </AuthProvider>
+        </UserProvider>
+      </DarkModeProvider>
+    </ReducedMotionProvider>
   );
 }
 

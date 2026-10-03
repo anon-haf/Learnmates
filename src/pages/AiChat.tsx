@@ -3,7 +3,6 @@ import { Helmet } from 'react-helmet-async';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send,
   Sparkles,
   Clock,
   Atom,
@@ -55,12 +54,12 @@ interface ChatSession {
 }
 
 const SUBJECTS = [
-  { value: 'IG_Phy', label: 'IGCSE Physics', shortLabel: 'IG Phy', icon: Atom },
-  { value: 'A_Phy', label: 'A-Level Physics', shortLabel: 'AL Phy', icon: Atom },
-  { value: 'IG_Chem', label: 'IGCSE Chemistry', shortLabel: 'IG Chem', icon: FlaskConical },
-  { value: 'A_Chem', label: 'A-Level Chemistry', shortLabel: 'AL Chem', icon: FlaskConical },
-  { value: 'IG_Bio', label: 'IGCSE Biology', shortLabel: 'IG Bio', icon: Leaf },
-  { value: 'A_Bio', label: 'A-Level Biology', shortLabel: 'AL Bio', icon: Leaf },
+  { value: 'IG_Phy', label: 'IGCSE Physics', shortLabel: 'IG Phy', icon: Atom, theme: 'physics', level: 'IGCSE', subjectName: 'Physics' },
+  { value: 'A_Phy', label: 'A-Level Physics', shortLabel: 'AL Phy', icon: Atom, theme: 'physics', level: 'A-Level', subjectName: 'Physics' },
+  { value: 'IG_Chem', label: 'IGCSE Chemistry', shortLabel: 'IG Chem', icon: FlaskConical, theme: 'chemistry', level: 'IGCSE', subjectName: 'Chemistry' },
+  { value: 'A_Chem', label: 'A-Level Chemistry', shortLabel: 'AL Chem', icon: FlaskConical, theme: 'chemistry', level: 'A-Level', subjectName: 'Chemistry' },
+  { value: 'IG_Bio', label: 'IGCSE Biology', shortLabel: 'IG Bio', icon: Leaf, theme: 'biology', level: 'IGCSE', subjectName: 'Biology' },
+  { value: 'A_Bio', label: 'A-Level Biology', shortLabel: 'AL Bio', icon: Leaf, theme: 'biology', level: 'A-Level', subjectName: 'Biology' },
 ] as const;
 
 /* ─── KaTeX + Markdown helpers ───────────────────────── */
@@ -79,18 +78,13 @@ function formatAnswer(raw: string): string {
     return `%%MATH_${placeholders.length - 1}%%`;
   };
 
-  // $$...$$ display
   raw = raw.replace(/\$\$([\s\S]+?)\$\$/g, (_m, tex) => placeholder(tex, true));
-  // \[...\] display
   raw = raw.replace(/\\\[([\s\S]+?)\\\]/g, (_m, tex) => placeholder(tex, true));
-  // \(...\) inline
   raw = raw.replace(/\\\(([\s\S]+?)\\\)/g, (_m, tex) => placeholder(tex, false));
-  // $...$ inline (not $$)
   raw = raw.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g, (_m, tex) => placeholder(tex, false));
 
-  // 2. Markdown → HTML (now math-free, so <br/> won't leak into formulas)
+  // 2. Markdown → HTML
   let html = raw;
-  // Strip optional language tag (```python\n...) so it doesn't appear in the rendered block
   html = html.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -102,9 +96,11 @@ function formatAnswer(raw: string): string {
   html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
   html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^\d+\. (.+)$/gm, '<ol-item>$1</ol-item>');
+  html = html.replace(/((?:<ol-item>[^\n]*<\/ol-item>\n?)+)/g, (m) =>
+    '<ol>' + m.replace(/<ol-item>/g, '<li>').replace(/<\/ol-item>/g, '</li>') + '</ol>'
+  );
 
-  // -- Table Processing Start --
   const lines = html.split('\n');
   const newLines = [];
   let inTable = false;
@@ -148,7 +144,7 @@ function formatAnswer(raw: string): string {
         hasTbody = false;
         tableHtml = "";
       }
-      newLines.push(lines[i]); // Keep original line
+      newLines.push(lines[i]); 
     }
   }
   if (inTable) {
@@ -157,11 +153,7 @@ function formatAnswer(raw: string): string {
     newLines.push(tableHtml);
   }
   html = newLines.join('\n');
-  // -- Table Processing End --
 
-  // Protect <pre> blocks from the newline → <br/> pass.
-  // Without this, every \n inside an ASCII diagram becomes <br/>,
-  // which collapses leading spaces and destroys column alignment.
   const preBlocks: string[] = [];
   html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (_m, inner) => {
     preBlocks.push(inner);
@@ -171,16 +163,13 @@ function formatAnswer(raw: string): string {
   html = html.replace(/\n{2,}/g, '<div style="height: 0.5rem; width: 100%"></div>');
   html = html.replace(/\n/g, '<br/>');
 
-  // Restore <pre> blocks with their original (untouched) content
   html = html.replace(/%%PRE_(\d+)%%/g, (_m, idx) => `<pre><code>${preBlocks[Number(idx)]}</code></pre>`);
 
-  // 3. Restore math placeholders with rendered KaTeX HTML
   html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(%%MATH_(\d+)%%)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
     const p = placeholders[Number(idxStr)];
     if (p.display) {
-      return p.html; // Strip surrounding spacing for display math
+      return p.html; 
     }
-    // Keep surrounding spacing for inline math
     return prefix + p.html + suffix;
   });
 
@@ -197,7 +186,15 @@ const msgVariants = {
 const AiChat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [subject, setSubject] = useState<string>('A_Phy');
+  
+  // Section Management
+  const [activeSections, setActiveSections] = useState<string[]>(() => {
+    const saved = localStorage.getItem('ai_chat_sections');
+    return saved ? JSON.parse(saved) : ['A_Phy'];
+  });
+  const [activeSubjectValue, setActiveSubjectValue] = useState<string>(activeSections[0] || 'A_Phy');
+  const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const { user: authUser, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(authUser?.id);
@@ -207,7 +204,7 @@ const AiChat: React.FC = () => {
   const typewriterRef = useRef<number | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // New Chat State
+  // Chat State
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -232,6 +229,24 @@ const AiChat: React.FC = () => {
       
       if (!error && data) {
         setSessions(data);
+        
+        // Auto-add sections that exist in chat_sessions but not in localStorage
+        const distinctSubjects = Array.from(new Set(data.map(s => s.subject).filter(Boolean))) as string[];
+        setActiveSections(prev => {
+          const newSections = [...prev];
+          let changed = false;
+          distinctSubjects.forEach(sub => {
+            if (!newSections.includes(sub)) {
+              newSections.push(sub);
+              changed = true;
+            }
+          });
+          if (changed) {
+            localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
+            return newSections;
+          }
+          return prev;
+        });
       }
       setFetchingSessions(false);
     };
@@ -283,12 +298,10 @@ const AiChat: React.FC = () => {
     e.stopPropagation();
     if (!window.confirm("Are you sure you want to delete this chat?")) return;
     
-    // Optimistic UI update
     setSessions(prev => prev.filter(s => s.id !== sessionId));
     if (currentSessionId === sessionId) {
       handleNewChat();
     }
-    
     await supabase.from('chat_sessions').delete().eq('id', sessionId);
   };
 
@@ -298,10 +311,9 @@ const AiChat: React.FC = () => {
     setLoading(true);
     if (window.innerWidth < 1024) setSidebarOpen(false);
 
-    // Set the subject to the one used in this session if it exists
     const session = sessions.find(s => s.id === sessionId);
-    if (session?.subject) {
-      setSubject(session.subject);
+    if (session?.subject && session.subject !== activeSubjectValue) {
+      setActiveSubjectValue(session.subject);
     }
 
     const { data, error } = await supabase
@@ -334,14 +346,13 @@ const AiChat: React.FC = () => {
     try {
       let activeSessionId = currentSessionId;
       
-      // If no active session, create one
       if (!activeSessionId) {
         const words = question.split(/\s+/);
         const title = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '');
         
         const { data: sessionData, error: sessionError } = await supabase
           .from('chat_sessions')
-          .insert({ user_id: authUser.id, title, subject })
+          .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
           .select('id')
           .single();
 
@@ -353,46 +364,31 @@ const AiChat: React.FC = () => {
         
         activeSessionId = sessionData.id;
         setCurrentSessionId(activeSessionId);
-        setSessions(prev => [{ id: activeSessionId, title, subject, created_at: new Date().toISOString() }, ...prev]);
+        setSessions(prev => [{ id: activeSessionId, title, subject: activeSubjectValue, created_at: new Date().toISOString() }, ...prev]);
       }
 
-      // Save user message to Supabase
       await supabase.from('chat_messages').insert({
         session_id: activeSessionId,
         role: 'user',
         content: question,
       });
 
-      // Format contextual question
       let contextualQuestion = question;
       if (messages.length > 0) {
         const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n\n');
         contextualQuestion = `[Previous Context]\n${historyText}\n\n[Current Question]\n${question}`;
       }
 
-      // Fetch AI response
       const res = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Username: 'student', subject, question: contextualQuestion, topic: null }),
+        body: JSON.stringify({ Username: 'student', subject: activeSubjectValue, question: contextualQuestion, topic: null }),
       });
       const data: AskResponse | { detail?: string; error?: string } = await res.json();
 
       if (!res.ok) {
         const errDetail = (data as any).detail || (data as any).error || (data as any).message || null;
-        const statusLabel: Record<number, string> = {
-          400: 'Bad request',
-          401: 'Unauthorised — your session may have expired',
-          403: 'Access forbidden',
-          404: 'AI endpoint not found',
-          422: 'Invalid request data',
-          429: 'Rate limit reached — please wait a moment before trying again',
-          500: 'AI server error',
-          502: 'AI server is temporarily unavailable',
-          503: 'AI server is temporarily down for maintenance',
-          504: 'AI server timed out',
-        };
-        const statusText = statusLabel[res.status] ?? `HTTP ${res.status}`;
+        const statusText = `HTTP ${res.status}`;
         const detail = errDetail ? `: ${errDetail}` : '';
         setMessages((prev) => [
           ...prev,
@@ -404,7 +400,6 @@ const AiChat: React.FC = () => {
       const answer = (data as AskResponse).answer || '';
       const botMsgId = `a-${Date.now()}`;
       
-      // Save AI message to Supabase
       await supabase.from('chat_messages').insert({
         session_id: activeSessionId,
         role: 'assistant',
@@ -419,21 +414,7 @@ const AiChat: React.FC = () => {
       setMessages((prev) => [...prev, botMsg]);
       startTypewriter(botMsg.id, answer);
     } catch (err: unknown) {
-      const isOffline = !navigator.onLine;
-      const isTimeout = err instanceof Error && err.name === 'AbortError';
-      const isSessionErr = err instanceof Error && err.message.startsWith('Failed to create');
-      let errMsg: string;
-      if (isOffline) {
-        errMsg = '⚠️ You appear to be offline. Please check your internet connection and try again.';
-      } else if (isTimeout) {
-        errMsg = '⚠️ The request timed out. The AI server may be busy — please try again in a moment.';
-      } else if (isSessionErr) {
-        errMsg = `⚠️ ${(err as Error).message}`;
-      } else if (err instanceof Error && err.message) {
-        errMsg = `⚠️ Unexpected error: ${err.message}`;
-      } else {
-        errMsg = '⚠️ Could not reach the server. Please check your connection and try again.';
-      }
+      const errMsg = err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not reach the server.';
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: errMsg }]);
     } finally {
       setLoading(false);
@@ -444,7 +425,39 @@ const AiChat: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const selectedSubject = SUBJECTS.find((s) => s.value === subject);
+  const handleAddSection = (subjectValue: string) => {
+    if (!activeSections.includes(subjectValue)) {
+      const newSections = [...activeSections, subjectValue];
+      setActiveSections(newSections);
+      localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
+    }
+    setActiveSubjectValue(subjectValue);
+    setIsAddSectionModalOpen(false);
+    handleNewChat();
+  };
+  
+  const handleRemoveSection = (e: React.MouseEvent, subjectValue: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Remove this section from your workspace? (Chats will remain saved in history)")) return;
+    
+    const newSections = activeSections.filter(s => s !== subjectValue);
+    setActiveSections(newSections);
+    localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
+    if (activeSubjectValue === subjectValue) {
+      if (newSections.length > 0) {
+        setActiveSubjectValue(newSections[0]);
+      } else {
+        // Fallback to IG_Phy if everything is removed
+        setActiveSections(['IG_Phy']);
+        setActiveSubjectValue('IG_Phy');
+        localStorage.setItem('ai_chat_sections', JSON.stringify(['IG_Phy']));
+      }
+      handleNewChat();
+    }
+  };
+
+  const activeSubject = SUBJECTS.find((s) => s.value === activeSubjectValue) || SUBJECTS[0];
+  const activeSectionChats = sessions.filter(s => s.subject === activeSubjectValue);
 
   /* ─── Render ─────────────────────────────────────────── */
   const isAccessLoading = authLoading || (!!authUser && roleLoading);
@@ -524,7 +537,7 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5rem)] lg:h-[calc(100vh-5rem)] text-gray-900 dark:text-gray-100 overflow-hidden bg-slate-50 dark:bg-gray-950 relative">
+    <div className={`flex h-[calc(100dvh-5rem)] lg:h-[calc(100vh-5rem)] text-gray-900 dark:text-gray-100 overflow-hidden bg-slate-50 dark:bg-gray-950 relative theme-${activeSubject.theme}`}>
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />
@@ -540,52 +553,130 @@ const AiChat: React.FC = () => {
         </button>
       )}
 
-      {/* ── Sidebar ── */}
+      {/* ── Discord-style Outer Sidebar (Sections) ── */}
       <div className={`
-        fixed inset-y-0 left-0 z-30 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl lg:shadow-none
-        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-0 z-40 w-[72px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center py-4 gap-3
+        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
-          <Button onClick={handleNewChat} className="flex-1" variant="outline" leftIcon={<Plus size={16} />}>
-            New Chat
-          </Button>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden ml-3 p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <X size={20} />
-          </button>
+        {/* Workspace Home Icon */}
+        <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shrink-0 border border-blue-200 dark:border-blue-800">
+          <Sparkles size={24} />
         </div>
         
-        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+        <div className="w-8 h-px bg-gray-200 dark:bg-gray-700 shrink-0 mb-1" />
+
+        <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-3 px-2 no-scrollbar">
+          {activeSections.map(val => {
+            const s = SUBJECTS.find(sub => sub.value === val);
+            if (!s) return null;
+            const Icon = s.icon;
+            const isActive = activeSubjectValue === s.value;
+            
+            return (
+              <div key={s.value} className="relative group w-full flex justify-center">
+                {/* Active Indicator Line */}
+                <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 bg-blue-500 rounded-r-full transition-all duration-200 ${isActive ? 'h-8 opacity-100' : 'h-0 opacity-0 group-hover:h-4 group-hover:opacity-40'}`} />
+                
+                <button
+                  onClick={() => {
+                    setActiveSubjectValue(s.value);
+                    handleNewChat();
+                  }}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 relative ${
+                    isActive 
+                      ? 'bg-blue-500 text-white shadow-md' 
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-gray-200 hover:rounded-xl'
+                  }`}
+                  title={s.label}
+                >
+                  <Icon size={24} />
+                  
+                  {/* Subject Badge (e.g. IG or AL) */}
+                  <div className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white dark:border-gray-900 shadow-sm ${
+                    isActive ? 'bg-blue-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  }`}>
+                    {s.level === 'IGCSE' ? 'IG' : 'AL'}
+                  </div>
+                </button>
+                
+                {/* Delete button on hover */}
+                {!isActive && (
+                  <button 
+                    onClick={(e) => handleRemoveSection(e, s.value)}
+                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-100 dark:bg-red-900/80 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-white dark:border-gray-900"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          
+          <button
+            onClick={() => setIsAddSectionModalOpen(true)}
+            className="w-12 h-12 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 flex items-center justify-center hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 hover:rounded-2xl shrink-0 mt-1"
+            title="Add Section"
+          >
+            <Plus size={24} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Inner Sidebar (Chats) ── */}
+      <div className={`
+        fixed inset-y-0 left-[72px] z-30 w-64 bg-gray-50/50 dark:bg-gray-900/50 border-r border-gray-200 dark:border-gray-800 flex flex-col
+        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:left-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        <div className="p-4 flex flex-col border-b border-gray-200/50 dark:border-gray-800/50 h-[72px] justify-center">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-800 dark:text-gray-200 truncate flex items-center gap-2">
+              {activeSubject.shortLabel}
+            </h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-3">
+          <Button onClick={handleNewChat} className="w-full justify-start shadow-sm" variant="default" leftIcon={<Plus size={16} />}>
+            New Chat
+          </Button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 no-scrollbar">
           {fetchingSessions ? (
             <div className="animate-pulse flex flex-col gap-2">
-              <div className="h-10 bg-gray-100 dark:bg-gray-800 rounded-lg w-full"></div>
-              <div className="h-10 bg-gray-100 dark:bg-gray-800 rounded-lg w-full"></div>
+              <div className="h-10 bg-gray-200/50 dark:bg-gray-800/50 rounded-lg w-full"></div>
+              <div className="h-10 bg-gray-200/50 dark:bg-gray-800/50 rounded-lg w-full"></div>
             </div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-6 text-sm text-gray-500">
-              No recent chats
+          ) : activeSectionChats.length === 0 ? (
+            <div className="text-center py-6 text-sm text-gray-500 flex flex-col items-center gap-2">
+              <MessageSquare size={24} className="opacity-20" />
+              <span>No chats yet</span>
             </div>
           ) : (
-            sessions.map((s) => (
+            activeSectionChats.map((s) => (
               <button
                 key={s.id}
                 onClick={() => handleLoadSession(s.id)}
                 className={`group w-full text-left px-3 py-2.5 text-sm rounded-lg flex items-center justify-between transition-colors ${
                   currentSessionId === s.id
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-medium shadow-sm border border-gray-200/50 dark:border-gray-700/50'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-white/60 dark:hover:bg-gray-800/60'
                 }`}
               >
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <MessageSquare size={16} className="shrink-0 opacity-70" />
                   <span className="truncate">{s.title}</span>
                 </div>
                 <div
                   onClick={(e) => handleDeleteSession(e, s.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-opacity shrink-0 ml-2"
                   title="Delete chat"
                 >
                   <Trash2 size={14} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" />
@@ -605,10 +696,11 @@ const AiChat: React.FC = () => {
       )}
 
       {/* ── Main chat area ── */}
-      <div className="flex-1 flex flex-col min-w-0 bg-transparent h-full">
+      <div className="flex-1 flex flex-col min-w-0 bg-transparent h-full relative">
+        
         {/* Messages */}
         <div
-          className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5"
+          className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-5 relative z-10"
           style={{ scrollBehavior: 'smooth' }}
         >
           <div className="max-w-4xl mx-auto flex flex-col space-y-5">
@@ -620,15 +712,23 @@ const AiChat: React.FC = () => {
                 transition={{ duration: 0.5 }}
                 className="flex flex-col items-center justify-center py-16 sm:py-24 text-center"
               >
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-400 dark:bg-blue-900 text-white shadow-lg shadow-blue-500/20 mb-5">
-                  <Sparkles size={28} />
+                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 mb-6 theme-icon-container">
+                  <activeSubject.icon size={36} className="theme-icon" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Ask me anything
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                  {activeSubject.label}
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md leading-relaxed">
-                  I'm your AI tutor for IGCSE &amp; A-Level Sciences. Ask a question about Physics, Chemistry, or Biology and I'll explain it using your curriculum resources.
+                <p className="text-base text-gray-500 dark:text-gray-400 max-w-md leading-relaxed mb-6">
+                  Welcome to your specialized {activeSubject.subjectName} workspace. Ask questions, explore concepts, and get help aligned with the Cambridge {activeSubject.level} syllabus.
                 </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+                  <button onClick={() => setInput('Explain a key concept from the syllabus.')} className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:shadow-md transition-all text-left">
+                    "Explain a key concept from the syllabus."
+                  </button>
+                  <button onClick={() => setInput('How do I approach exam questions on this?')} className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:shadow-md transition-all text-left">
+                    "How do I approach exam questions on this?"
+                  </button>
+                </div>
               </motion.div>
             )}
 
@@ -650,16 +750,16 @@ const AiChat: React.FC = () => {
                   >
                     {/* Avatar */}
                     <div
-                      className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white overflow-hidden ${
+                      className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden ${
                         isBot
-                          ? 'bg-blue-400 dark:bg-blue-900'
+                          ? 'bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 theme-avatar'
                           : avatarUrl
                           ? 'bg-transparent'
-                          : 'bg-gray-400 dark:bg-gray-600'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                       }`}
                     >
                       {isBot ? (
-                        '✦'
+                        <activeSubject.icon size={16} className="theme-icon" />
                       ) : avatarUrl ? (
                         <img src={avatarUrl} alt="You" className="w-full h-full object-cover" />
                       ) : (
@@ -673,7 +773,7 @@ const AiChat: React.FC = () => {
                         className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                           isBot
                             ? 'bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm rounded-tl-md'
-                            : 'bg-blue-400 dark:bg-blue-900 text-white shadow-md shadow-blue-500/20 rounded-tr-md'
+                            : 'bg-blue-600 dark:bg-blue-600 text-white shadow-md shadow-blue-500/20 rounded-tr-md'
                         }`}
                       >
                         {isBot ? (
@@ -686,7 +786,7 @@ const AiChat: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Meta — timing + chunks (after typing finishes) */}
+                      {/* Meta */}
                       {isBot && msg.response && !isTyping && (
                         <motion.div
                           initial={{ opacity: 0 }}
@@ -712,8 +812,8 @@ const AiChat: React.FC = () => {
             {/* Thinking indicator */}
             {loading && (
               <motion.div variants={msgVariants} initial="hidden" animate="visible" className="flex gap-3">
-                <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white bg-blue-400 dark:bg-blue-900">
-                  ✦
+                <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 theme-avatar">
+                   <activeSubject.icon size={16} className="theme-icon" />
                 </div>
                 <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm">
                   <div className="ai-thinking-dots text-gray-400 dark:text-gray-500">
@@ -726,10 +826,10 @@ const AiChat: React.FC = () => {
             {/* Long chat warning */}
             {messages.filter(m => m.role === 'assistant').length >= 4 && !loading && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center mt-2 pb-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs px-4 py-2.5 rounded-full border border-blue-100 dark:border-blue-800/50 flex items-center gap-2 shadow-sm">
+                <div className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 text-xs px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-2 shadow-sm">
                   <Sparkles size={14} className="opacity-70" />
                   <span>This chat is getting long. Starting a new chat helps the AI maintain better context!</span>
-                  <button onClick={handleNewChat} className="font-semibold underline ml-1 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">New Chat</button>
+                  <button onClick={handleNewChat} className="font-semibold underline ml-1 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">New Chat</button>
                 </div>
               </motion.div>
             )}
@@ -739,66 +839,117 @@ const AiChat: React.FC = () => {
         </div>
 
         {/* ── Input area ── */}
-        <div className="shrink-0 p-4 w-full">
-          <div className="max-w-4xl mx-auto rounded-[2rem] border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md px-5 sm:px-6 py-4 shadow-lg shadow-blue-500/5">
-            {/* Subject pills */}
-            <div className="flex gap-1.5 flex-wrap mb-3 items-center justify-between">
-              <div className="flex gap-1.5 flex-wrap">
-                {SUBJECTS.map((s) => {
-                  const Icon = s.icon;
-                  const active = subject === s.value;
-                  const isSessionActive = currentSessionId !== null;
-                  
-                  // Hide inactive subjects if chat has already started
-                  if (isSessionActive && !active) return null;
-                  
-                  return (
-                    <button
-                      key={s.value}
-                      type="button"
-                      onClick={() => !isSessionActive && setSubject(s.value)}
-                      disabled={isSessionActive}
-                      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
-                        active
-                          ? 'bg-blue-400 dark:bg-blue-900 text-white shadow-md shadow-blue-500/20'
-                          : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-gray-800'
-                      } ${isSessionActive ? 'cursor-default' : ''}`}
-                    >
-                      <Icon size={13} />
-                      <span className="hidden sm:inline">{s.label}</span>
-                      <span className="sm:hidden">{s.shortLabel}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Input row */}
-            <div className="flex items-end gap-2">
+        <div className="shrink-0 p-4 w-full relative z-10 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-gray-950 dark:via-gray-950 pt-8 -mt-8">
+          <div className="max-w-4xl mx-auto rounded-[2rem] border border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 shadow-lg px-5 sm:px-6 py-4">
+            <div className="flex items-end gap-3">
               <textarea
                 ref={textareaRef}
-                className="flex-1 resize-none rounded-3xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-5 py-3 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none transition-all duration-200 focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="flex-1 resize-none bg-transparent border-0 px-0 py-3 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-0"
                 rows={1}
-                placeholder={`Ask about ${selectedSubject?.label ?? 'a subject'}…`}
+                placeholder={`Ask about ${activeSubject.label}…`}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                style={{ maxHeight: '8rem', overflowY: 'auto' }}
+                style={{ maxHeight: '150px', overflowY: 'auto' }}
               />
               <button
                 type="button"
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
-                className="flex-shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-blue-500 dark:bg-blue-700 text-white shadow-md shadow-blue-500/20 hover:bg-blue-600 dark:hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
+                className="flex-shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 aria-label="Send"
               >
                 <ArrowRight size={20} />
               </button>
             </div>
           </div>
+          <div className="max-w-4xl mx-auto mt-2 text-center">
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+              AI Tutor can make mistakes. Check important information.
+            </p>
+          </div>
         </div>
       </div>
+
+      {/* ── Add Section Modal ── */}
+      <AnimatePresence>
+        {isAddSectionModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setIsAddSectionModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800"
+            >
+              <div className="p-6 sm:p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add to Workspace</h3>
+                  <button 
+                    onClick={() => setIsAddSectionModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="space-y-6">
+                  {/* Board (Locked) */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-2">Board</label>
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-900/10 dark:border-blue-800/50">
+                      <span className="font-medium text-blue-800 dark:text-blue-300">Cambridge International</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">Included</span>
+                    </div>
+                  </div>
+                  
+                  {/* Available Subjects Grid */}
+                  <div>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-3">Select Subject</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {SUBJECTS.map(s => {
+                        const isAdded = activeSections.includes(s.value);
+                        const Icon = s.icon;
+                        return (
+                          <button
+                            key={s.value}
+                            onClick={() => handleAddSection(s.value)}
+                            disabled={isAdded}
+                            className={`flex flex-col items-start p-4 rounded-xl border transition-all text-left ${
+                              isAdded 
+                                ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed' 
+                                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-md cursor-pointer'
+                            }`}
+                          >
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${isAdded ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'}`}>
+                              <Icon size={20} />
+                            </div>
+                            <span className="font-semibold text-gray-900 dark:text-white">{s.subjectName}</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{s.level}</span>
+                            
+                            {isAdded && (
+                              <div className="absolute top-4 right-4 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
+                                Added
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

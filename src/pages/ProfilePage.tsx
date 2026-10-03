@@ -21,7 +21,9 @@ import {
   Upload,
   Eye,
   EyeOff,
+  Settings,
 } from "lucide-react";
+import { useReducedMotion } from "../context/ReducedMotionContext";
 import { type BoardKey } from "../utils/curriculumData";
 import { useAuth } from "../context/AuthContext";
 import { useUser } from "../context/UserContext";
@@ -111,6 +113,7 @@ const ProfilePage = () => {
   const { user: authUser } = useAuth();
   const { user } = useUser();
   const navigate = useNavigate();
+  const { isReducedMotion, setIsReducedMotion } = useReducedMotion();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [favoriteSubjects, setFavoriteSubjects] = useState<FavoriteSubject[]>(
     [],
@@ -1001,6 +1004,56 @@ const ProfilePage = () => {
               </div>
               <ChevronDown className="h-5 w-5 text-gray-400 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors flex-shrink-0 -rotate-90" />
             </Link>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Preferences section */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className="mt-6"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-slate-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 text-slate-900 dark:text-white mb-4">
+            <Settings className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+            <h3
+              className="text-lg font-semibold"
+              style={{ fontFamily: "'Fraunces', serif" }}
+            >
+              Preferences
+            </h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+              <div className="flex-1 min-w-0 pr-4">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  Reduce Motion
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Disable or simplify animations across the site for better performance or accessibility.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isReducedMotion}
+                aria-label="Reduce Motion"
+                onClick={() => setIsReducedMotion(!isReducedMotion)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-slate-800 ${
+                  isReducedMotion
+                    ? 'bg-blue-600'
+                    : 'bg-slate-200 dark:bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    isReducedMotion ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
