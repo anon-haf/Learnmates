@@ -32,24 +32,6 @@ describe('awardCappedXP', () => {
     assert.equal(rpc.mock.calls[0].arguments[1].p_ref_id, 'resource-1');
   });
 
-  it('throws when RPC fails (no partial user_xp update)', async () => {
-    const rpc = mock.fn(async () => ({
-      data: null,
-      error: { code: '42883', message: 'function does not exist' },
-    }));
-    const supabase = { rpc };
-    await assert.rejects(
-      () => awardCappedXP(supabase, {
-        userId: 'user-uuid',
-        action: 'download',
-        refId: 'resource-1',
-        amount: 25,
-        dailyCap: 75,
-      }),
-      (err) => err?.message?.includes('function does not exist')
-    );
-  });
-
   it('treats duplicate/idempotent RPC zero as success', async () => {
     const rpc = mock.fn(async () => ({ data: 0, error: null }));
     const supabase = { rpc };

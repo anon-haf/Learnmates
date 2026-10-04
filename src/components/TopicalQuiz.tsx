@@ -103,11 +103,15 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         return;
       }
 
-      await commitDownloadAward({
-        resourceId: `${quiz.id}_${type}`,
-        resourceName: `${quiz.title}_${type}`,
-        resourceType: 'topical_paper',
-      });
+      try {
+        await commitDownloadAward({
+          resourceId: `${quiz.id}_${type}`,
+          resourceName: `${quiz.title}_${type}`,
+          resourceType: 'topical_paper',
+        });
+      } catch (xpError) {
+        console.warn('Download XP failed; continuing merge:', xpError);
+      }
 
       // Show non-blocking loading notification
       const loadingNotification = document.createElement('div');

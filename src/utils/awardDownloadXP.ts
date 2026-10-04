@@ -4,4 +4,5 @@ export {
   commitDownloadAward,
   commitDownloadAward as awardDownloadXP,
   downloadFileWithXP,
+  downloadFileWithXPOrDirect,
 } from './downloadWithXP';

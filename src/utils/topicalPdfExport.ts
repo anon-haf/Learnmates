@@ -1140,11 +1140,15 @@ export const downloadMergedTopicalPDFs = async (
     callbacks.onStart?.();
     callbacks.onProgress?.({ current: 0, total: validQuestions.length });
 
-    await commitDownloadAward({
-      resourceId: `${levelBoardSubject.level}_${levelBoardSubject.board}_${levelBoardSubject.subject}_${type}`,
-      resourceName: filename,
-      resourceType: 'topical_paper',
-    });
+    try {
+      await commitDownloadAward({
+        resourceId: `${levelBoardSubject.level}_${levelBoardSubject.board}_${levelBoardSubject.subject}_${type}`,
+        resourceName: filename,
+        resourceType: 'topical_paper',
+      });
+    } catch (xpError) {
+      console.warn('Download XP failed; continuing merge:', xpError);
+    }
 
     const mergedBlob = await mergeTopicalPDFs(validQuestions, type, selectedTopics, levelBoardSubject, callbacks.onProgress, options, filters);
 

@@ -64,7 +64,8 @@ export async function commitDownloadAward({
   });
 
   if (!response.ok) {
-    throw new Error(`Download XP commit failed (${response.status})`);
+    console.warn('Download XP commit failed; continuing without XP', response.status);
+    return 0;
   }
 
   const data = await response.json();
@@ -127,4 +128,29 @@ export async function downloadFileWithXP({
   triggerBrowserDownload(blob, filename);
   notifyIfAwarded(xpAwarded, resourceType);
   return xpAwarded;
+}
+
+function triggerDirectDownload(url: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Same as downloadFileWithXP but falls back to a direct browser download if the API fails.
+ */
+export async function downloadFileWithXPOrDirect(
+  params: Parameters<typeof downloadFileWithXP>[0]
+): Promise<number> {
+  try {
+    return await downloadFileWithXP(params);
+  } catch (error) {
+    console.warn('Download with XP failed, opening link directly:', error);
+    triggerDirectDownload(params.url, params.filename);
+    return 0;
+  }
 }
