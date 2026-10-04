@@ -10,7 +10,7 @@ import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { ReportModal } from '../components/ReportModal';
 import { McqCheckerHeader, McqOptionButton } from '../components/McqChecker';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { commitDownloadAward } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
 
 interface PaperEntry {
@@ -519,15 +519,11 @@ const PaperViewerPage: React.FC = () => {
               {fullPaperPdfUrl && (
                 <button
                   onClick={async () => {
-                    try {
-                      await awardDownloadXP({
-                        resourceId: `${paperKey}_questions`,
-                        resourceName: `${paperDisplayName} - Questions.pdf`,
-                        resourceType: 'paper',
-                      });
-                    } catch (xpError) {
-                      console.warn('XP award failed, proceeding with download:', xpError);
-                    }
+                    await commitDownloadAward({
+                      resourceId: `${paperKey}_questions`,
+                      resourceName: `${paperDisplayName} - Questions.pdf`,
+                      resourceType: 'paper',
+                    });
                     const a = document.createElement('a');
                     a.href = fullPaperPdfUrl;
                     a.download = `${paperDisplayName} - Questions.pdf`;
@@ -546,15 +542,11 @@ const PaperViewerPage: React.FC = () => {
               {fullPaperMsUrl && (
                 <button
                   onClick={async () => {
-                    try {
-                      await awardDownloadXP({
-                        resourceId: `${paperKey}_markschemes`,
-                        resourceName: `${paperDisplayName} - Mark Scheme.pdf`,
-                        resourceType: 'paper',
-                      });
-                    } catch (xpError) {
-                      console.warn('XP award failed, proceeding with download:', xpError);
-                    }
+                    await commitDownloadAward({
+                      resourceId: `${paperKey}_markschemes`,
+                      resourceName: `${paperDisplayName} - Mark Scheme.pdf`,
+                      resourceType: 'paper',
+                    });
                     const a = document.createElement('a');
                     a.href = fullPaperMsUrl;
                     a.download = `${paperDisplayName} - Mark Scheme.pdf`;

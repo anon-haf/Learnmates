@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Clock,
-  Atom,
   FlaskConical,
-  Leaf,
+  Dna,
+  Rocket,
   User,
   ArrowRight,
   MessageSquare,
@@ -54,12 +54,12 @@ interface ChatSession {
 }
 
 const SUBJECTS = [
-  { value: 'IG_Phy', label: 'IGCSE Physics', shortLabel: 'IG Phy', icon: Atom, theme: 'physics', level: 'IGCSE', subjectName: 'Physics' },
-  { value: 'A_Phy', label: 'A-Level Physics', shortLabel: 'AL Phy', icon: Atom, theme: 'physics', level: 'A-Level', subjectName: 'Physics' },
+  { value: 'IG_Phy', label: 'IGCSE Physics', shortLabel: 'IG Phy', icon: Rocket, theme: 'physics', level: 'IGCSE', subjectName: 'Physics' },
+  { value: 'A_Phy', label: 'A-Level Physics', shortLabel: 'AL Phy', icon: Rocket, theme: 'physics', level: 'A-Level', subjectName: 'Physics' },
   { value: 'IG_Chem', label: 'IGCSE Chemistry', shortLabel: 'IG Chem', icon: FlaskConical, theme: 'chemistry', level: 'IGCSE', subjectName: 'Chemistry' },
   { value: 'A_Chem', label: 'A-Level Chemistry', shortLabel: 'AL Chem', icon: FlaskConical, theme: 'chemistry', level: 'A-Level', subjectName: 'Chemistry' },
-  { value: 'IG_Bio', label: 'IGCSE Biology', shortLabel: 'IG Bio', icon: Leaf, theme: 'biology', level: 'IGCSE', subjectName: 'Biology' },
-  { value: 'A_Bio', label: 'A-Level Biology', shortLabel: 'AL Bio', icon: Leaf, theme: 'biology', level: 'A-Level', subjectName: 'Biology' },
+  { value: 'IG_Bio', label: 'IGCSE Biology', shortLabel: 'IG Bio', icon: Dna, theme: 'biology', level: 'IGCSE', subjectName: 'Biology' },
+  { value: 'A_Bio', label: 'A-Level Biology', shortLabel: 'AL Bio', icon: Dna, theme: 'biology', level: 'A-Level', subjectName: 'Biology' },
 ] as const;
 
 /* ─── KaTeX + Markdown helpers ───────────────────────── */
@@ -210,6 +210,13 @@ const AiChat: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [fetchingSessions, setFetchingSessions] = useState(true);
 
+  // Custom confirm modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({ open: false, message: '', onConfirm: () => {} });
+
   useEffect(() => {
     if (authUser) {
       fetchProfile(authUser.id).then(profile => {
@@ -294,15 +301,20 @@ const AiChat: React.FC = () => {
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+  const handleDeleteSession = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this chat?")) return;
-    
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
-    if (currentSessionId === sessionId) {
-      handleNewChat();
-    }
-    await supabase.from('chat_sessions').delete().eq('id', sessionId);
+    setConfirmModal({
+      open: true,
+      message: 'Are you sure you want to delete this chat? This cannot be undone.',
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false }));
+        setSessions(prev => prev.filter(s => s.id !== sessionId));
+        if (currentSessionId === sessionId) {
+          handleNewChat();
+        }
+        await supabase.from('chat_sessions').delete().eq('id', sessionId);
+      },
+    });
   };
 
   const handleLoadSession = async (sessionId: string) => {
@@ -438,22 +450,27 @@ const AiChat: React.FC = () => {
   
   const handleRemoveSection = (e: React.MouseEvent, subjectValue: string) => {
     e.stopPropagation();
-    if (!window.confirm("Remove this section from your workspace? (Chats will remain saved in history)")) return;
-    
-    const newSections = activeSections.filter(s => s !== subjectValue);
-    setActiveSections(newSections);
-    localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
-    if (activeSubjectValue === subjectValue) {
-      if (newSections.length > 0) {
-        setActiveSubjectValue(newSections[0]);
-      } else {
-        // Fallback to IG_Phy if everything is removed
-        setActiveSections(['IG_Phy']);
-        setActiveSubjectValue('IG_Phy');
-        localStorage.setItem('ai_chat_sections', JSON.stringify(['IG_Phy']));
-      }
-      handleNewChat();
-    }
+    setConfirmModal({
+      open: true,
+      message: 'Remove this section from your workspace? Your chats will remain saved in history.',
+      onConfirm: () => {
+        setConfirmModal(m => ({ ...m, open: false }));
+        const newSections = activeSections.filter(s => s !== subjectValue);
+        setActiveSections(newSections);
+        localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
+        if (activeSubjectValue === subjectValue) {
+          if (newSections.length > 0) {
+            setActiveSubjectValue(newSections[0]);
+          } else {
+            // Fallback to IG_Phy if everything is removed
+            setActiveSections(['IG_Phy']);
+            setActiveSubjectValue('IG_Phy');
+            localStorage.setItem('ai_chat_sections', JSON.stringify(['IG_Phy']));
+          }
+          handleNewChat();
+        }
+      },
+    });
   };
 
   const activeSubject = SUBJECTS.find((s) => s.value === activeSubjectValue) || SUBJECTS[0];
@@ -553,12 +570,25 @@ const AiChat: React.FC = () => {
         </button>
       )}
 
-      {/* ── Discord-style Outer Sidebar (Sections) ── */}
+      {/* ── Unified Sidebar (Sections + Chats) ── */}
+      {/* Overlay — sits behind the sidebar panel itself */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-30 lg:hidden backdrop-blur-sm"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Single sliding container wrapping both columns */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-[72px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center py-4 gap-3
-        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+        fixed inset-y-0 left-0 z-40 flex
+        transform transition-transform duration-300 ease-in-out
+        lg:relative lg:translate-x-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
+
+      {/* ── Outer column: Section Icons ── */}
+      <div className="w-[72px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center py-4 gap-3 shrink-0">
         {/* Workspace Home Icon */}
         <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shrink-0 border border-blue-200 dark:border-blue-800">
           <Sparkles size={24} />
@@ -567,51 +597,74 @@ const AiChat: React.FC = () => {
         <div className="w-8 h-px bg-gray-200 dark:bg-gray-700 shrink-0 mb-1" />
 
         <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-3 px-2 no-scrollbar">
-          {activeSections.map(val => {
-            const s = SUBJECTS.find(sub => sub.value === val);
-            if (!s) return null;
-            const Icon = s.icon;
-            const isActive = activeSubjectValue === s.value;
-            
-            return (
-              <div key={s.value} className="relative group w-full flex justify-center">
-                {/* Active Indicator Line */}
-                <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 bg-blue-500 rounded-r-full transition-all duration-200 ${isActive ? 'h-8 opacity-100' : 'h-0 opacity-0 group-hover:h-4 group-hover:opacity-40'}`} />
-                
-                <button
-                  onClick={() => {
-                    setActiveSubjectValue(s.value);
-                    handleNewChat();
-                  }}
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 relative ${
-                    isActive 
-                      ? 'bg-blue-500 text-white shadow-md' 
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-gray-200 hover:rounded-xl'
-                  }`}
-                  title={s.label}
+          <AnimatePresence initial={false}>
+            {activeSections.map((val, idx) => {
+              const s = SUBJECTS.find(sub => sub.value === val);
+              if (!s) return null;
+              const Icon = s.icon;
+              const isActive = activeSubjectValue === s.value;
+              
+              return (
+                <motion.div
+                  key={s.value}
+                  layout
+                  initial={{ opacity: 0, x: -20, scale: 0.8 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -20, scale: 0.8 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28, delay: idx * 0.04 }}
+                  className="relative group w-full flex justify-center"
                 >
-                  <Icon size={24} />
                   
-                  {/* Subject Badge (e.g. IG or AL) */}
-                  <div className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white dark:border-gray-900 shadow-sm ${
-                    isActive ? 'bg-blue-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                  }`}>
-                    {s.level === 'IGCSE' ? 'IG' : 'AL'}
-                  </div>
-                </button>
-                
-                {/* Delete button on hover */}
-                {!isActive && (
-                  <button 
-                    onClick={(e) => handleRemoveSection(e, s.value)}
-                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-100 dark:bg-red-900/80 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-white dark:border-gray-900"
+                  <motion.button
+                    onClick={() => {
+                      setActiveSubjectValue(s.value);
+                      handleNewChat();
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    animate={isActive ? { borderRadius: '16px' } : { borderRadius: '12px' }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    className={`w-12 h-12 flex items-center justify-center relative ${
+                      isActive 
+                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' 
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-gray-200'
+                    }`}
+                    title={s.label}
                   >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
+                    <motion.div
+                      animate={isActive ? { rotate: [0, -10, 10, 0], scale: [1, 1.15, 1] } : {}}
+                      transition={{ duration: 0.4, ease: 'easeInOut' }}
+                    >
+                      <Icon size={22} />
+                    </motion.div>
+                    
+                    {/* Subject Badge */}
+                    <motion.div
+                      animate={isActive ? { scale: 1, opacity: 1 } : { scale: 0.85, opacity: 0.8 }}
+                      className={`absolute -bottom-1 -right-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white dark:border-gray-900 shadow-sm ${
+                        isActive ? 'bg-blue-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      {s.level === 'IGCSE' ? 'IG' : 'AL'}
+                    </motion.div>
+                  </motion.button>
+                  
+                  {/* Delete button — always visible for non-active sections */}
+                  {!isActive && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      whileHover={{ scale: 1.1 }}
+                      onClick={(e) => handleRemoveSection(e, s.value)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-100 dark:bg-red-900/80 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center shadow-sm border border-white dark:border-gray-900"
+                    >
+                      <X size={12} />
+                    </motion.button>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
           
           <button
             onClick={() => setIsAddSectionModalOpen(true)}
@@ -623,12 +676,8 @@ const AiChat: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Inner Sidebar (Chats) ── */}
-      <div className={`
-        fixed inset-y-0 left-[72px] z-30 w-64 bg-gray-50/50 dark:bg-gray-900/50 border-r border-gray-200 dark:border-gray-800 flex flex-col
-        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:left-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      {/* ── Inner column: Chat List ── */}
+      <div className="w-64 bg-gray-50/50 dark:bg-gray-900/50 border-r border-gray-200 dark:border-gray-800 flex flex-col shrink-0">
         <div className="p-4 flex flex-col border-b border-gray-200/50 dark:border-gray-800/50 h-[72px] justify-center">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-800 dark:text-gray-200 truncate flex items-center gap-2">
@@ -676,7 +725,7 @@ const AiChat: React.FC = () => {
                 </div>
                 <div
                   onClick={(e) => handleDeleteSession(e, s.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-opacity shrink-0 ml-2"
+                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md shrink-0 ml-2 transition-colors"
                   title="Delete chat"
                 >
                   <Trash2 size={14} className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" />
@@ -687,13 +736,8 @@ const AiChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Overlay for mobile sidebar */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-20 lg:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Close the unified sidebar container */}
+      </div>
 
       {/* ── Main chat area ── */}
       <div className="flex-1 flex flex-col min-w-0 bg-transparent h-full relative">
@@ -721,14 +765,7 @@ const AiChat: React.FC = () => {
                 <p className="text-base text-gray-500 dark:text-gray-400 max-w-md leading-relaxed mb-6">
                   Welcome to your specialized {activeSubject.subjectName} workspace. Ask questions, explore concepts, and get help aligned with the Cambridge {activeSubject.level} syllabus.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-                  <button onClick={() => setInput('Explain a key concept from the syllabus.')} className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:shadow-md transition-all text-left">
-                    "Explain a key concept from the syllabus."
-                  </button>
-                  <button onClick={() => setInput('How do I approach exam questions on this?')} className="px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-600 dark:text-gray-300 hover:border-blue-400 hover:shadow-md transition-all text-left">
-                    "How do I approach exam questions on this?"
-                  </button>
-                </div>
+
               </motion.div>
             )}
 
@@ -872,6 +909,49 @@ const AiChat: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Custom Confirm Modal ── */}
+      <AnimatePresence>
+        {confirmModal.open && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 12 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-800 p-6"
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Trash2 size={22} className="text-red-500 dark:text-red-400" />
+                </div>
+                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{confirmModal.message}</p>
+                <div className="flex gap-3 w-full mt-1">
+                  <button
+                    onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmModal.onConfirm}
+                    className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-sm font-semibold text-white transition-colors shadow-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Add Section Modal ── */}
       <AnimatePresence>
         {isAddSectionModalOpen && (
@@ -914,32 +994,45 @@ const AiChat: React.FC = () => {
                   <div>
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-3">Select Subject</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {SUBJECTS.map(s => {
+                      {SUBJECTS.map((s, idx) => {
                         const isAdded = activeSections.includes(s.value);
                         const Icon = s.icon;
                         return (
-                          <button
+                          <motion.button
                             key={s.value}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.06, type: 'spring', stiffness: 350, damping: 28 }}
+                            whileHover={!isAdded ? { scale: 1.03, y: -2 } : {}}
+                            whileTap={!isAdded ? { scale: 0.97 } : {}}
                             onClick={() => handleAddSection(s.value)}
                             disabled={isAdded}
-                            className={`flex flex-col items-start p-4 rounded-xl border transition-all text-left ${
+                            className={`flex flex-col items-start p-4 rounded-xl border text-left relative ${
                               isAdded 
                                 ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed' 
                                 : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-md cursor-pointer'
                             }`}
                           >
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${isAdded ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'}`}>
+                            <motion.div
+                              whileHover={!isAdded ? { rotate: [0, -8, 8, 0], scale: 1.1 } : {}}
+                              transition={{ duration: 0.35 }}
+                              className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${isAdded ? 'bg-gray-200 dark:bg-gray-700 text-gray-500' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'}`}
+                            >
                               <Icon size={20} />
-                            </div>
+                            </motion.div>
                             <span className="font-semibold text-gray-900 dark:text-white">{s.subjectName}</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{s.level}</span>
                             
                             {isAdded && (
-                              <div className="absolute top-4 right-4 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
-                                Added
-                              </div>
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.7 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="absolute top-3 right-3 text-[10px] font-bold text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full"
+                              >
+                                ✓ Added
+                              </motion.div>
                             )}
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>

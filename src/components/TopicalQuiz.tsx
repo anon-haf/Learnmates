@@ -10,7 +10,7 @@ import { McqCheckerHeader, McqOptionButton } from './McqChecker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { commitDownloadAward, downloadFileWithXP } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -103,15 +103,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         return;
       }
 
-      try {
-        await awardDownloadXP({
-          resourceId: `${quiz.id}_${type}`,
-          resourceName: `${quiz.title}_${type}`,
-          resourceType: 'paper',
-        });
-      } catch (xpError) {
-        console.warn('XP award failed, proceeding with download:', xpError);
-      }
+      await commitDownloadAward({
+        resourceId: `${quiz.id}_${type}`,
+        resourceName: `${quiz.title}_${type}`,
+        resourceType: 'topical_paper',
+      });
 
       // Show non-blocking loading notification
       const loadingNotification = document.createElement('div');
@@ -346,21 +342,17 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
   const handleDownload = async (url: string, filename: string, resourceName: string) => {
     try {
-      await awardDownloadXP({
+      await downloadFileWithXP({
+        url,
         resourceId: url,
-        resourceName: resourceName,
-        resourceType: 'file',
+        resourceName,
+        resourceType: 'topical_paper',
+        filename,
       });
     } catch (xpError) {
-      console.warn('XP award failed, proceeding with download:', xpError);
+      console.warn('Download with XP failed, opening link directly:', xpError);
+      window.open(url, '_blank');
     }
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   if (isQuizMenu) {

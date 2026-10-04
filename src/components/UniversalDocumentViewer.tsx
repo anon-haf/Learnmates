@@ -47,7 +47,7 @@ import {
 } from '../utils/pdfIndexedDBStorage';
 import { useMeaningfulReadTracker } from '../hooks/useMeaningfulReadTracker';
 import { useEngagement } from '../context/EngagementContext';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { downloadFileWithXP } from '../utils/awardDownloadXP';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -801,13 +801,16 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       }
 
       try {
-        await awardDownloadXP({
+        await downloadFileWithXP({
+          url: pdfUrl,
           resourceId: engagementContext?.resourceId || pdfUrl,
           resourceName: fileName,
           resourceType: 'file',
+          filename: fileName,
         });
+        return;
       } catch (xpError) {
-        console.warn('XP award failed, proceeding with download:', xpError);
+        console.warn('Download with XP failed, falling back to direct download:', xpError);
       }
     }
 

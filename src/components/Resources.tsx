@@ -17,7 +17,7 @@ import {
 } from '../utils/privacyUtils';
 import { DoneItem, isDoneItem } from '../utils/doneItems';
 import { useEngagement } from '../context/EngagementContext';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { downloadFileWithXP } from '../utils/awardDownloadXP';
 
 interface Resource {
   id: string;
@@ -90,22 +90,19 @@ const Resources: React.FC<ResourcesProps> = ({
     if (topicId) {
       setEngagementFlag(topicId, resource.id, resource.url, 'downloaded');
     }
+    const downloadUrl = stripTrackingParams(resource.url);
     try {
-      await awardDownloadXP({
+      await downloadFileWithXP({
+        url: downloadUrl,
         resourceId: resource.id,
         resourceName: resource.title,
         resourceType: 'file',
+        filename: resource.title,
       });
     } catch (xpError) {
-      console.warn('XP award failed, proceeding with download:', xpError);
+      console.warn('Download with XP failed, opening link directly:', xpError);
+      window.open(downloadUrl, '_blank');
     }
-    const link = document.createElement('a');
-    link.href = stripTrackingParams(resource.url);
-    link.download = '';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const renderActionButtons = (

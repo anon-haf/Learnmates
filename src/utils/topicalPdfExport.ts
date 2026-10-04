@@ -3,7 +3,7 @@ import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage, PDFEmbeddedPage } fr
 import { Question } from '../components/TopicalQuiz';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { topicalConfigs } from '../pages/topicalpagesdata';
-import { awardDownloadXP } from './awardDownloadXP';
+import { commitDownloadAward } from './awardDownloadXP';
 
 export type ExportType = 'questions' | 'markschemes';
 
@@ -1140,15 +1140,11 @@ export const downloadMergedTopicalPDFs = async (
     callbacks.onStart?.();
     callbacks.onProgress?.({ current: 0, total: validQuestions.length });
 
-    try {
-      await awardDownloadXP({
-        resourceId: `${levelBoardSubject.level}_${levelBoardSubject.board}_${levelBoardSubject.subject}_${type}`,
-        resourceName: filename,
-        resourceType: 'topical_paper',
-      });
-    } catch (xpError) {
-      console.warn('XP award failed, proceeding with download:', xpError);
-    }
+    await commitDownloadAward({
+      resourceId: `${levelBoardSubject.level}_${levelBoardSubject.board}_${levelBoardSubject.subject}_${type}`,
+      resourceName: filename,
+      resourceType: 'topical_paper',
+    });
 
     const mergedBlob = await mergeTopicalPDFs(validQuestions, type, selectedTopics, levelBoardSubject, callbacks.onProgress, options, filters);
 

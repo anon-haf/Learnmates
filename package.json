@@ -25,6 +25,7 @@
     "postbuild": "echo 'postbuild disabled'",
     "generate-sitemap": "tsx script/sitemap.js",
     "lint": "eslint .",
+    "test": "node --test api/_lib/*.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

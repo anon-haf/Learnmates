@@ -1,21 +1,6 @@
 import { createServerClient } from '../_lib/supabase-server.js';
 import { awardCappedXP } from '../_lib/award-xp.js';
-
-// Constants for XP rules
-const XP_RULES = {
-  download: {
-    amount: 25,
-    dailyCap: 75
-  },
-  paper_download: {
-    amount: 30,
-    dailyCap: 60
-  },
-  topical_paper_download: {
-    amount: 30,
-    dailyCap: 60
-  }
-};
+import { downloadXpParamsForResourceType } from '../_lib/download-xp-rules.js';
 
 function applyCors(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -29,7 +14,7 @@ function applyCors(req, res) {
 
 export default async function handler(req, res) {
   applyCors(req, res);
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -37,6 +22,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   try {
     const authHeader = req.headers.authorization;
@@ -46,8 +33,7 @@ export default async function handler(req, res) {
 
     const token = authHeader.split(' ')[1];
     const supabase = createServerClient();
-    
-    // Verify user
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -58,9 +44,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing resourceId' });
     }
 
-    const action = resourceType === 'paper' ? 'paper_download' : resourceType === 'topical_paper' ? 'topical_paper_download' : 'download';
-    const amount = XP_RULES[action].amount;
-    const dailyCap = XP_RULES[action].dailyCap;
+    const { action, amount, dailyCap } = downloadXpParamsForResourceType(resourceType);
 
     const awarded = await awardCappedXP(supabase, {
       userId: user.id,
@@ -71,16 +55,25 @@ export default async function handler(req, res) {
       metadata: {
         file_name: resourceName || resourceId,
         resource_type: resourceType,
+        delivery: 'award_only',
       },
+    });
+
+    console.info('[xp/download] award committed', {
+      requestId,
+      userId: user.id,
+      resourceId,
+      resourceType,
+      action,
+      awarded,
     });
 
     return res.status(200).json({
       success: true,
-      xpAwarded: awarded
+      xpAwarded: awarded,
     });
-
   } catch (error) {
-    console.error('Download error:', error);
+    console.error('[xp/download] error', { requestId, error });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

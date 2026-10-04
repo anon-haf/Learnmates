@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { downloadFileWithXP } from '../utils/awardDownloadXP';
 import { supabase } from '../lib/supabaseClient';
 
 interface DownloadButtonProps {
@@ -21,18 +21,13 @@ export function DownloadButton({ resourceId, resourceType, resourceName, downloa
         return;
       }
 
-      try {
-        await awardDownloadXP({
-          resourceId,
-          resourceName,
-          resourceType,
-        });
-      } catch (xpError) {
-        console.warn('XP award failed, proceeding with download:', xpError);
-      }
-
-      // Proceed with the actual download
-      window.open(downloadUrl, '_blank');
+      await downloadFileWithXP({
+        url: downloadUrl,
+        resourceId,
+        resourceName,
+        resourceType,
+        filename: resourceName,
+      });
     } catch (error) {
       console.error('Download error:', error);
       alert('An error occurred during download.');

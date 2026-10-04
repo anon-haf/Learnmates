@@ -180,16 +180,16 @@
 .dark .theme-physics .theme-avatar { color: #60a5fa; }
 .theme-physics .theme-icon { color: inherit; }
 
-.theme-chemistry .theme-icon-container { color: #14b8a6; border-color: #99f6e4; background-color: #f0fdfa; }
-.dark .theme-chemistry .theme-icon-container { color: #2dd4bf; border-color: #134e4a; background-color: rgba(19, 78, 74, 0.2); }
-.theme-chemistry .theme-avatar { color: #14b8a6; }
-.dark .theme-chemistry .theme-avatar { color: #2dd4bf; }
+.theme-chemistry .theme-icon-container { color: #3b82f6; border-color: #bfdbfe; background-color: #eff6ff; }
+.dark .theme-chemistry .theme-icon-container { color: #60a5fa; border-color: #1e3a8a; background-color: rgba(30, 58, 138, 0.2); }
+.theme-chemistry .theme-avatar { color: #3b82f6; }
+.dark .theme-chemistry .theme-avatar { color: #60a5fa; }
 .theme-chemistry .theme-icon { color: inherit; }
 
-.theme-biology .theme-icon-container { color: #10b981; border-color: #a7f3d0; background-color: #ecfdf5; }
-.dark .theme-biology .theme-icon-container { color: #34d399; border-color: #064e3b; background-color: rgba(6, 78, 59, 0.2); }
-.theme-biology .theme-avatar { color: #10b981; }
-.dark .theme-biology .theme-avatar { color: #34d399; }
+.theme-biology .theme-icon-container { color: #3b82f6; border-color: #bfdbfe; background-color: #eff6ff; }
+.dark .theme-biology .theme-icon-container { color: #60a5fa; border-color: #1e3a8a; background-color: rgba(30, 58, 138, 0.2); }
+.theme-biology .theme-avatar { color: #3b82f6; }
+.dark .theme-biology .theme-avatar { color: #60a5fa; }
 .theme-biology .theme-icon { color: inherit; }
 
 /* Custom hide scrollbar for sidebars */

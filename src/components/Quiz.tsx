@@ -5,8 +5,8 @@ import { Link } from 'react-router-dom';
 import MediaViewer from './MediaViewer';
 import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { resolveFromR2, fetchR2AsBlobUrl, getAssetAuthHeaders } from '../utils/r2Utils';
-import { awardDownloadXP } from '../utils/awardDownloadXP';
+import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
+import { commitDownloadAward, downloadFileWithXP } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -89,67 +89,35 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
   // Shared download functions
   const handleDownload = async (url: string, filename: string) => {
     try {
-      await awardDownloadXP({
-        resourceId: url,
-        resourceName: filename,
-        resourceType: 'paper',
-      });
-    } catch (xpError) {
-      console.warn('XP award failed, proceeding with download:', xpError);
-    }
-
-    try {
       const resolvedUrl = await resolveAssetUrl(url);
-      const isR2Asset = shouldUseR2(resolvedUrl) || shouldUseR2(url);
-
-      if (isR2Asset) {
-        const blobUrl = await fetchR2AsBlobUrl(resolvedUrl);
-        if (blobUrl) {
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-          return;
-        }
-      }
-
-      // Convert relative URL to absolute if needed
       const absoluteUrl = resolvedUrl.startsWith('http') || resolvedUrl.startsWith('blob:')
         ? resolvedUrl
         : new URL(resolvedUrl, window.location.origin).href;
 
-      let response: Response | null = null;
-
-      try {
-        response = await fetchWithTimeout(absoluteUrl, 10000);
-      } catch (error) {
-        console.log(`[Quiz] Fetch failed for asset: ${(error as Error).message}`);
+      if (absoluteUrl.startsWith('blob:')) {
+        await commitDownloadAward({
+          resourceId: url,
+          resourceName: filename,
+          resourceType: 'paper',
+        });
+        const link = document.createElement('a');
+        link.href = absoluteUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
       }
 
-      if (!response || !response.ok) {
-        if (shouldUseR2(url)) {
-          throw new Error(`Failed to download managed asset from R2: ${response?.statusText || 'Network error'}`);
-        }
-        throw new Error(`Failed to download: ${response?.statusText || 'Network error'}`);
-      }
-
-      const blob = await response.blob();
-
-      // Create a temporary link and trigger download
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await downloadFileWithXP({
+        url: absoluteUrl,
+        resourceId: url,
+        resourceName: filename,
+        resourceType: 'paper',
+        filename,
+      });
     } catch (error) {
       console.error('Error downloading file:', error);
-      // Fallback: open in new tab
       const absoluteUrl = url.startsWith('http') || url.startsWith('blob:')
         ? url
         : new URL(url, window.location.origin).href;
@@ -511,15 +479,11 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
         return;
       }
 
-      try {
-        await awardDownloadXP({
-          resourceId: `${quiz.id}_${type}`,
-          resourceName: `${quiz.title}_${type}`,
-          resourceType: 'paper',
-        });
-      } catch (xpError) {
-        console.warn('XP award failed, proceeding with download:', xpError);
-      }
+      await commitDownloadAward({
+        resourceId: `${quiz.id}_${type}`,
+        resourceName: `${quiz.title}_${type}`,
+        resourceType: 'paper',
+      });
 
       // Show non-blocking loading notification
       const loadingNotification = document.createElement('div');
