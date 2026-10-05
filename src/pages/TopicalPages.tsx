@@ -303,7 +303,6 @@ const TopicalPages: React.FC = () => {
     setLoadFeedback(null);
     setExtraPageEnabled(false);
     setHeaderPageEnabled(true);
-    setMergeHeaderEnabled(true);
     setHeaderSize(25);
     resetResults();
     setMcqFilterState('all');
