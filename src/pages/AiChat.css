@@ -67,12 +67,14 @@
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
   list-style-position: outside;
+  list-style-type: disc;
 }
 .ai-answer-content ol {
   padding-left: 2.25rem; /* extra room for two-digit numbers like 10., 25. */
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
   list-style-position: outside;
+  list-style-type: decimal;
 }
 .ai-answer-content li {
   margin-bottom: 0.15rem;

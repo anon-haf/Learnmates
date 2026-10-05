@@ -829,6 +829,17 @@ export const mergeTopicalPDFs = async (
     })
   );
 
+  // ---------------------------------------------------------------------------
+  // Pass 1: collect render items from all fetched results
+  // ---------------------------------------------------------------------------
+
+  type RenderItem =
+    | { kind: 'pdfPage'; embedded: PDFEmbeddedPage; srcWidth: number; srcHeight: number; question: Question; questionNumber: number; isFirstPage: boolean }
+    | { kind: 'image'; image: any; srcWidth: number; srcHeight: number; question: Question; questionNumber: number }
+    | { kind: 'mcqAnswer'; question: Question; questionNumber: number };
+
+  const renderItems: RenderItem[] = [];
+
   for (const result of allResults) {
     const { task, arrayBuffer, contentType, error } = result;
     const questionNumber = task.questionIndex + 1;
@@ -844,87 +855,9 @@ export const mergeTopicalPDFs = async (
         const sourcePageIndices = sourcePdf.getPageIndices();
         const sourcePages = await mergedPdf.copyPages(sourcePdf, sourcePageIndices);
 
-        if (sourcePages.length > 0) {
-          const firstSourcePage = sourcePages[0];
-          const firstCropBox = firstSourcePage.getCropBox();
-          const contentWidth = firstCropBox.width;
-          const contentHeight = firstCropBox.height;
-
-          const titleText = task.question.title || `Question ${questionNumber}`;
-          const topicsText = task.question.topicMatches && task.question.topicMatches.length > 0
-            ? formatTopicHeaderText(task.question.topicMatches)
-            : '';
-
-          // Handle header page option
-          if (options.headerPage) {
-            if (!options.mergeHeader) {
-              // Add separate header page before the question
-              await createHeaderPage(mergedPdf, task.question, questionNumber, type, contentWidth, boldFont, regularFont, options.headerSize);
-            }
-
-            // Add merged header with first page (when mergeHeader is true, or default when headerPage enabled)
-            if (options.mergeHeader !== false) {
-              const headerHeight = options.headerSize || 25;
-              const titleSize = 8 + (headerHeight * 0.15);
-              const topicSize = 7 + (headerHeight * 0.1);
-
-              const newFirstPage = mergedPdf.addPage([contentWidth, contentHeight + headerHeight]);
-
-              newFirstPage.drawRectangle({ x: 0, y: contentHeight, width: contentWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
-              newFirstPage.drawLine({ start: { x: 0, y: contentHeight }, end: { x: contentWidth, y: contentHeight }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
-
-              const questionRefText = `Question ${questionNumber}`;
-              const safeQuestionRef = sanitizeForPdf(questionRefText);
-              const safeTitle = sanitizeForPdf(titleText);
-              const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
-
-              newFirstPage.drawText(safeQuestionRef, { x: 15, y: contentHeight + (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
-
-              const centerX = (contentWidth - titleWidth) / 2;
-              newFirstPage.drawText(safeTitle, { x: centerX, y: contentHeight + (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
-
-              if (topicsText) {
-                const maxWidth = contentWidth - 30 - 150;
-                let rendered = topicsText;
-                while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxWidth && rendered.length > 0) {
-                  rendered = rendered.slice(0, -1);
-                }
-                if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
-
-                const renderedWidth = regularFont.widthOfTextAtSize(rendered, topicSize);
-                newFirstPage.drawText(rendered, {
-                  x: contentWidth - renderedWidth - 15,
-                  y: contentHeight + (headerHeight / 2) - (topicSize / 3),
-                  size: topicSize,
-                  font: regularFont,
-                  color: rgb(0.25, 0.25, 0.25),
-                });
-              }
-
-              // Embed only the visible (cropped) region of the first page so hidden
-              // content from fitz "soft crops" never shows up and nothing shifts.
-              const embeddedFirstPage = await embedVisiblePage(mergedPdf, firstSourcePage);
-              newFirstPage.drawPage(embeddedFirstPage.embedded, { x: 0, y: 0, xScale: 1, yScale: 1 });
-
-              for (let i = 1; i < sourcePages.length; i++) {
-                await addVisiblePage(mergedPdf, sourcePages[i]);
-              }
-            } else {
-              // Header page enabled but merge disabled - just add question pages without header
-              for (let i = 0; i < sourcePages.length; i++) {
-                await addVisiblePage(mergedPdf, sourcePages[i]);
-              }
-            }
-          } else {
-            // headerPage disabled - add pages without any header (original behavior before header feature)
-            for (let i = 0; i < sourcePages.length; i++) {
-              await addVisiblePage(mergedPdf, sourcePages[i]);
-            }
-          }
-
-          if (options.extraPage && type === 'questions') {
-            await addBlankPageToPdf(mergedPdf, contentWidth, contentHeight);
-          }
+        for (let i = 0; i < sourcePages.length; i++) {
+          const { embedded, width: srcWidth, height: srcHeight } = await embedVisiblePage(mergedPdf, sourcePages[i]);
+          renderItems.push({ kind: 'pdfPage', embedded, srcWidth, srcHeight, question: task.question, questionNumber, isFirstPage: i === 0 });
         }
       } else if (task.fileType === 'image') {
         let image;
@@ -933,162 +866,232 @@ export const mergeTopicalPDFs = async (
         } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
           image = await mergedPdf.embedJpg(arrayBuffer);
         } else {
-          try {
-            image = await mergedPdf.embedPng(arrayBuffer);
-          } catch {
-            image = await mergedPdf.embedJpg(arrayBuffer);
-          }
+          try { image = await mergedPdf.embedPng(arrayBuffer); } catch { image = await mergedPdf.embedJpg(arrayBuffer); }
         }
-
         const imageDims = image.scale(1);
-        const pageWidth = 612;
-        const pageHeight = 792;
-        const headerHeight = options.headerSize || 25;
-
-        // Handle header page option for images
-        if (options.headerPage) {
-          if (!options.mergeHeader) {
-            // Add separate header page before the question
-            await createHeaderPage(mergedPdf, task.question, questionNumber, type, pageWidth, boldFont, regularFont, options.headerSize);
-          }
-
-          if (options.mergeHeader !== false) {
-            // Merge header with page
-            const page = mergedPdf.addPage([pageWidth, pageHeight]);
-            const { width, height } = page.getSize();
-
-            page.drawRectangle({ x: 0, y: height - headerHeight, width, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
-            page.drawRectangle({
-              x: 10,
-              y: height - headerHeight + 5,
-              width: width - 20,
-              height: headerHeight - 10,
-              borderColor: rgb(0.7, 0.7, 0.7),
-              borderWidth: 1,
-            });
-
-            const titleText = task.question.title || `Question ${questionNumber}`;
-            const questionRefText = `Question ${questionNumber}`;
-            const titleSize = 8 + (headerHeight * 0.15);
-            const topicSize = 7 + (headerHeight * 0.1);
-            const safeTitle = sanitizeForPdf(titleText);
-            const safeQuestionRef = sanitizeForPdf(questionRefText);
-            const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
-
-            page.drawText(safeQuestionRef, { x: 15, y: height - (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
-
-            const centerX = (width - titleWidth) / 2;
-            page.drawText(safeTitle, { x: centerX, y: height - (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
-
-            if (task.question.topicMatches && task.question.topicMatches.length > 0) {
-              const topicsString = formatTopicHeaderText(task.question.topicMatches);
-              const maxWidth = width - 30 - 150;
-              let rendered = topicsString;
-              while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxWidth && rendered.length > 0) {
-                rendered = rendered.slice(0, -1);
-              }
-              if (rendered !== topicsString) rendered = `${rendered.trimEnd()}…`;
-
-              const renderedWidth = regularFont.widthOfTextAtSize(rendered, topicSize);
-              page.drawText(rendered, {
-                x: width - renderedWidth - 15,
-                y: height - (headerHeight / 2) - (topicSize / 3),
-                size: topicSize,
-                font: regularFont,
-                color: rgb(0.25, 0.25, 0.25),
-              });
-            }
-
-            const maxImageHeight = height - headerHeight - 20;
-            const maxImageWidth = width - 80;
-            const scale = Math.min(maxImageWidth / imageDims.width, maxImageHeight / imageDims.height, 1);
-
-            const scaledWidth = imageDims.width * scale;
-            const scaledHeight = imageDims.height * scale;
-            const imageX = (width - scaledWidth) / 2;
-            const imageY = height - headerHeight - 20 - scaledHeight;
-
-            page.drawImage(image, { x: imageX, y: imageY, width: scaledWidth, height: scaledHeight });
-
-            if (options.extraPage && type === 'questions') {
-              await addBlankPageToPdf(mergedPdf, width, height);
-            }
-          } else {
-            // Header page enabled but merge disabled - just add the image page without header
-            const page = mergedPdf.addPage([pageWidth, pageHeight]);
-            const { width, height } = page.getSize();
-
-            const maxImageHeight = height - 20;
-            const maxImageWidth = width - 80;
-            const scale = Math.min(maxImageWidth / imageDims.width, maxImageHeight / imageDims.height, 1);
-
-            const scaledWidth = imageDims.width * scale;
-            const scaledHeight = imageDims.height * scale;
-            const imageX = (width - scaledWidth) / 2;
-            const imageY = height - 20 - scaledHeight;
-
-            page.drawImage(image, { x: imageX, y: imageY, width: scaledWidth, height: scaledHeight });
-
-            if (options.extraPage && type === 'questions') {
-              await addBlankPageToPdf(mergedPdf, width, height);
-            }
-          }
-        } else {
-          // headerPage disabled - add page without any header (original behavior)
-          const page = mergedPdf.addPage([pageWidth, pageHeight]);
-          const { width, height } = page.getSize();
-
-          const maxImageHeight = height - 20;
-          const maxImageWidth = width - 80;
-          const scale = Math.min(maxImageWidth / imageDims.width, maxImageHeight / imageDims.height, 1);
-
-          const scaledWidth = imageDims.width * scale;
-          const scaledHeight = imageDims.height * scale;
-          const imageX = (width - scaledWidth) / 2;
-          const imageY = height - 20 - scaledHeight;
-
-          page.drawImage(image, { x: imageX, y: imageY, width: scaledWidth, height: scaledHeight });
-
-          if (options.extraPage && type === 'questions') {
-            await addBlankPageToPdf(mergedPdf, width, height);
-          }
-        }
+        renderItems.push({ kind: 'image', image, srcWidth: imageDims.width, srcHeight: imageDims.height, question: task.question, questionNumber });
       } else if (task.fileType === 'mcqAnswer') {
-        // Keep this as small as the per-question header strip (not a full page) —
-        // there's no mark scheme file, just a single answer letter to show.
-        const headerHeight = 25;
-        const page = mergedPdf.addPage([612, headerHeight]);
-        const { width, height } = page.getSize();
-
-        page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.95, 0.95, 0.95) });
-        page.drawLine({ start: { x: 0, y: height - 1 }, end: { x: width, y: height - 1 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
-        page.drawLine({ start: { x: 0, y: 0 }, end: { x: width, y: 0 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
-
-        const titleText = task.question.title || `Question ${questionNumber}`;
-        const questionRefText = `Question ${questionNumber}`;
-        const titleSize = 11;
-        const safeTitle = sanitizeForPdf(titleText);
-        const safeQuestionRef = sanitizeForPdf(questionRefText);
-        const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
-
-        page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
-
-        const centerX = (width - titleWidth) / 2;
-        page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, color: rgb(0, 0, 0), font: boldFont });
-
-        const answerText = `Answer: ${task.question.mcqAnswer || '?'}`;
-        const answerSize = 15;
-        const answerWidth = boldFont.widthOfTextAtSize(answerText, answerSize);
-        page.drawText(answerText, {
-          x: width - answerWidth - 20,
-          y: (headerHeight / 2) - (answerSize / 3),
-          size: answerSize,
-          font: boldFont,
-          color: rgb(0, 0.4, 0.2),
-        });
+        renderItems.push({ kind: 'mcqAnswer', question: task.question, questionNumber });
       }
     } catch (error) {
       console.error(`Error processing question ${questionNumber}:`, error);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pass 2: lay out render items onto A4 pages
+  // ---------------------------------------------------------------------------
+
+  const A4_WIDTH = 595.28;
+  const A4_HEIGHT = 841.89;
+  const MARGIN = 40;
+  const SPACING = 12;
+  const PRINTABLE_WIDTH = A4_WIDTH - 2 * MARGIN;
+  const PRINTABLE_HEIGHT = A4_HEIGHT - 2 * MARGIN;
+
+  const headerHeight = options.headerPage ? (options.headerSize || 25) : 0;
+  const titleSize = 8 + (headerHeight * 0.15);
+  const topicSize = 7 + (headerHeight * 0.1);
+
+  let currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+  let currentY = A4_HEIGHT - MARGIN;
+
+  const newA4Page = () => {
+    currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+    currentY = A4_HEIGHT - MARGIN;
+  };
+
+  // Draw the merged header band at the current Y position and advance currentY
+  const drawHeaderBand = (item: RenderItem & { question: Question; questionNumber: number }, bandWidth: number) => {
+    if (!options.headerPage || headerHeight === 0) return;
+    const bandY = currentY - headerHeight;
+
+    currentPage.drawRectangle({ x: MARGIN, y: bandY, width: bandWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
+    currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + bandWidth, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+
+    const titleText = item.question.title || `Question ${item.questionNumber}`;
+    const questionRefText = `Question ${item.questionNumber}`;
+    const safeTitle = sanitizeForPdf(titleText);
+    const safeQuestionRef = sanitizeForPdf(questionRefText);
+    const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+
+    const textY = bandY + headerHeight / 2 - titleSize / 3;
+    currentPage.drawText(safeQuestionRef, { x: MARGIN + 10, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+    currentPage.drawText(safeTitle, { x: MARGIN + (bandWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+
+    const topicsText = item.question.topicMatches && item.question.topicMatches.length > 0
+      ? formatTopicHeaderText(item.question.topicMatches) : '';
+    if (topicsText) {
+      const maxW = bandWidth - 30 - 150;
+      let rendered = sanitizeForPdf(topicsText);
+      while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxW && rendered.length > 0) rendered = rendered.slice(0, -1);
+      if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
+      const renderedW = regularFont.widthOfTextAtSize(rendered, topicSize);
+      currentPage.drawText(rendered, { x: MARGIN + bandWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.25, 0.25, 0.25) });
+    }
+
+    currentY -= headerHeight;
+  };
+
+  if (options.extraPage && type === 'questions') {
+    const questionGroups: { questionNumber: number; question: Question; items: RenderItem[] }[] = [];
+    for (const item of renderItems) {
+      const qNum = item.questionNumber;
+      let group = questionGroups.find(g => g.questionNumber === qNum);
+      if (!group) {
+        group = { questionNumber: qNum, question: item.question, items: [] };
+        questionGroups.push(group);
+      }
+      group.items.push(item);
+    }
+
+    for (let gIdx = 0; gIdx < questionGroups.length; gIdx++) {
+      const group = questionGroups[gIdx];
+
+      if (gIdx > 0 && currentY < A4_HEIGHT - MARGIN) {
+        newA4Page();
+      }
+
+      for (const item of group.items) {
+        if (item.kind === 'mcqAnswer') {
+          const bandH = 25;
+          if (currentY - bandH < MARGIN) newA4Page();
+          const bandY = currentY - bandH;
+
+          currentPage.drawRectangle({ x: MARGIN, y: bandY, width: PRINTABLE_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
+          currentPage.drawLine({ start: { x: MARGIN, y: bandY + bandH - 1 }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY + bandH - 1 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+          currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+
+          const titleText = item.question.title || `Question ${item.questionNumber}`;
+          const safeTitle = sanitizeForPdf(titleText);
+          const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
+          const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
+          const textY = bandY + bandH / 2 - 11 / 3;
+
+          currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+          currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+
+          const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
+          const answerSize = 15;
+          const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
+          currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: answerSize, font: boldFont, color: rgb(0, 0.4, 0.2) });
+
+          currentY = bandY - SPACING;
+          continue;
+        }
+
+        let scale = PRINTABLE_WIDTH / item.srcWidth;
+        let scaledWidth = PRINTABLE_WIDTH;
+        let scaledHeight = item.srcHeight * scale;
+
+        const maxContentHeight = PRINTABLE_HEIGHT - headerHeight;
+        if (scaledHeight > maxContentHeight) {
+          scale = maxContentHeight / item.srcHeight;
+          scaledWidth = item.srcWidth * scale;
+          scaledHeight = maxContentHeight;
+        }
+
+        const needsHeader = options.headerPage && item.kind === 'pdfPage' && item.isFirstPage;
+        const totalHeight = scaledHeight + (needsHeader ? headerHeight : 0);
+
+        if (currentY - totalHeight < MARGIN) {
+          if (currentY < A4_HEIGHT - MARGIN) {
+            newA4Page();
+          }
+        }
+
+        if (needsHeader) {
+          drawHeaderBand(item as any, scaledWidth);
+        }
+
+        const x = MARGIN + (PRINTABLE_WIDTH - scaledWidth) / 2;
+        const y = currentY - scaledHeight;
+
+        if (item.kind === 'pdfPage') {
+          currentPage.drawPage(item.embedded, { x, y, width: scaledWidth, height: scaledHeight });
+        } else {
+          currentPage.drawImage(item.image, { x, y, width: scaledWidth, height: scaledHeight });
+        }
+
+        currentY = y - SPACING;
+      }
+
+      await addBlankPageToPdf(mergedPdf, A4_WIDTH, A4_HEIGHT);
+      if (gIdx < questionGroups.length - 1) {
+        newA4Page();
+      }
+    }
+  } else {
+    for (const item of renderItems) {
+      if (item.kind === 'mcqAnswer') {
+        // MCQ answers: draw a small answer band on the current A4 page
+        const bandH = 25;
+        if (currentY - bandH < MARGIN) newA4Page();
+        const bandY = currentY - bandH;
+
+        currentPage.drawRectangle({ x: MARGIN, y: bandY, width: PRINTABLE_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
+        currentPage.drawLine({ start: { x: MARGIN, y: bandY + bandH - 1 }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY + bandH - 1 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+        currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+
+        const titleText = item.question.title || `Question ${item.questionNumber}`;
+        const safeTitle = sanitizeForPdf(titleText);
+        const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
+        const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
+        const textY = bandY + bandH / 2 - 11 / 3;
+
+        currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+        currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+
+        const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
+        const answerSize = 15;
+        const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
+        currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: answerSize, font: boldFont, color: rgb(0, 0.4, 0.2) });
+
+        currentY = bandY - SPACING;
+        continue;
+      }
+
+      // Determine scaled dimensions to fit within PRINTABLE_WIDTH
+      let scale = PRINTABLE_WIDTH / item.srcWidth;
+      let scaledWidth = PRINTABLE_WIDTH;
+      let scaledHeight = item.srcHeight * scale;
+
+      // If taller than a full printable page, scale down to fit page height
+      const maxContentHeight = PRINTABLE_HEIGHT - headerHeight;
+      if (scaledHeight > maxContentHeight) {
+        scale = maxContentHeight / item.srcHeight;
+        scaledWidth = item.srcWidth * scale;
+        scaledHeight = maxContentHeight;
+      }
+
+      // For PDF pages that are the first page of a question and header is enabled,
+      // the header band occupies space above the content on the same A4 block
+      const needsHeader = options.headerPage && item.kind === 'pdfPage' && item.isFirstPage;
+      const totalHeight = scaledHeight + (needsHeader ? headerHeight : 0);
+
+      // Check if it fits on current page; start new A4 if not
+      if (currentY - totalHeight < MARGIN) {
+        // Only move to new page if current page already has content
+        if (currentY < A4_HEIGHT - MARGIN) {
+          newA4Page();
+        }
+      }
+
+      // Draw header band (advances currentY by headerHeight)
+      if (needsHeader) {
+        drawHeaderBand(item as any, scaledWidth);
+      }
+
+      const x = MARGIN + (PRINTABLE_WIDTH - scaledWidth) / 2;
+      const y = currentY - scaledHeight;
+
+      if (item.kind === 'pdfPage') {
+        currentPage.drawPage(item.embedded, { x, y, width: scaledWidth, height: scaledHeight });
+      } else {
+        currentPage.drawImage(item.image, { x, y, width: scaledWidth, height: scaledHeight });
+      }
+
+      currentY = y - SPACING;
     }
   }
 
@@ -1104,7 +1107,7 @@ export const downloadMergedTopicalPDFs = async (
   type: ExportType,
   questions: Question[],
   selectedTopics: Set<string>,
-  levelBoardSubject: { level: string; board: string; subject: string },
+  levelBoardSubject: { level: string; board: string; subject: string; unit?: string },
   callbacks: {
     onStart?: () => void;
     onProgress?: (progress: ExportProgress) => void;
@@ -1120,8 +1123,6 @@ export const downloadMergedTopicalPDFs = async (
   }
 
   const validQuestions = questions.filter(q => {
-    // MCQ answer takes priority over markScheme for mark scheme exports —
-    // see the matching comment in mergeTopicalPDFs for why.
     if (type === 'markschemes' && q.mcqAnswer) return true;
     const fileUrl = type === 'questions' ? q.questionContent : q.markScheme;
     const fileType = type === 'questions' ? q.questionContentType : q.markSchemeType;
@@ -1134,7 +1135,8 @@ export const downloadMergedTopicalPDFs = async (
   }
 
   const subjectName = levelBoardSubject.subject.charAt(0).toUpperCase() + levelBoardSubject.subject.slice(1);
-  const filename = `${levelBoardSubject.level}_${levelBoardSubject.board}_${subjectName}_${type === 'questions' ? 'Questions' : 'Mark_Schemes'}.pdf`;
+  const unitPart = levelBoardSubject.unit ? `_${levelBoardSubject.unit.replace(/\s+/g, '_')}` : '';
+  const filename = `${levelBoardSubject.level}_${levelBoardSubject.board}_${subjectName}${unitPart}_${type === 'questions' ? 'Questions' : 'Mark_Schemes'}.pdf`;
 
   try {
     callbacks.onStart?.();

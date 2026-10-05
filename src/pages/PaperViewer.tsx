@@ -222,7 +222,11 @@ const PaperViewerPage: React.FC = () => {
           const qItems: MergeItem[] = papers.map(p => ({ id: `q${p.questionNumber}`, url: p.pdfUrl, type: 'pdf' }));
           const qBlob = await generateMergedPDF(qItems, 'Question', {
             title: paperDisplayName,
-            subtitle: `${level.toUpperCase()} ${board.charAt(0).toUpperCase() + board.slice(1)} ${subject} - ${unit}`
+            subtitle: `${level ? level.toUpperCase() : ''} ${board ? board.charAt(0).toUpperCase() + board.slice(1) : ''} ${subject} - ${unit}`,
+            level,
+            board,
+            subject,
+            unit
           });
           setFullPaperPdfUrl(URL.createObjectURL(qBlob));
         } catch (error) {
@@ -252,7 +256,11 @@ const PaperViewerPage: React.FC = () => {
             }));
             const msBlob = await generateMergedPDF(msItems, 'Mark Scheme', {
               title: paperDisplayName,
-              subtitle: `${level.toUpperCase()} ${board.charAt(0).toUpperCase() + board.slice(1)} ${subject} - ${unit} (Mark Scheme)`
+              subtitle: `${level ? level.toUpperCase() : ''} ${board ? board.charAt(0).toUpperCase() + board.slice(1) : ''} ${subject} - ${unit} (Mark Scheme)`,
+              level,
+              board,
+              subject,
+              unit
             });
             setFullPaperMsUrl(URL.createObjectURL(msBlob));
           }
@@ -519,14 +527,15 @@ const PaperViewerPage: React.FC = () => {
               {fullPaperPdfUrl && (
                 <button
                   onClick={async () => {
+                    const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Questions.pdf`;
                     await commitDownloadAward({
                       resourceId: `${paperKey}_questions`,
-                      resourceName: `${paperDisplayName} - Questions.pdf`,
+                      resourceName: filename,
                       resourceType: 'paper',
                     });
                     const a = document.createElement('a');
                     a.href = fullPaperPdfUrl;
-                    a.download = `${paperDisplayName} - Questions.pdf`;
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -542,14 +551,15 @@ const PaperViewerPage: React.FC = () => {
               {fullPaperMsUrl && (
                 <button
                   onClick={async () => {
+                    const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Mark Scheme.pdf`;
                     await commitDownloadAward({
                       resourceId: `${paperKey}_markschemes`,
-                      resourceName: `${paperDisplayName} - Mark Scheme.pdf`,
+                      resourceName: filename,
                       resourceType: 'paper',
                     });
                     const a = document.createElement('a');
                     a.href = fullPaperMsUrl;
-                    a.download = `${paperDisplayName} - Mark Scheme.pdf`;
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);

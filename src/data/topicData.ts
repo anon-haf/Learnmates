@@ -745,8 +745,10 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'physics-5': {
     videos: [],
-    resources: [{ id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
+    resources: [
     { id: 'r1', title: 'Nuclear Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (a.aseer).pdf' },
+    { id: 'r4', title: 'Nuclear Physics Notes (@GHOST)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Ghost).pdf' },
+    { id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
     { id: 'r2', title: 'Nuclear Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics.pdf' }],
     quizzes: []
   },

@@ -3,15 +3,13 @@ import { btnSecondary, dropdownPanel, dropdownItem } from './ui';
 import TopicalCheckbox from './Checkbox';
 
 interface ExportMenuProps {
-  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean }) => void;
+  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean }) => void;
   showExtraPageOption?: boolean;
   extraPageEnabled?: boolean;
   onExtraPageToggle?: (enabled: boolean) => void;
   showHeaderOptions?: boolean;
   headerPageEnabled?: boolean;
-  mergeHeaderEnabled?: boolean;
   onHeaderPageToggle?: (enabled: boolean) => void;
-  onMergeHeaderToggle?: (enabled: boolean) => void;
   headerSize?: number;
   onHeaderSizeChange?: (size: number) => void;
 }
@@ -25,9 +23,7 @@ const HEADER_PAGE_EXPLANATION =
   "Adds a separate reference page above each question showing the question title and topic codes. " +
   "Useful for quickly identifying questions when printing or reviewing.";
 
-const MERGE_HEADER_EXPLANATION =
-  "When enabled, the header reference is merged onto the first page of each question. " +
-  "When disabled, the header appears on its own separate page before each question.";
+
 
 // Same height/padding/font as every other control now (btnSecondary),
 // instead of the old oversized purple button.
@@ -38,20 +34,16 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   onExtraPageToggle,
   showHeaderOptions = false,
   headerPageEnabled = false,
-  mergeHeaderEnabled = true,
   onHeaderPageToggle,
-  onMergeHeaderToggle,
   headerSize,
   onHeaderSizeChange
 }) => {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [headerInfoOpen, setHeaderInfoOpen] = useState(false);
-  const [mergeInfoOpen, setMergeInfoOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   const headerInfoRef = useRef<HTMLDivElement>(null);
-  const mergeInfoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,7 +75,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
         <div className={`${dropdownPanel} right-0 w-64`}>
           <button
             onClick={() => {
-              onExport('questions', { extraPage: extraPageEnabled, headerPage: headerPageEnabled, mergeHeader: mergeHeaderEnabled, headerSize: headerSize });
+              onExport('questions', { extraPage: extraPageEnabled, headerPage: headerPageEnabled, headerSize: headerSize });
               setOpen(false);
             }}
             className={dropdownItem}
@@ -93,7 +85,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
           </button>
           <button
             onClick={() => {
-              onExport('markschemes', { extraPage: false, headerPage: headerPageEnabled, mergeHeader: mergeHeaderEnabled, headerSize: headerSize });
+              onExport('markschemes', { extraPage: false, headerPage: headerPageEnabled, headerSize: headerSize });
               setOpen(false);
             }}
             className={dropdownItem}
@@ -186,44 +178,6 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-200 ml-6 pt-1">
-                    <label className={`flex cursor-pointer items-center gap-2 ${!headerPageEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <span className="text-gray-400 dark:text-gray-500">•</span>
-                      <TopicalCheckbox
-                        checked={mergeHeaderEnabled}
-                        onChange={() => onMergeHeaderToggle?.(!mergeHeaderEnabled)}
-                        disabled={!headerPageEnabled}
-                      />
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Merge header with question page</span>
-                    </label>
-
-                    <div className="relative" ref={mergeInfoRef}>
-                      <button
-                        type="button"
-                        onClick={() => setMergeInfoOpen(prev => !prev)}
-                        disabled={!headerPageEnabled}
-                        className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] transition-colors ${
-                          mergeInfoOpen
-                            ? 'border-purple-400 bg-purple-50 text-purple-600 dark:border-purple-500 dark:bg-purple-500/10 dark:text-purple-300'
-                            : 'border-gray-300 text-gray-500 hover:bg-gray-200 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
-                        } ${!headerPageEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        aria-label="What does merge header do?"
-                        aria-expanded={mergeInfoOpen}
-                      >
-                        i
-                      </button>
-
-                      {mergeInfoOpen && (
-                        <div
-                          role="tooltip"
-                          className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
-                        >
-                          <div className="absolute -top-1 right-1.5 h-2 w-2 rotate-45 border-l border-t border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800" />
-                          {MERGE_HEADER_EXPLANATION}
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
                   <div className="flex flex-col gap-1 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-200 ml-6 pt-1">
                     <label className={`flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 ${!headerPageEnabled ? 'opacity-50 pointer-events-none' : ''}`}>

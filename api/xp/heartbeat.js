@@ -94,31 +94,36 @@ export default async function handler(req, res) {
       });
     }
 
-    const awarded = await awardCappedXP(supabase, {
-      userId: user.id,
-      action,
-      refId: refId || null,
-      amount: xpAmount,
-      dailyCap,
-      metadata: {
-        duration,
-        tabVisible,
-        mouseMoving,
-        sawQuestion,
-        sawMS,
-        streak,
-        subject,
-      },
-    });
+    let awarded = 0;
+    try {
+      awarded = await awardCappedXP(supabase, {
+        userId: user.id,
+        action,
+        refId: refId || null,
+        amount: xpAmount,
+        dailyCap,
+        metadata: {
+          duration,
+          tabVisible,
+          mouseMoving,
+          sawQuestion,
+          sawMS,
+          streak,
+          subject,
+        },
+      });
+    } catch (awardError) {
+      console.error('[heartbeat] award failed (returning 200, awarded=0):', awardError);
+    }
 
     return res.status(200).json({
       awarded,
-      message: `Successfully processed ${action}`,
-      conditionsMet: { action, duration }
+      message: awarded > 0 ? `Successfully processed ${action}` : 'No XP awarded',
+      conditionsMet: { action, duration },
     });
 
   } catch (error) {
-    console.error('Heartbeat error:', error);
+    console.error('[heartbeat] unexpected error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

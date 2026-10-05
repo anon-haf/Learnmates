@@ -1,7 +1,38 @@
 const DOWNLOAD_ACTIONS = new Set(['download', 'paper_download', 'topical_paper_download']);
 
+function isMissingColumnError(error) {
+  if (!error) return false;
+  const message = (error.message || '').toLowerCase();
+  const details = (error.details || '').toLowerCase();
+  return (
+    error.code === '42703' ||
+    error.code === 'PGRST204' ||
+    message.includes('metadata') ||
+    details.includes('metadata')
+  );
+}
+
+async function insertXpEvent(supabase, eventRow) {
+  const { data, error } = await supabase
+    .from('xp_events')
+    .insert(eventRow)
+    .select('id')
+    .single();
+
+  if (!error) {
+    return { data, error: null };
+  }
+
+  if (isMissingColumnError(error) && eventRow.metadata !== undefined) {
+    const { metadata: _removed, ...withoutMetadata } = eventRow;
+    return supabase.from('xp_events').insert(withoutMetadata).select('id').single();
+  }
+
+  return { data, error };
+}
+
 /**
- * Legacy award path when fn_award_capped_xp is not deployed yet.
+ * Legacy award path when fn_award_capped_xp is not deployed or errors at runtime.
  * Includes download idempotency by (user_id, action, ref_id).
  */
 export async function awardCappedXPFallback(supabase, {
@@ -62,11 +93,7 @@ export async function awardCappedXPFallback(supabase, {
     eventRow.metadata = metadata;
   }
 
-  const { data: insertedEvent, error: insertError } = await supabase
-    .from('xp_events')
-    .insert(eventRow)
-    .select('id')
-    .single();
+  const { data: insertedEvent, error: insertError } = await insertXpEvent(supabase, eventRow);
 
   if (insertError) {
     if (insertError.code === '23505' && refId && DOWNLOAD_ACTIONS.has(action)) {
@@ -87,12 +114,14 @@ export async function awardCappedXPFallback(supabase, {
     throw xpFetchError;
   }
 
+  const nowIso = new Date().toISOString();
+
   if (xpRow) {
     const { error: updateError } = await supabase
       .from('user_xp')
       .update({
         total_xp: (xpRow.total_xp || 0) + awarded,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       })
       .eq('user_id', userId);
 
@@ -104,11 +133,18 @@ export async function awardCappedXPFallback(supabase, {
     const { error: createError } = await supabase.from('user_xp').insert({
       user_id: userId,
       total_xp: awarded,
+      updated_at: nowIso,
     });
 
     if (createError) {
-      console.error('[awardCappedXPFallback] user_xp insert failed (event id=%s):', insertedEvent?.id, createError);
-      throw createError;
+      const { error: createWithoutUpdatedAt } = await supabase.from('user_xp').insert({
+        user_id: userId,
+        total_xp: awarded,
+      });
+      if (createWithoutUpdatedAt) {
+        console.error('[awardCappedXPFallback] user_xp insert failed (event id=%s):', insertedEvent?.id, createError);
+        throw createError;
+      }
     }
   }
 

@@ -272,7 +272,6 @@ const TopicalPages: React.FC = () => {
   const [loadFeedback, setLoadFeedback] = useState<string | null>(null);
   const [extraPageEnabled, setExtraPageEnabled] = useState(false);
   const [headerPageEnabled, setHeaderPageEnabled] = useState(true);
-  const [mergeHeaderEnabled, setMergeHeaderEnabled] = useState(true);
   const [headerSize, setHeaderSize] = useState<number>(25);
   const [loadId, setLoadId] = useState<number>(0);
 
@@ -597,7 +596,7 @@ const TopicalPages: React.FC = () => {
     setNeedLoad(true);
   };
 
-  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number }) => {
+  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number }) => {
     // Get topics from localStorage if checked is empty
     const key = `topical_checked_${selectedLevel}_${selectedBoard}_${selectedSubject}`;
     const storedTopicsStr = localStorage.getItem(key);
@@ -636,7 +635,6 @@ const TopicalPages: React.FC = () => {
       {
         extraPage: options?.extraPage ?? extraPageEnabled,
         headerPage: options?.headerPage ?? headerPageEnabled,
-        mergeHeader: options?.mergeHeader ?? mergeHeaderEnabled,
         headerSize: options?.headerSize ?? headerSize
       },
       {
@@ -857,9 +855,7 @@ const TopicalPages: React.FC = () => {
                       onExtraPageToggle={setExtraPageEnabled}
                       showHeaderOptions={true}
                       headerPageEnabled={headerPageEnabled}
-                      mergeHeaderEnabled={mergeHeaderEnabled}
                       onHeaderPageToggle={setHeaderPageEnabled}
-                      onMergeHeaderToggle={setMergeHeaderEnabled}
                       headerSize={headerSize}
                       onHeaderSizeChange={setHeaderSize}
                       loadId={loadId}

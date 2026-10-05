@@ -9,7 +9,7 @@ interface MatchesViewerPanelProps {
   hasLoadedOnce: boolean;
   loadingProgress: { current: number; total: number; isLoading: boolean };
   showUnitTags: boolean;
-  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean }) => void;
+  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean }) => void;
   onExpandPicker?: () => void;
   loadFeedback?: string | null;
   showExtraPageOption?: boolean;
@@ -17,9 +17,7 @@ interface MatchesViewerPanelProps {
   onExtraPageToggle?: (enabled: boolean) => void;
   showHeaderOptions?: boolean;
   headerPageEnabled?: boolean;
-  mergeHeaderEnabled?: boolean;
   onHeaderPageToggle?: (enabled: boolean) => void;
-  onMergeHeaderToggle?: (enabled: boolean) => void;
   headerSize?: number;
   onHeaderSizeChange?: (size: number) => void;
   loadId?: number;
@@ -45,9 +43,7 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
   onExtraPageToggle,
   showHeaderOptions = false,
   headerPageEnabled = false,
-  mergeHeaderEnabled = true,
   onHeaderPageToggle,
-  onMergeHeaderToggle,
   headerSize,
   onHeaderSizeChange,
   loadId,
@@ -76,9 +72,7 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
               onExtraPageToggle={onExtraPageToggle}
               showHeaderOptions={showHeaderOptions}
               headerPageEnabled={headerPageEnabled}
-              mergeHeaderEnabled={mergeHeaderEnabled}
               onHeaderPageToggle={onHeaderPageToggle}
-              onMergeHeaderToggle={onMergeHeaderToggle}
               headerSize={headerSize}
               onHeaderSizeChange={onHeaderSizeChange}
             />

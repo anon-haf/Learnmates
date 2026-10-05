@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFEmbeddedPage } from 'pdf-lib';
 import { resolveFromR2, getAssetAuthHeaders, fetchR2AsBlob } from './r2Utils';
+import { isEdexcelIALPureMathOrMechanics } from './topicalHelpers';
 
 export interface MergeItem {
   id: string; // Used to identify the question number
@@ -282,11 +283,22 @@ export const generateMergedPDF = async (
   options?: {
     title?: string;
     subtitle?: string;
+    level?: string;
+    board?: string;
+    subject?: string;
+    unit?: string;
+    isEdexcelPureOrMech?: boolean;
   }
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
 
   console.log(`[PDF Merge] Starting merge for ${items.length} items`);
+
+  const isEdexcelPureOrMech = options?.isEdexcelPureOrMech ?? (
+    isEdexcelIALPureMathOrMechanics(options?.level, options?.board, options?.subject, options?.unit) ||
+    (/edexcel/i.test(`${options?.title || ''} ${options?.subtitle || ''}`) &&
+     /pure|mechanics|\bp[1-4]\b|\bm[1-3]\b/i.test(`${options?.title || ''} ${options?.subtitle || ''} ${options?.subject || ''} ${options?.unit || ''}`))
+  );
 
   const fetchedItems = await Promise.all(items.map(async (item, i) => {
     const questionNumber = item.id.replace('q', '') || (i + 1);
@@ -448,37 +460,103 @@ export const generateMergedPDF = async (
     }
   }
 
-  for (const item of renderItems) {
-    let scale = PRINTABLE_WIDTH / item.width;
-    let scaledWidth = PRINTABLE_WIDTH;
-    let scaledHeight = item.height * scale;
-
-    // If a single item is taller than a whole A4 page, scale it down to fit the page height
-    if (scaledHeight > PRINTABLE_HEIGHT) {
-      scale = PRINTABLE_HEIGHT / item.height;
-      scaledWidth = item.width * scale;
-      scaledHeight = PRINTABLE_HEIGHT;
+  if (isEdexcelPureOrMech) {
+    // For Edexcel IAL Pure Math & Mechanics past papers:
+    // Keep each question on its own page, and if that question takes up > 1/2 of its page, add an additional blank page.
+    const questionGroups: { questionNumber: number | string; items: RenderItem[] }[] = [];
+    for (const item of renderItems) {
+      const qNum = item.questionNumber;
+      let group = questionGroups.find(g => String(g.questionNumber) === String(qNum));
+      if (!group) {
+        group = { questionNumber: qNum, items: [] };
+        questionGroups.push(group);
+      }
+      group.items.push(item);
     }
 
-    // Check if it fits on the current page
-    if (currentY - scaledHeight < MARGIN) {
-      // If the current page isn't empty, create a new one
-      if (currentY < A4_HEIGHT - MARGIN) {
+    for (let gIdx = 0; gIdx < questionGroups.length; gIdx++) {
+      const group = questionGroups[gIdx];
+
+      if (gIdx > 0 && currentY < A4_HEIGHT - MARGIN) {
         currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
         currentY = A4_HEIGHT - MARGIN;
       }
+
+      for (const item of group.items) {
+        let scale = PRINTABLE_WIDTH / item.width;
+        let scaledWidth = PRINTABLE_WIDTH;
+        let scaledHeight = item.height * scale;
+
+        if (scaledHeight > PRINTABLE_HEIGHT) {
+          scale = PRINTABLE_HEIGHT / item.height;
+          scaledWidth = item.width * scale;
+          scaledHeight = PRINTABLE_HEIGHT;
+        }
+
+        if (currentY - scaledHeight < MARGIN) {
+          if (currentY < A4_HEIGHT - MARGIN) {
+            currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+            currentY = A4_HEIGHT - MARGIN;
+          }
+        }
+
+        const x = MARGIN + (PRINTABLE_WIDTH - scaledWidth) / 2;
+        const y = currentY - scaledHeight;
+
+        if (item.type === 'pdfPage') {
+          currentPage.drawPage(item.embedded, { x, y, width: scaledWidth, height: scaledHeight });
+        } else {
+          currentPage.drawImage(item.image, { x, y, width: scaledWidth, height: scaledHeight });
+        }
+
+        currentY = y - SPACING;
+      }
+
+      const usedHeightOnPage = (A4_HEIGHT - MARGIN) - currentY;
+      const takesMoreThanHalfPage = usedHeightOnPage > (PRINTABLE_HEIGHT / 2);
+
+      if (typeLabel === 'Question' && takesMoreThanHalfPage) {
+        // Add an additional blank page after this question
+        mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        if (gIdx < questionGroups.length - 1) {
+          currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          currentY = A4_HEIGHT - MARGIN;
+        }
+      }
     }
+  } else {
+    for (const item of renderItems) {
+      let scale = PRINTABLE_WIDTH / item.width;
+      let scaledWidth = PRINTABLE_WIDTH;
+      let scaledHeight = item.height * scale;
 
-    const x = MARGIN + (PRINTABLE_WIDTH - scaledWidth) / 2; // Center horizontally
-    const y = currentY - scaledHeight;
+      // If a single item is taller than a whole A4 page, scale it down to fit the page height
+      if (scaledHeight > PRINTABLE_HEIGHT) {
+        scale = PRINTABLE_HEIGHT / item.height;
+        scaledWidth = item.width * scale;
+        scaledHeight = PRINTABLE_HEIGHT;
+      }
 
-    if (item.type === 'pdfPage') {
-      currentPage.drawPage(item.embedded, { x, y, width: scaledWidth, height: scaledHeight });
-    } else {
-      currentPage.drawImage(item.image, { x, y, width: scaledWidth, height: scaledHeight });
+      // Check if it fits on the current page
+      if (currentY - scaledHeight < MARGIN) {
+        // If the current page isn't empty, create a new one
+        if (currentY < A4_HEIGHT - MARGIN) {
+          currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          currentY = A4_HEIGHT - MARGIN;
+        }
+      }
+
+      const x = MARGIN + (PRINTABLE_WIDTH - scaledWidth) / 2; // Center horizontally
+      const y = currentY - scaledHeight;
+
+      if (item.type === 'pdfPage') {
+        currentPage.drawPage(item.embedded, { x, y, width: scaledWidth, height: scaledHeight });
+      } else {
+        currentPage.drawImage(item.image, { x, y, width: scaledWidth, height: scaledHeight });
+      }
+
+      currentY = y - SPACING;
     }
-
-    currentY = y - SPACING;
   }
 
   console.log(`[PDF Merge] Final PDF has ${mergedPdf.getPageCount()} pages`);

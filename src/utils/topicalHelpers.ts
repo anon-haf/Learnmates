@@ -20,9 +20,33 @@ export const isCambridgeScienceMcqSubject = (level: string, board: string, subje
   ['igcse', 'a-level'].includes(level) && board === 'cambridge' &&
   CAMBRIDGE_SCIENCE_MCQ_SUBJECTS.some(candidate => normalizeSubject(candidate) === normalizeSubject(subject));
 
-export const isEdexcelALevelPureMathSubject = (level: string, board: string, subject: string) =>
-  level === 'a-level' && board === 'edexcel' &&
-  ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(candidate => normalizeSubject(candidate) === normalizeSubject(subject));
+export const isEdexcelIALPureMathOrMechanics = (level?: string, board?: string, subject?: string, unit?: string) => {
+  const normLevel = (level || '').trim().toLowerCase();
+  const normBoard = (board || '').trim().toLowerCase();
+  if (normBoard && normBoard !== 'edexcel') return false;
+
+  const normSubject = (subject || '').trim().toLowerCase();
+  const normUnit = (unit || '').trim().toLowerCase();
+
+  const isPureOrMechSubject = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(
+    candidate => normSubject === candidate || normSubject.includes(candidate)
+  );
+
+  const isPureOrMechUnit = normUnit.startsWith('pure') || /^p[1-4]\b/.test(normUnit) || normUnit.startsWith('mechanics') || /^m[1-3]\b/.test(normUnit);
+
+  return (isPureOrMechSubject || isPureOrMechUnit) && (normLevel === '' || ['a-level', 'ial', 'as-level', 'a2-level', 'as', 'a2', 'igcse', 'o-level'].includes(normLevel));
+};
+
+export const isEdexcelALevelPureMathSubject = (level: string, board: string, subject: string) => {
+  const normLevel = (level || '').trim().toLowerCase();
+  const normBoard = (board || '').trim().toLowerCase();
+  if (normBoard !== 'edexcel') return false;
+  const normSubject = (subject || '').trim().toLowerCase();
+  const isPureOrMech = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(
+    candidate => normSubject === candidate || normSubject.includes(candidate)
+  );
+  return isPureOrMech && (normLevel === '' || ['a-level', 'ial', 'as-level', 'a2-level', 'as', 'a2', 'igcse', 'o-level'].includes(normLevel));
+};
 
 export const getDefaultPaperOptions = (level: string, board: string, subject: string): number[] => {
   const normalized = normalizeSubject(subject);
@@ -79,14 +103,15 @@ export const getYearFromFileName = (fileName: string | undefined | null): number
 
 export const getMonthFromFileName = (fileName: string | undefined | null): string | null => {
   if (!fileName) return null;
-  const firstThree = fileName.substring(0, 3).toLowerCase();
-  if (['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].includes(firstThree)) {
-    return firstThree.charAt(0).toUpperCase() + firstThree.slice(1);
-  }
-  const match = fileName.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i);
+  const match = fileName.match(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)(?:\s*(?:\(([A-Za-z])\)|[\-_]\s*([A-Za-z])\b|\s+([A-Za-z])(?!\d|\w)))?/i);
   if (match) {
-    const month = match[1].toLowerCase();
-    return month.charAt(0).toUpperCase() + month.slice(1);
+    const monthBase = match[1].toLowerCase().slice(0, 3);
+    const monthFormatted = monthBase.charAt(0).toUpperCase() + monthBase.slice(1);
+    const variantLetter = match[2] || match[3] || match[4];
+    if (variantLetter && variantLetter.toUpperCase() !== 'P' && variantLetter.toUpperCase() !== 'Q') {
+      return `${monthFormatted} (${variantLetter.toUpperCase()})`;
+    }
+    return monthFormatted;
   }
   return null;
 };

@@ -44,6 +44,8 @@ interface ChatMessage {
   text: string;
   response?: AskResponse;
   displayedLen?: number;
+  isError?: boolean;
+  originalQuestion?: string;
 }
 
 interface ChatSession {
@@ -83,9 +85,15 @@ function formatAnswer(raw: string): string {
   raw = raw.replace(/\\\(([\s\S]+?)\\\)/g, (_m, tex) => placeholder(tex, false));
   raw = raw.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g, (_m, tex) => placeholder(tex, false));
 
-  // 2. Markdown → HTML
+  // 2. Extract fenced code blocks FIRST so no markdown rule corrupts their content
+  const preBlocks: string[] = [];
+  raw = raw.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_m, inner) => {
+    preBlocks.push(inner);
+    return `%%PRE_${preBlocks.length - 1}%%`;
+  });
+
+  // 3. Markdown → HTML
   let html = raw;
-  html = html.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
@@ -154,16 +162,10 @@ function formatAnswer(raw: string): string {
   }
   html = newLines.join('\n');
 
-  const preBlocks: string[] = [];
-  html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (_m, inner) => {
-    preBlocks.push(inner);
-    return `%%PRE_${preBlocks.length - 1}%%`;
-  });
-
   html = html.replace(/\n{2,}/g, '<div style="height: 0.5rem; width: 100%"></div>');
   html = html.replace(/\n/g, '<br/>');
 
-  html = html.replace(/%%PRE_(\d+)%%/g, (_m, idx) => `<pre><code>${preBlocks[Number(idx)]}</code></pre>`);
+  html = html.replace(/%%PRE_(\d+)%%/g, (_m, idx) => `<pre><code class="code-block">${preBlocks[Number(idx)]}</code></pre>`);
 
   html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(%%MATH_(\d+)%%)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
     const p = placeholders[Number(idxStr)];
@@ -196,6 +198,8 @@ const AiChat: React.FC = () => {
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState(0);
+  const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { user: authUser, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(authUser?.id);
   const location = useLocation();
@@ -345,23 +349,83 @@ const AiChat: React.FC = () => {
     setLoading(false);
   };
 
-  const handleSend = async () => {
-    const question = input.trim();
+  const LOADING_PHASES = [
+    'Thinking it through…',
+    'Looking that up…',
+    'Searching the notes…',
+    'Almost there…',
+    'Taking longer than usual…',
+    'Still working on it…',
+  ];
+
+  const startLoadingPhases = () => {
+    setLoadingPhase(0);
+    let phase = 0;
+    loadingTimerRef.current = setInterval(() => {
+      phase = Math.min(phase + 1, LOADING_PHASES.length - 1);
+      setLoadingPhase(phase);
+    }, 4000);
+  };
+
+  const stopLoadingPhases = () => {
+    if (loadingTimerRef.current) {
+      clearInterval(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    setLoadingPhase(0);
+  };
+
+  // Core fetch with one automatic retry
+  const fetchAnswer = async (contextualQuestion: string): Promise<{ data: AskResponse; retried: boolean }> => {
+    const doFetch = async () => {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Username: 'student', subject: activeSubjectValue, question: contextualQuestion, topic: null }),
+      });
+      const json: AskResponse | { detail?: string; error?: string } = await res.json();
+      if (!res.ok) {
+        const errDetail = (json as any).detail || (json as any).error || (json as any).message || null;
+        throw new Error(`HTTP ${res.status}${errDetail ? ': ' + errDetail : ''}`);
+      }
+      return json as AskResponse;
+    };
+
+    try {
+      const data = await doFetch();
+      return { data, retried: false };
+    } catch {
+      // wait 1.5 s then try once more
+      await new Promise(r => setTimeout(r, 1500));
+      const data = await doFetch();
+      return { data, retried: true };
+    }
+  };
+
+  const handleSend = async (questionOverride?: string) => {
+    const question = (questionOverride ?? input).trim();
     if (!question || loading || !authUser) return;
 
-    const userMsgId = `u-${Date.now()}`;
-    const userMsg: ChatMessage = { id: userMsgId, role: 'user', text: question };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
+    // If resending, remove the previous error bubble so the user message stays visible
+    if (questionOverride) {
+      setMessages(prev => prev.filter(m => !m.isError));
+    } else {
+      const userMsgId = `u-${Date.now()}`;
+      const userMsg: ChatMessage = { id: userMsgId, role: 'user', text: question };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+    }
+
     setLoading(true);
+    startLoadingPhases();
 
     try {
       let activeSessionId = currentSessionId;
-      
+
       if (!activeSessionId) {
         const words = question.split(/\s+/);
         const title = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '');
-        
+
         const { data: sessionData, error: sessionError } = await supabase
           .from('chat_sessions')
           .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
@@ -373,69 +437,64 @@ const AiChat: React.FC = () => {
           const msg = sessionError?.message || 'Unknown database error';
           throw new Error(`Failed to create chat session: ${msg}${code}. Please refresh the page and try again.`);
         }
-        
+
         activeSessionId = sessionData.id;
         setCurrentSessionId(activeSessionId);
         setSessions(prev => [{ id: activeSessionId, title, subject: activeSubjectValue, created_at: new Date().toISOString() }, ...prev]);
       }
 
-      await supabase.from('chat_messages').insert({
-        session_id: activeSessionId,
-        role: 'user',
-        content: question,
-      });
-
       let contextualQuestion = question;
-      if (messages.length > 0) {
-        const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n\n');
+      // Build context from non-error messages only
+      const historyMsgs = messages.filter(m => !m.isError);
+      if (historyMsgs.length > 0) {
+        const historyText = historyMsgs.map(m => `${m.role === 'user' ? 'User' : 'AI'}: ${m.text}`).join('\n\n');
         contextualQuestion = `[Previous Context]\n${historyText}\n\n[Current Question]\n${question}`;
       }
 
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Username: 'student', subject: activeSubjectValue, question: contextualQuestion, topic: null }),
-      });
-      const data: AskResponse | { detail?: string; error?: string } = await res.json();
-
-      if (!res.ok) {
-        const errDetail = (data as any).detail || (data as any).error || (data as any).message || null;
-        const statusText = `HTTP ${res.status}`;
-        const detail = errDetail ? `: ${errDetail}` : '';
-        setMessages((prev) => [
-          ...prev,
-          { id: `a-${Date.now()}`, role: 'assistant', text: `⚠️ ${statusText}${detail}` },
-        ]);
-        return;
-      }
-
-      const answer = (data as AskResponse).answer || '';
+      const { data } = await fetchAnswer(contextualQuestion);
+      const answer = data.answer || '';
       const botMsgId = `a-${Date.now()}`;
-      
-      await supabase.from('chat_messages').insert({
-        session_id: activeSessionId,
-        role: 'assistant',
-        content: answer,
-        metadata: data,
-      });
+
+      // Write user + assistant as a pair — only after a successful reply
+      await supabase.from('chat_messages').insert([
+        { session_id: activeSessionId, role: 'user', content: question },
+        { session_id: activeSessionId, role: 'assistant', content: answer, metadata: data },
+      ]);
 
       const botMsg: ChatMessage = {
         id: botMsgId, role: 'assistant', text: answer,
-        response: data as AskResponse, displayedLen: 0,
+        response: data, displayedLen: 0,
       };
-      setMessages((prev) => [...prev, botMsg]);
+      setMessages(prev => [...prev, botMsg]);
       startTypewriter(botMsg.id, answer);
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? `⚠️ ${err.message}` : '⚠️ Could not reach the server.';
-      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: errMsg }]);
+      const errMsg = err instanceof Error ? err.message : 'Could not reach the server.';
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'assistant',
+          text: errMsg,
+          isError: true,
+          originalQuestion: question,
+        },
+      ]);
     } finally {
+      stopLoadingPhases();
       setLoading(false);
     }
+  };
+
+  const handleResend = (question: string) => {
+    handleSend(question);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
+
+  // Cleanup loading timer on unmount
+  useEffect(() => () => { stopLoadingPhases(); }, []);
 
   const handleAddSection = (subjectValue: string) => {
     if (!activeSections.includes(subjectValue)) {
@@ -583,7 +642,7 @@ const AiChat: React.FC = () => {
       <div className={`
         fixed inset-y-0 left-0 z-40 flex
         transform transition-transform duration-300 ease-in-out
-        lg:relative lg:translate-x-0
+        lg:relative lg:translate-x-0 lg:z-50
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
 
@@ -815,8 +874,22 @@ const AiChat: React.FC = () => {
                       >
                         {isBot ? (
                           <div className="ai-answer-content text-gray-800 dark:text-gray-200">
-                            <span dangerouslySetInnerHTML={{ __html: formatAnswer(visibleText) }} />
-                            {isTyping && <span className="ai-cursor" />}
+                            {msg.isError ? (
+                              <div className="flex flex-col gap-2">
+                                <span className="text-red-500 dark:text-red-400 text-sm flex items-center gap-1.5">⚠️ {msg.text}</span>
+                                <button
+                                  onClick={() => msg.originalQuestion && handleResend(msg.originalQuestion)}
+                                  className="self-start flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 border border-gray-200 dark:border-gray-700 transition-colors"
+                                >
+                                  ↩ Resend
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div dangerouslySetInnerHTML={{ __html: formatAnswer(visibleText) }} />
+                                {isTyping && <span className="ai-cursor" />}
+                              </>
+                            )}
                           </div>
                         ) : (
                           <span>{msg.text}</span>
@@ -852,10 +925,20 @@ const AiChat: React.FC = () => {
                 <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 theme-avatar">
                    <activeSubject.icon size={16} className="theme-icon" />
                 </div>
-                <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm">
+                <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm flex items-center gap-3">
                   <div className="ai-thinking-dots text-gray-400 dark:text-gray-500">
                     <span /><span /><span />
                   </div>
+                  <motion.span
+                    key={loadingPhase}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                    className="text-xs text-gray-400 dark:text-gray-500 italic"
+                  >
+                    {LOADING_PHASES[loadingPhase]}
+                  </motion.span>
                 </div>
               </motion.div>
             )}
