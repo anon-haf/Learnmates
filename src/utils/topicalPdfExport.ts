@@ -729,7 +729,7 @@ export const mergeTopicalPDFs = async (
   selectedTopics: Set<string>,
   levelBoardSubject: { level: string; board: string; subject: string },
   onProgress?: (progress: ExportProgress) => void,
-  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number } = {},
+  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean } = {},
   filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
@@ -882,10 +882,11 @@ export const mergeTopicalPDFs = async (
   // Pass 2: lay out render items onto A4 pages
   // ---------------------------------------------------------------------------
 
+  const isWorksheet = options.worksheet !== false;
   const A4_WIDTH = 595.28;
   const A4_HEIGHT = 841.89;
-  const MARGIN = 40;
-  const SPACING = 12;
+  const MARGIN = isWorksheet ? 20 : 40;
+  const SPACING = isWorksheet ? 8 : 12;
   const PRINTABLE_WIDTH = A4_WIDTH - 2 * MARGIN;
   const PRINTABLE_HEIGHT = A4_HEIGHT - 2 * MARGIN;
 
@@ -893,6 +894,75 @@ export const mergeTopicalPDFs = async (
   const titleSize = 8 + (headerHeight * 0.15);
   const topicSize = 7 + (headerHeight * 0.1);
 
+  if (!isWorksheet) {
+    let lastQuestionNumber = -1;
+    for (let i = 0; i < renderItems.length; i++) {
+      const item = renderItems[i];
+      const needsHeader = options.headerPage && item.kind !== 'mcqAnswer' && item.questionNumber !== lastQuestionNumber;
+      if (item.questionNumber !== lastQuestionNumber) {
+        lastQuestionNumber = item.questionNumber;
+      }
+
+      if (item.kind === 'mcqAnswer') {
+        const bandH = 50;
+        const p = mergedPdf.addPage([A4_WIDTH, bandH]);
+        p.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
+        const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
+        const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
+        const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
+        p.drawText(safeRef, { x: 20, y: bandH / 2 - 11 / 3, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+        p.drawText(safeTitle, { x: (A4_WIDTH - titleW) / 2, y: bandH / 2 - 11 / 3, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+        const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
+        const answerW = boldFont.widthOfTextAtSize(answerText, 15);
+        p.drawText(answerText, { x: A4_WIDTH - answerW - 20, y: bandH / 2 - 15 / 3, size: 15, font: boldFont, color: rgb(0, 0.4, 0.2) });
+      } else {
+        const addedHeight = needsHeader ? headerHeight : 0;
+        const p = mergedPdf.addPage([item.srcWidth, item.srcHeight + addedHeight]);
+        
+        if (needsHeader) {
+          const bandY = item.srcHeight;
+          p.drawRectangle({ x: 0, y: bandY, width: item.srcWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
+          p.drawLine({ start: { x: 0, y: bandY }, end: { x: item.srcWidth, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+          
+          const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
+          const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
+          const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+          const textY = bandY + headerHeight / 2 - titleSize / 3;
+          
+          p.drawText(safeRef, { x: 10, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+          p.drawText(safeTitle, { x: (item.srcWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+
+          const topicsText = item.question.topicMatches && item.question.topicMatches.length > 0
+            ? formatTopicHeaderText(item.question.topicMatches) : '';
+          if (topicsText) {
+            const maxW = item.srcWidth - 30 - 150;
+            let rendered = sanitizeForPdf(topicsText);
+            while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxW && rendered.length > 0) rendered = rendered.slice(0, -1);
+            if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
+            const renderedW = regularFont.widthOfTextAtSize(rendered, topicSize);
+            p.drawText(rendered, { x: item.srcWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.25, 0.25, 0.25) });
+          }
+        }
+
+        if (item.kind === 'pdfPage') {
+          p.drawPage(item.embedded, { x: 0, y: 0, width: item.srcWidth, height: item.srcHeight });
+        } else {
+          p.drawImage(item.image, { x: 0, y: 0, width: item.srcWidth, height: item.srcHeight });
+        }
+      }
+
+      if (options.extraPage && type === 'questions') {
+        const nextItem = renderItems[i + 1];
+        if (!nextItem || nextItem.questionNumber !== item.questionNumber) {
+          await addBlankPageToPdf(mergedPdf, item.kind === 'mcqAnswer' ? A4_WIDTH : item.srcWidth, item.kind === 'mcqAnswer' ? A4_HEIGHT : item.srcHeight);
+        }
+      }
+    }
+    const pdfBytes = await mergedPdf.save();
+    return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+  }
+
+  // --- isWorksheet (uses A4 mapping) ---
   let currentPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
   let currentY = A4_HEIGHT - MARGIN;
 
@@ -901,7 +971,6 @@ export const mergeTopicalPDFs = async (
     currentY = A4_HEIGHT - MARGIN;
   };
 
-  // Draw the merged header band at the current Y position and advance currentY
   const drawHeaderBand = (item: RenderItem & { question: Question; questionNumber: number }, bandWidth: number) => {
     if (!options.headerPage || headerHeight === 0) return;
     const bandY = currentY - headerHeight;
@@ -1024,7 +1093,6 @@ export const mergeTopicalPDFs = async (
   } else {
     for (const item of renderItems) {
       if (item.kind === 'mcqAnswer') {
-        // MCQ answers: draw a small answer band on the current A4 page
         const bandH = 25;
         if (currentY - bandH < MARGIN) newA4Page();
         const bandY = currentY - bandH;
@@ -1051,12 +1119,10 @@ export const mergeTopicalPDFs = async (
         continue;
       }
 
-      // Determine scaled dimensions to fit within PRINTABLE_WIDTH
       let scale = PRINTABLE_WIDTH / item.srcWidth;
       let scaledWidth = PRINTABLE_WIDTH;
       let scaledHeight = item.srcHeight * scale;
 
-      // If taller than a full printable page, scale down to fit page height
       const maxContentHeight = PRINTABLE_HEIGHT - headerHeight;
       if (scaledHeight > maxContentHeight) {
         scale = maxContentHeight / item.srcHeight;
@@ -1064,20 +1130,15 @@ export const mergeTopicalPDFs = async (
         scaledHeight = maxContentHeight;
       }
 
-      // For PDF pages that are the first page of a question and header is enabled,
-      // the header band occupies space above the content on the same A4 block
       const needsHeader = options.headerPage && item.kind === 'pdfPage' && item.isFirstPage;
       const totalHeight = scaledHeight + (needsHeader ? headerHeight : 0);
 
-      // Check if it fits on current page; start new A4 if not
       if (currentY - totalHeight < MARGIN) {
-        // Only move to new page if current page already has content
         if (currentY < A4_HEIGHT - MARGIN) {
           newA4Page();
         }
       }
 
-      // Draw header band (advances currentY by headerHeight)
       if (needsHeader) {
         drawHeaderBand(item as any, scaledWidth);
       }
@@ -1114,7 +1175,7 @@ export const downloadMergedTopicalPDFs = async (
     onDone?: () => void;
     onError?: (message: string) => void;
   } = {},
-  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number } = {},
+  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean } = {},
   filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
 ) => {
   if (questions.length === 0) {

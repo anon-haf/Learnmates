@@ -512,11 +512,16 @@ const AiChat: React.FC = () => {
     setConfirmModal({
       open: true,
       message: 'Remove this section from your workspace? Your chats will remain saved in history.',
-      onConfirm: () => {
+      onConfirm: async () => {
         setConfirmModal(m => ({ ...m, open: false }));
         const newSections = activeSections.filter(s => s !== subjectValue);
         setActiveSections(newSections);
         localStorage.setItem('ai_chat_sections', JSON.stringify(newSections));
+
+        // Delete all chat sessions for this subject in DB
+        await supabase.from('chat_sessions').delete().eq('subject', subjectValue);
+        setSessions(prev => prev.filter(s => s.subject !== subjectValue));
+
         if (activeSubjectValue === subjectValue) {
           if (newSections.length > 0) {
             setActiveSubjectValue(newSections[0]);
@@ -642,19 +647,12 @@ const AiChat: React.FC = () => {
       <div className={`
         fixed inset-y-0 left-0 z-40 flex
         transform transition-transform duration-300 ease-in-out
-        lg:relative lg:translate-x-0 lg:z-50
+        lg:relative lg:translate-x-0 lg:z-30
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
 
       {/* ── Outer column: Section Icons ── */}
       <div className="w-[72px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center py-4 gap-3 shrink-0">
-        {/* Workspace Home Icon */}
-        <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shrink-0 border border-blue-200 dark:border-blue-800">
-          <Sparkles size={24} />
-        </div>
-        
-        <div className="w-8 h-px bg-gray-200 dark:bg-gray-700 shrink-0 mb-1" />
-
         <div className="flex-1 overflow-y-auto w-full flex flex-col items-center gap-3 px-2 no-scrollbar">
           <AnimatePresence initial={false}>
             {activeSections.map((val, idx) => {
@@ -815,9 +813,6 @@ const AiChat: React.FC = () => {
                 transition={{ duration: 0.5 }}
                 className="flex flex-col items-center justify-center py-16 sm:py-24 text-center"
               >
-                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 mb-6 theme-icon-container">
-                  <activeSubject.icon size={36} className="theme-icon" />
-                </div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
                   {activeSubject.label}
                 </h1>

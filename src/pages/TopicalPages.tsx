@@ -273,6 +273,7 @@ const TopicalPages: React.FC = () => {
   const [extraPageEnabled, setExtraPageEnabled] = useState(false);
   const [headerPageEnabled, setHeaderPageEnabled] = useState(true);
   const [headerSize, setHeaderSize] = useState<number>(25);
+  const [worksheetEnabled, setWorksheetEnabled] = useState(true);
   const [loadId, setLoadId] = useState<number>(0);
 
   const {
@@ -595,7 +596,7 @@ const TopicalPages: React.FC = () => {
     setNeedLoad(true);
   };
 
-  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number }) => {
+  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number; worksheet?: boolean }) => {
     // Get topics from localStorage if checked is empty
     const key = `topical_checked_${selectedLevel}_${selectedBoard}_${selectedSubject}`;
     const storedTopicsStr = localStorage.getItem(key);
@@ -634,7 +635,8 @@ const TopicalPages: React.FC = () => {
       {
         extraPage: options?.extraPage ?? extraPageEnabled,
         headerPage: options?.headerPage ?? headerPageEnabled,
-        headerSize: options?.headerSize ?? headerSize
+        headerSize: options?.headerSize ?? headerSize,
+        worksheet: options?.worksheet ?? worksheetEnabled
       },
       {
         papers: Array.from(paperFilter),
@@ -857,6 +859,9 @@ const TopicalPages: React.FC = () => {
                       onHeaderPageToggle={setHeaderPageEnabled}
                       headerSize={headerSize}
                       onHeaderSizeChange={setHeaderSize}
+                      showWorksheetOption={true}
+                      worksheetEnabled={worksheetEnabled}
+                      onWorksheetToggle={setWorksheetEnabled}
                       loadId={loadId}
                     />
                   </div>

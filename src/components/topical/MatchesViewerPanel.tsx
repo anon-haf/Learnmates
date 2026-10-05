@@ -9,7 +9,7 @@ interface MatchesViewerPanelProps {
   hasLoadedOnce: boolean;
   loadingProgress: { current: number; total: number; isLoading: boolean };
   showUnitTags: boolean;
-  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean }) => void;
+  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; worksheet?: boolean }) => void;
   onExpandPicker?: () => void;
   loadFeedback?: string | null;
   showExtraPageOption?: boolean;
@@ -20,6 +20,9 @@ interface MatchesViewerPanelProps {
   onHeaderPageToggle?: (enabled: boolean) => void;
   headerSize?: number;
   onHeaderSizeChange?: (size: number) => void;
+  showWorksheetOption?: boolean;
+  worksheetEnabled?: boolean;
+  onWorksheetToggle?: (enabled: boolean) => void;
   loadId?: number;
 }
 
@@ -46,6 +49,9 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
   onHeaderPageToggle,
   headerSize,
   onHeaderSizeChange,
+  showWorksheetOption = false,
+  worksheetEnabled = true,
+  onWorksheetToggle,
   loadId,
 }) => {
   return (
@@ -75,6 +81,9 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
               onHeaderPageToggle={onHeaderPageToggle}
               headerSize={headerSize}
               onHeaderSizeChange={onHeaderSizeChange}
+              showWorksheetOption={showWorksheetOption}
+              worksheetEnabled={worksheetEnabled}
+              onWorksheetToggle={onWorksheetToggle}
             />
           )}
           {hasLoadedOnce && (

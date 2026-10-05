@@ -3,7 +3,7 @@ import { btnSecondary, dropdownPanel, dropdownItem } from './ui';
 import TopicalCheckbox from './Checkbox';
 
 interface ExportMenuProps {
-  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean }) => void;
+  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; worksheet?: boolean }) => void;
   showExtraPageOption?: boolean;
   extraPageEnabled?: boolean;
   onExtraPageToggle?: (enabled: boolean) => void;
@@ -12,6 +12,9 @@ interface ExportMenuProps {
   onHeaderPageToggle?: (enabled: boolean) => void;
   headerSize?: number;
   onHeaderSizeChange?: (size: number) => void;
+  showWorksheetOption?: boolean;
+  worksheetEnabled?: boolean;
+  onWorksheetToggle?: (enabled: boolean) => void;
 }
 
 const EXTRA_PAGE_EXPLANATION =
@@ -22,6 +25,10 @@ const EXTRA_PAGE_EXPLANATION =
 const HEADER_PAGE_EXPLANATION =
   "Adds a separate reference page above each question showing the question title and topic codes. " +
   "Useful for quickly identifying questions when printing or reviewing.";
+
+const WORKSHEET_EXPLANATION =
+  "By default (enabled), questions are squeezed together and margins are minimized to save space. " +
+  "When disabled, every question starts on a fresh page with standard margins.";
 
 
 
@@ -36,14 +43,19 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   headerPageEnabled = false,
   onHeaderPageToggle,
   headerSize,
-  onHeaderSizeChange
+  onHeaderSizeChange,
+  showWorksheetOption = false,
+  worksheetEnabled = true,
+  onWorksheetToggle
 }) => {
   const [open, setOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [headerInfoOpen, setHeaderInfoOpen] = useState(false);
+  const [worksheetInfoOpen, setWorksheetInfoOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
   const headerInfoRef = useRef<HTMLDivElement>(null);
+  const worksheetInfoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -75,7 +87,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
         <div className={`${dropdownPanel} right-0 w-64`}>
           <button
             onClick={() => {
-              onExport('questions', { extraPage: extraPageEnabled, headerPage: headerPageEnabled, headerSize: headerSize });
+              onExport('questions', { extraPage: extraPageEnabled, headerPage: headerPageEnabled, headerSize: headerSize, worksheet: worksheetEnabled });
               setOpen(false);
             }}
             className={dropdownItem}
@@ -85,7 +97,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
           </button>
           <button
             onClick={() => {
-              onExport('markschemes', { extraPage: false, headerPage: headerPageEnabled, headerSize: headerSize });
+              onExport('markschemes', { extraPage: false, headerPage: headerPageEnabled, headerSize: headerSize, worksheet: worksheetEnabled });
               setOpen(false);
             }}
             className={dropdownItem}
@@ -94,7 +106,7 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
             Mark Schemes PDF
           </button>
 
-          {(showExtraPageOption || showHeaderOptions) && (
+          {(showExtraPageOption || showHeaderOptions || showWorksheetOption) && (
             <>
               <div className="my-1.5 border-t border-gray-200 dark:border-gray-700" />
 
@@ -134,6 +146,44 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
                       >
                         <div className="absolute -top-1 right-1.5 h-2 w-2 rotate-45 border-l border-t border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800" />
                         {EXTRA_PAGE_EXPLANATION}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {showWorksheetOption && (
+                <div className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <TopicalCheckbox
+                      checked={worksheetEnabled}
+                      onChange={() => onWorksheetToggle?.(!worksheetEnabled)}
+                    />
+                    <span>Worksheet Mode</span>
+                  </label>
+
+                  <div className="relative" ref={worksheetInfoRef}>
+                    <button
+                      type="button"
+                      onClick={() => setWorksheetInfoOpen(prev => !prev)}
+                      className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] transition-colors ${
+                        worksheetInfoOpen
+                          ? 'border-purple-400 bg-purple-50 text-purple-600 dark:border-purple-500 dark:bg-purple-500/10 dark:text-purple-300'
+                          : 'border-gray-300 text-gray-500 hover:bg-gray-200 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700'
+                      }`}
+                      aria-label="What does worksheet mode do?"
+                      aria-expanded={worksheetInfoOpen}
+                    >
+                      i
+                    </button>
+
+                    {worksheetInfoOpen && (
+                      <div
+                        role="tooltip"
+                        className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white p-3 text-xs leading-relaxed text-gray-600 shadow-lg dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                      >
+                        <div className="absolute -top-1 right-1.5 h-2 w-2 rotate-45 border-l border-t border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800" />
+                        {WORKSHEET_EXPLANATION}
                       </div>
                     )}
                   </div>
