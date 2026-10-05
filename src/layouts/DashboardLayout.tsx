@@ -25,7 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDarkMode } from '../context/DarkModeContext';
 import { useUser } from '../context/UserContext';
 import { fetchProfile } from '../utils/profileSync';
-import NibrasIcon from '../assets/logos/nibras_icon.svg?react';
+import NibrasIcon from '../assets/logos/nibras.svg?react';
 import { useLockInSession } from '../components/lock-in/LockInContext';
 
 interface DashboardLayoutProps {
