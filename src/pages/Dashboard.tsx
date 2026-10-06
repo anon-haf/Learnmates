@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight, Bookmark, Plus, X, Pencil } from 'lucide-react';
+import { ArrowRight, Bookmark, Plus, X, Pencil, Sparkles } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useAuth } from '../context/AuthContext';
+import { useUserRole } from '../hooks/useUserRole';
 
 import {
   getTopicSlug,
@@ -79,6 +80,9 @@ const Dashboard: React.FC = () => {
   const { user, setUser } = useUser();
   const { user: authUser } = useAuth();
   useRouteBase();
+  const navigate = useNavigate();
+  const { role } = useUserRole(authUser?.id);
+  const isTester = role === 'tester';
   const [favoriteSubjects, setFavoriteSubjects] = useState<FavoriteSubject[]>([]);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [isEditingSubjects, setIsEditingSubjects] = useState(false);
@@ -204,6 +208,39 @@ const Dashboard: React.FC = () => {
       </Helmet>
 
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
+        {isTester && (
+          <motion.div
+            variants={itemVariants}
+            className="mb-6 rounded-2xl overflow-hidden"
+          >
+            <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-5 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 shadow-lg">
+              {/* Subtle background shimmer */}
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.12)_0%,_transparent_60%)] pointer-events-none" />
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-base leading-tight">
+                    You have early access to AI Chat! 🎉
+                  </p>
+                  <p className="text-violet-200 text-sm mt-0.5">
+                    Try our AI tutor — ask anything about your subjects.
+                  </p>
+                </div>
+              </div>
+              <button
+                id="tester-ai-cta-btn"
+                onClick={() => navigate('/ai')}
+                className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-purple-700 font-semibold text-sm shadow-md hover:bg-violet-50 active:scale-95 transition-all duration-150"
+              >
+                Try AI Chat
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <motion.div variants={itemVariants}>

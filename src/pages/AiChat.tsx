@@ -921,16 +921,13 @@ const AiChat: React.FC = () => {
                    <activeSubject.icon size={16} className="theme-icon" />
                 </div>
                 <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm flex items-center gap-3">
-                  <div className="ai-thinking-dots text-gray-400 dark:text-gray-500">
-                    <span /><span /><span />
-                  </div>
                   <motion.span
                     key={loadingPhase}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.35 }}
-                    className="text-xs text-gray-400 dark:text-gray-500 italic"
+                    className="text-sm text-gray-500 dark:text-gray-400 italic animate-pulse"
                   >
                     {LOADING_PHASES[loadingPhase]}
                   </motion.span>

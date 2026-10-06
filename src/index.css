@@ -15,12 +15,25 @@
 }
 
 @layer utilities {
+	/* When reduced motion is enabled, zero-out ALL animation and transition
+	   durations to prevent any flash or motion — including on ::before/::after
+	   pseudo-elements used by some animations. */
 	.reduce-motion *,
 	.reduce-motion *::before,
 	.reduce-motion *::after {
-		animation-duration: 0.01ms !important;
+		animation-duration: 0s !important;
+		animation-delay: 0s !important;
 		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
+		transition-duration: 0s !important;
+		transition-delay: 0s !important;
 		scroll-behavior: auto !important;
+	}
+
+	/* Framer-motion elements that start invisible (opacity:0) can flash
+	   when reduced motion is on. Force them visible immediately. */
+	.reduce-motion [data-framer-motion],
+	.reduce-motion [style*="opacity: 0"],
+	.reduce-motion [style*="opacity:0"] {
+		opacity: 1 !important;
 	}
 }

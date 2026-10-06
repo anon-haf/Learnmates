@@ -22,7 +22,7 @@ export function ReducedMotionProvider({ children }: { children: React.ReactNode 
   // Apply changes to DOM and localStorage
   useEffect(() => {
     localStorage.setItem('prefers-reduced-motion', String(isReducedMotion));
-    
+
     if (isReducedMotion) {
       document.documentElement.classList.add('reduce-motion');
     } else {
@@ -30,12 +30,24 @@ export function ReducedMotionProvider({ children }: { children: React.ReactNode 
     }
   }, [isReducedMotion]);
 
-  // Listen for system preference changes if no manual preference is set?
-  // Usually, if a user overrides it, we keep their override.
-
   return (
     <ReducedMotionContext.Provider value={{ isReducedMotion, setIsReducedMotion }}>
-      <MotionConfig reducedMotion={isReducedMotion ? "always" : "never"}>
+      {/*
+        When reduced motion is on:
+        - reducedMotion="always" tells framer-motion to skip animations
+        - We also pass transition={{ duration: 0 }} to ensure no lingering
+          timing on any motion component
+        
+        Note: framer-motion's reducedMotion="always" still processes initial
+        states (e.g. opacity:0), which causes a brief flash on mount.
+        The CSS .reduce-motion rule (with animation/transition-duration: 0s)
+        handles CSS-based animations, while ProtectedRoute and other screen-level
+        components check isReducedMotion to skip their initial states.
+      */}
+      <MotionConfig
+        reducedMotion={isReducedMotion ? 'always' : 'never'}
+        transition={isReducedMotion ? { duration: 0 } : undefined}
+      >
         {children}
       </MotionConfig>
     </ReducedMotionContext.Provider>
