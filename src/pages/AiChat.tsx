@@ -675,7 +675,9 @@ const AiChat: React.FC = () => {
                   <motion.button
                     onClick={() => {
                       setActiveSubjectValue(s.value);
-                      handleNewChat();
+                      // Only clear chat, do NOT close sidebar on mobile when switching subject
+                      setCurrentSessionId(null);
+                      setMessages([]);
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -750,7 +752,7 @@ const AiChat: React.FC = () => {
         </div>
         
         <div className="p-3">
-          <Button onClick={handleNewChat} className="w-full justify-start shadow-sm" variant="default" leftIcon={<Plus size={16} />}>
+          <Button onClick={handleNewChat} className="w-full justify-start shadow-sm bg-gray-900 hover:bg-gray-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white" variant="primary" leftIcon={<Plus size={16} />}>
             New Chat
           </Button>
         </div>
@@ -951,33 +953,33 @@ const AiChat: React.FC = () => {
         </div>
 
         {/* ── Input area ── */}
-        <div className="shrink-0 p-4 w-full relative z-10 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-gray-950 dark:via-gray-950 pt-8 -mt-8">
-          <div className="max-w-4xl mx-auto rounded-[2rem] border border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 shadow-lg px-5 sm:px-6 py-4">
-            <div className="flex items-end gap-3">
+        <div className="shrink-0 p-3 w-full relative z-10 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent dark:from-gray-950 dark:via-gray-950 pt-6 -mt-6">
+          <div className="max-w-4xl mx-auto rounded-[1.5rem] border border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 shadow-lg px-4 sm:px-5 py-2">
+            <div className="flex items-center gap-2">
               <textarea
                 ref={textareaRef}
-                className="flex-1 resize-none bg-transparent border-0 px-0 py-3 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-0"
+                className="flex-1 resize-none bg-transparent border-0 px-0 py-2 text-sm leading-relaxed text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-0"
                 rows={1}
                 placeholder={`Ask about ${activeSubject.label}…`}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={loading}
-                style={{ maxHeight: '150px', overflowY: 'auto' }}
+                style={{ maxHeight: '120px', overflowY: 'auto' }}
               />
               <button
                 type="button"
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={loading || !input.trim()}
-                className="flex-shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
+                className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 aria-label="Send"
               >
-                <ArrowRight size={20} />
+                <ArrowRight size={18} />
               </button>
             </div>
           </div>
-          <div className="max-w-4xl mx-auto mt-2 text-center">
-            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+          <div className="max-w-4xl mx-auto mt-1.5 text-center">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">
               AI Tutor can make mistakes. Check important information.
             </p>
           </div>
