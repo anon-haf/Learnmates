@@ -46,6 +46,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (import.meta.env.DEV) {
+        (window as any).mockLogin = () => {
+          localStorage.setItem('DEV_MOCK_LOGIN', 'true');
+          window.location.reload();
+        };
+        (window as any).mockLogout = () => {
+          localStorage.removeItem('DEV_MOCK_LOGIN');
+          window.location.reload();
+        };
+        
+        if (localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+          const mockUser = {
+            id: '00000000-0000-0000-0000-000000000000',
+            email: 'dev@localhost',
+            user_metadata: { name: 'Dev User' },
+            role: 'authenticated',
+            app_metadata: {},
+            aud: 'authenticated',
+            created_at: new Date().toISOString()
+          } as User;
+          const mockSession = {
+            access_token: 'mock-token',
+            refresh_token: 'mock-refresh',
+            expires_in: 3600,
+            token_type: 'bearer',
+            user: mockUser
+          } as Session;
+          
+          setSession(mockSession);
+          setUser(mockUser);
+          setLoading(false);
+          return;
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
@@ -56,6 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     void initAuth();
+
+    if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+      return; // Skip setting up real auth listener
+    }
 
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {

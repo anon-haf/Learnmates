@@ -9,7 +9,7 @@ import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, isCambridgeScienceMcqSubject, getPaperKeyFromFileName } from '../utils/topicalHelpers';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
-import { commitDownloadAward } from '../utils/awardDownloadXP';
+import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
 
 import Dropdown from '../components/topical/Dropdown';
 
@@ -132,6 +132,10 @@ async function downloadPaperQP(
       resourceName: filename,
       resourceType: 'paper',
     });
+    await logDownload({
+      action: 'past_paper_download',
+      url: formatPaperOrTopicalUrl(board, level, subject, filename),
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -183,6 +187,10 @@ async function downloadPaperMS(
       resourceId: `${paper.key}_markschemes`,
       resourceName: filename,
       resourceType: 'paper',
+    });
+    await logDownload({
+      action: 'past_paper_download',
+      url: formatPaperOrTopicalUrl(board, level, subject, filename),
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -242,10 +250,15 @@ async function downloadYearQPZip(
     );
 
     const content = await zip.generateAsync({ type: 'blob' });
+    const filename = `${subject} ${year} - All Question Papers.zip`;
+    await logDownload({
+      action: 'past_paper_download',
+      url: formatPaperOrTopicalUrl(board, level, subject, filename),
+    });
     const url = URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${subject} ${year} - All Question Papers.zip`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -304,10 +317,15 @@ async function downloadYearMSZip(
     );
 
     const content = await zip.generateAsync({ type: 'blob' });
+    const filename = `${subject} ${year} - All Mark Schemes.zip`;
+    await logDownload({
+      action: 'past_paper_download',
+      url: formatPaperOrTopicalUrl(board, level, subject, filename),
+    });
     const url = URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${subject} ${year} - All Mark Schemes.zip`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

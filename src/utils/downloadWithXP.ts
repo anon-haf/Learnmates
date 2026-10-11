@@ -1,6 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
 import { triggerXPNotification } from '../components/XPRewardNotification';
 import type { DownloadResourceType } from './awardDownloadXP';
+import {
+  logDownload,
+  formatResourceUrl,
+  normalizePaperOrTopicalUrl,
+  type DownloadAction,
+} from './downloadLogger';
 // DownloadResourceType is defined in awardDownloadXP.ts to keep a single import path for components.
 
 const ACTION_BY_TYPE: Record<DownloadResourceType, string> = {
@@ -91,6 +97,24 @@ export async function downloadFileWithXP({
   resourceType: DownloadResourceType;
   filename: string;
 }): Promise<number> {
+  // Always log download event for logged in users
+  const downloadAction: DownloadAction =
+    resourceType === 'paper'
+      ? 'past_paper_download'
+      : resourceType === 'topical_paper'
+      ? 'topical_download'
+      : 'resource_download';
+
+  const downloadUrl =
+    downloadAction === 'resource_download'
+      ? formatResourceUrl(url)
+      : normalizePaperOrTopicalUrl(url, { fileName: filename || resourceName });
+
+  await logDownload({
+    action: downloadAction,
+    url: downloadUrl,
+  });
+
   const token = await getAccessToken();
   if (!token) return 0;
 
@@ -105,6 +129,7 @@ export async function downloadFileWithXP({
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`,
+      'X-Client-Logged': 'true',
     },
     redirect: 'manual',
   });

@@ -14,6 +14,12 @@ export function useUserRole(userId: string | undefined) {
 
     let isMounted = true;
 
+    if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+      setRole('tester');
+      setLoading(false);
+      return;
+    }
+
     const fetchRole = async () => {
       setLoading(true);
       const { data, error } = await supabase

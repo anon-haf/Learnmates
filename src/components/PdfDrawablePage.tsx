@@ -245,6 +245,27 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const [rendered, setRendered] = useState(false);
   const [pageHeight, setPageHeight] = useState(() => pageWidth * A4_ASPECT);
   const [pageImgSrc, setPageImgSrc] = useState<string | null>(null);
+  const [invertActive, setInvertActive] = useState(() => {
+    try {
+      return localStorage.getItem('universal-pdf-invert-colors') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const sync = () => {
+      try {
+        setInvertActive(localStorage.getItem('universal-pdf-invert-colors') === 'true');
+      } catch {}
+    };
+    window.addEventListener('pdf-invert-colors-changed', sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener('pdf-invert-colors-changed', sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
   const lastViewportKeyRef = useRef<string>('');
 
   useEffect(() => {
@@ -804,7 +825,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
         {rendered && (
           <canvas
             ref={drawCanvasRef}
-            className={`absolute z-20 ${cursorClass}`}
+            className={`absolute z-20 ${cursorClass} ${invertActive ? 'invert hue-rotate-180' : ''}`}
             style={{
               touchAction: !drawingEnabled
                 ? 'auto'

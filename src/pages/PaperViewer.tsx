@@ -10,7 +10,7 @@ import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { ReportModal } from '../components/ReportModal';
 import { McqCheckerHeader, McqOptionButton } from '../components/McqChecker';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
-import { commitDownloadAward } from '../utils/awardDownloadXP';
+import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
 
 interface PaperEntry {
@@ -533,6 +533,10 @@ const PaperViewerPage: React.FC = () => {
                       resourceName: filename,
                       resourceType: 'paper',
                     });
+                    await logDownload({
+                      action: 'past_paper_download',
+                      url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
+                    });
                     const a = document.createElement('a');
                     a.href = fullPaperPdfUrl;
                     a.download = filename;
@@ -556,6 +560,10 @@ const PaperViewerPage: React.FC = () => {
                       resourceId: `${paperKey}_markschemes`,
                       resourceName: filename,
                       resourceType: 'paper',
+                    });
+                    await logDownload({
+                      action: 'past_paper_download',
+                      url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
                     });
                     const a = document.createElement('a');
                     a.href = fullPaperMsUrl;

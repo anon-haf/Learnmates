@@ -6,7 +6,7 @@ import MediaViewer from './MediaViewer';
 import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
-import { commitDownloadAward, downloadFileWithXP } from '../utils/awardDownloadXP';
+import { commitDownloadAward, downloadFileWithXP, logDownload, normalizePaperOrTopicalUrl } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -99,6 +99,10 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
           resourceId: url,
           resourceName: filename,
           resourceType: 'paper',
+        });
+        await logDownload({
+          action: 'past_paper_download',
+          url: normalizePaperOrTopicalUrl(url, { fileName: filename }),
         });
         const link = document.createElement('a');
         link.href = absoluteUrl;
@@ -530,10 +534,16 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
         document.head.removeChild(style);
       }
 
+      const filename = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_${type === 'questions' ? 'All_Questions' : 'All_Mark_Schemes'}.pdf`;
+      const sampleUrl = quiz.folderPath || validQuestions[0]?.questionContent || '';
+      await logDownload({
+        action: 'past_paper_download',
+        url: normalizePaperOrTopicalUrl(sampleUrl, { fileName: filename }),
+      });
+
       const downloadUrl = window.URL.createObjectURL(mergedBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      const filename = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_${type === 'questions' ? 'All_Questions' : 'All_Mark_Schemes'}.pdf`;
       link.download = filename;
       document.body.appendChild(link);
       link.click();

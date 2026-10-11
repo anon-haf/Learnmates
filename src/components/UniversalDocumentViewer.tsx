@@ -47,7 +47,7 @@ import {
 } from '../utils/pdfIndexedDBStorage';
 import { useMeaningfulReadTracker } from '../hooks/useMeaningfulReadTracker';
 import { useEngagement } from '../context/EngagementContext';
-import { downloadFileWithXP } from '../utils/awardDownloadXP';
+import { downloadFileWithXP, logDownload, formatResourceUrl } from '../utils/awardDownloadXP';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -812,6 +812,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       } catch (xpError) {
         console.warn('Download with XP failed, falling back to direct download:', xpError);
       }
+    } else {
+      await logDownload({
+        action: 'resource_download',
+        url: formatResourceUrl(pdfUrl),
+      });
     }
 
     const link = document.createElement('a');
@@ -1012,7 +1017,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
           </div>
         </div>
       )}
-      {!hideToolbar && <div className="bg-gray-800 border-b border-gray-700 px-3 py-2 sm:px-4 sm:py-2.5 md:py-3 flex items-center justify-between gap-2 sm:gap-3">
+      {!hideToolbar && <div className="bg-gray-800 border-b border-gray-700 px-1.5 py-0.5 sm:px-2 sm:py-1 flex items-center justify-between gap-1.5 sm:gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {mode === 'inline' && (
             <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
@@ -1551,21 +1556,6 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         </div>
       </div>
 
-      <div className="bg-gray-800 border-t border-gray-700 px-4 py-2 text-xs text-gray-400 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span>Page {currentPage} of {numPages}</span>
-          {isSaving && (
-            <span className="flex items-center gap-1 text-blue-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-              Saving...
-            </span>
-          )}
-          {isDirty && !isSaving && (
-            <span className="text-orange-400">●</span>
-          )}
-        </div>
-        <span>Zoom: {Math.round(zoom)}% · Ctrl+scroll to zoom</span>
-      </div>
     </div>
   );
 };

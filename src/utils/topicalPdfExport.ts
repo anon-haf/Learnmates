@@ -2,8 +2,7 @@
 import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage, PDFEmbeddedPage } from 'pdf-lib';
 import { Question } from '../components/TopicalQuiz';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
-import { topicalConfigs } from '../pages/topicalpagesdata';
-import { commitDownloadAward } from './awardDownloadXP';
+import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from './awardDownloadXP';
 
 export type ExportType = 'questions' | 'markschemes';
 
@@ -661,11 +660,33 @@ export const createCoverPage = async (
 // Per-question header page
 // ---------------------------------------------------------------------------
 
+const drawRoundedHeaderBackground = (
+  page: PDFPage,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number = 5,
+  fillColor = rgb(0.92, 0.92, 0.94)
+) => {
+  const r = Math.min(radius, width / 2, height / 2);
+  const pathData = `M ${r} 0 ` +
+    `L ${width - r} 0 ` +
+    `A ${r} ${r} 0 0 1 ${width} ${r} ` +
+    `L ${width} ${height - r} ` +
+    `A ${r} ${r} 0 0 1 ${width - r} ${height} ` +
+    `L ${r} ${height} ` +
+    `A ${r} ${r} 0 0 1 0 ${height - r} ` +
+    `L 0 ${r} ` +
+    `A ${r} ${r} 0 0 1 ${r} 0 Z`;
+  page.drawSvgPath(pathData, { x, y: y + height, color: fillColor });
+};
+
 export const createHeaderPage = async (
   pdf: PDFDocument,
   question: Question,
   questionNumber: number,
-  type: ExportType,
+  _type: ExportType,
   width: number,
   boldFont: PDFFont,
   regularFont: PDFFont,
@@ -673,9 +694,7 @@ export const createHeaderPage = async (
 ) => {
   const page = pdf.addPage([width, headerHeight]);
 
-  page.drawRectangle({ x: 0, y: 0, width, height: headerHeight, color: rgb(0.85, 0.85, 0.85) });
-  page.drawLine({ start: { x: 0, y: headerHeight - 1 }, end: { x: width, y: headerHeight - 1 }, thickness: 1, color: rgb(0.65, 0.65, 0.65) });
-  page.drawLine({ start: { x: 0, y: 0 }, end: { x: width, y: 0 }, thickness: 1, color: rgb(0.65, 0.65, 0.65) });
+  drawRoundedHeaderBackground(page, 0, 0, width, headerHeight, 5, rgb(0.92, 0.92, 0.94));
 
   const titleText = question.title || `Question ${questionNumber}`;
   const questionRefText = `Question ${questionNumber}`;
@@ -690,10 +709,10 @@ export const createHeaderPage = async (
 
   const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
 
-  page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+  page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
   const centerX = (width - titleWidth) / 2;
-  page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+  page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
   if (topicsText) {
     const maxWidth = width - 20 - 170;
@@ -709,7 +728,7 @@ export const createHeaderPage = async (
       y: (headerHeight / 2) - (topicSize / 3),
       size: topicSize,
       font: regularFont,
-      color: rgb(0.25, 0.25, 0.25),
+      color: rgb(0.35, 0.4, 0.45),
     });
   }
 };
@@ -729,7 +748,7 @@ export const mergeTopicalPDFs = async (
   selectedTopics: Set<string>,
   levelBoardSubject: { level: string; board: string; subject: string },
   onProgress?: (progress: ExportProgress) => void,
-  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean } = {},
+  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean } = {},
   filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
@@ -754,12 +773,6 @@ export const mergeTopicalPDFs = async (
   for (let i = 0; i < questions.length; i++) {
     const question = questions[i];
 
-    // For mark scheme exports, an MCQ answer letter (from mcq_ans.json) takes
-    // priority over question.markScheme. markScheme is a *derived* path built
-    // by string-substitution on the question file name - for MCQ questions it
-    // often points at a mark scheme PDF that was never generated, so treating
-    // it as authoritative causes real 404s. We already know the real answer,
-    // so skip the fetch entirely whenever mcqAnswer is available.
     if (type === 'markschemes' && question.mcqAnswer) {
       fetchTasks.push({ questionIndex: i, question, url: '', fileType: 'mcqAnswer' });
       continue;
@@ -768,16 +781,25 @@ export const mergeTopicalPDFs = async (
     const fileUrl = type === 'questions' ? question.questionContent : question.markScheme;
     const fileType = type === 'questions' ? question.questionContentType : question.markSchemeType;
 
-    if (!fileUrl) {
-      console.warn(`Skipping question ${i + 1}: no file URL`);
-      continue;
+    if (fileUrl) {
+      const absoluteUrl = fileUrl.startsWith('http') || fileUrl.startsWith('blob:')
+        ? fileUrl
+        : new URL(fileUrl, window.location.origin).href;
+
+      fetchTasks.push({ questionIndex: i, question, url: absoluteUrl, fileType: fileType || 'unknown' });
     }
 
-    const absoluteUrl = fileUrl.startsWith('http') || fileUrl.startsWith('blob:')
-      ? fileUrl
-      : new URL(fileUrl, window.location.origin).href;
-
-    fetchTasks.push({ questionIndex: i, question, url: absoluteUrl, fileType: fileType || 'unknown' });
+    if (type === 'questions' && options.interleaveMs) {
+      if (question.mcqAnswer) {
+        fetchTasks.push({ questionIndex: i, question, url: '', fileType: 'mcqAnswer' });
+      } else if (question.markScheme) {
+        const msUrl = question.markScheme;
+        const absoluteMsUrl = msUrl.startsWith('http') || msUrl.startsWith('blob:')
+          ? msUrl
+          : new URL(msUrl, window.location.origin).href;
+        fetchTasks.push({ questionIndex: i, question, url: absoluteMsUrl, fileType: question.markSchemeType || 'unknown' });
+      }
+    }
   }
 
   interface FetchResult {
@@ -906,31 +928,32 @@ export const mergeTopicalPDFs = async (
       if (item.kind === 'mcqAnswer') {
         const bandH = 50;
         const p = mergedPdf.addPage([A4_WIDTH, bandH]);
-        p.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
+        drawRoundedHeaderBackground(p, 0, 0, A4_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
         const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
         const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
         const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
-        p.drawText(safeRef, { x: 20, y: bandH / 2 - 11 / 3, size: 11, font: boldFont, color: rgb(0, 0, 0) });
-        p.drawText(safeTitle, { x: (A4_WIDTH - titleW) / 2, y: bandH / 2 - 11 / 3, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+        const textY = bandH / 2 - 11 / 3;
+        p.drawText(safeRef, { x: 20, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+        p.drawText(safeTitle, { x: (A4_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
         const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-        const answerW = boldFont.widthOfTextAtSize(answerText, 15);
-        p.drawText(answerText, { x: A4_WIDTH - answerW - 20, y: bandH / 2 - 15 / 3, size: 15, font: boldFont, color: rgb(0, 0.4, 0.2) });
+        const answerSize = 14;
+        const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
+        p.drawText(answerText, { x: A4_WIDTH - answerW - 20, y: bandH / 2 - answerSize / 3, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
       } else {
         const addedHeight = needsHeader ? headerHeight : 0;
         const p = mergedPdf.addPage([item.srcWidth, item.srcHeight + addedHeight]);
         
         if (needsHeader) {
           const bandY = item.srcHeight;
-          p.drawRectangle({ x: 0, y: bandY, width: item.srcWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
-          p.drawLine({ start: { x: 0, y: bandY }, end: { x: item.srcWidth, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+          drawRoundedHeaderBackground(p, 0, bandY, item.srcWidth, headerHeight, 5, rgb(0.92, 0.92, 0.94));
           
           const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
           const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
           const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
           const textY = bandY + headerHeight / 2 - titleSize / 3;
           
-          p.drawText(safeRef, { x: 10, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
-          p.drawText(safeTitle, { x: (item.srcWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+          p.drawText(safeRef, { x: 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+          p.drawText(safeTitle, { x: (item.srcWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
           const topicsText = item.question.topicMatches && item.question.topicMatches.length > 0
             ? formatTopicHeaderText(item.question.topicMatches) : '';
@@ -940,7 +963,7 @@ export const mergeTopicalPDFs = async (
             while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxW && rendered.length > 0) rendered = rendered.slice(0, -1);
             if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
             const renderedW = regularFont.widthOfTextAtSize(rendered, topicSize);
-            p.drawText(rendered, { x: item.srcWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.25, 0.25, 0.25) });
+            p.drawText(rendered, { x: item.srcWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.35, 0.4, 0.45) });
           }
         }
 
@@ -975,8 +998,7 @@ export const mergeTopicalPDFs = async (
     if (!options.headerPage || headerHeight === 0) return;
     const bandY = currentY - headerHeight;
 
-    currentPage.drawRectangle({ x: MARGIN, y: bandY, width: bandWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) });
-    currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + bandWidth, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+    drawRoundedHeaderBackground(currentPage, MARGIN, bandY, bandWidth, headerHeight, 5, rgb(0.92, 0.92, 0.94));
 
     const titleText = item.question.title || `Question ${item.questionNumber}`;
     const questionRefText = `Question ${item.questionNumber}`;
@@ -985,8 +1007,8 @@ export const mergeTopicalPDFs = async (
     const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
 
     const textY = bandY + headerHeight / 2 - titleSize / 3;
-    currentPage.drawText(safeQuestionRef, { x: MARGIN + 10, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
-    currentPage.drawText(safeTitle, { x: MARGIN + (bandWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0, 0, 0) });
+    currentPage.drawText(safeQuestionRef, { x: MARGIN + 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+    currentPage.drawText(safeTitle, { x: MARGIN + (bandWidth - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
     const topicsText = item.question.topicMatches && item.question.topicMatches.length > 0
       ? formatTopicHeaderText(item.question.topicMatches) : '';
@@ -996,7 +1018,7 @@ export const mergeTopicalPDFs = async (
       while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxW && rendered.length > 0) rendered = rendered.slice(0, -1);
       if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
       const renderedW = regularFont.widthOfTextAtSize(rendered, topicSize);
-      currentPage.drawText(rendered, { x: MARGIN + bandWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.25, 0.25, 0.25) });
+      currentPage.drawText(rendered, { x: MARGIN + bandWidth - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.35, 0.4, 0.45) });
     }
 
     currentY -= headerHeight;
@@ -1027,9 +1049,7 @@ export const mergeTopicalPDFs = async (
           if (currentY - bandH < MARGIN) newA4Page();
           const bandY = currentY - bandH;
 
-          currentPage.drawRectangle({ x: MARGIN, y: bandY, width: PRINTABLE_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
-          currentPage.drawLine({ start: { x: MARGIN, y: bandY + bandH - 1 }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY + bandH - 1 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
-          currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+          drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
 
           const titleText = item.question.title || `Question ${item.questionNumber}`;
           const safeTitle = sanitizeForPdf(titleText);
@@ -1037,13 +1057,14 @@ export const mergeTopicalPDFs = async (
           const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
           const textY = bandY + bandH / 2 - 11 / 3;
 
-          currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
-          currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+          currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+          currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
           const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-          const answerSize = 15;
+          const answerSize = 13;
           const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
-          currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: answerSize, font: boldFont, color: rgb(0, 0.4, 0.2) });
+          const answerY = bandY + bandH / 2 - answerSize / 3;
+          currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: answerY, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
 
           currentY = bandY - SPACING;
           continue;
@@ -1097,9 +1118,7 @@ export const mergeTopicalPDFs = async (
         if (currentY - bandH < MARGIN) newA4Page();
         const bandY = currentY - bandH;
 
-        currentPage.drawRectangle({ x: MARGIN, y: bandY, width: PRINTABLE_WIDTH, height: bandH, color: rgb(0.95, 0.95, 0.95) });
-        currentPage.drawLine({ start: { x: MARGIN, y: bandY + bandH - 1 }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY + bandH - 1 }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
-        currentPage.drawLine({ start: { x: MARGIN, y: bandY }, end: { x: MARGIN + PRINTABLE_WIDTH, y: bandY }, thickness: 1, color: rgb(0.7, 0.7, 0.7) });
+        drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
 
         const titleText = item.question.title || `Question ${item.questionNumber}`;
         const safeTitle = sanitizeForPdf(titleText);
@@ -1107,13 +1126,14 @@ export const mergeTopicalPDFs = async (
         const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
         const textY = bandY + bandH / 2 - 11 / 3;
 
-        currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
-        currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0, 0, 0) });
+        currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+        currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
 
         const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-        const answerSize = 15;
+        const answerSize = 13;
         const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
-        currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: answerSize, font: boldFont, color: rgb(0, 0.4, 0.2) });
+        const answerY = bandY + bandH / 2 - answerSize / 3;
+        currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: answerY, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
 
         currentY = bandY - SPACING;
         continue;
@@ -1212,6 +1232,16 @@ export const downloadMergedTopicalPDFs = async (
     } catch (xpError) {
       console.warn('Download XP failed; continuing merge:', xpError);
     }
+
+    await logDownload({
+      action: 'topical_download',
+      url: formatPaperOrTopicalUrl(
+        levelBoardSubject.board,
+        levelBoardSubject.level,
+        levelBoardSubject.subject,
+        filename
+      ),
+    });
 
     const mergedBlob = await mergeTopicalPDFs(validQuestions, type, selectedTopics, levelBoardSubject, callbacks.onProgress, options, filters);
 

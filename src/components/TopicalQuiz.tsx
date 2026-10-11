@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
+import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { ReportModal } from './ReportModal';
@@ -10,7 +10,7 @@ import { McqCheckerHeader, McqOptionButton } from './McqChecker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
-import { commitDownloadAward, downloadFileWithXP } from '../utils/awardDownloadXP';
+import { commitDownloadAward, downloadFileWithXP, logDownload, normalizePaperOrTopicalUrl } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -163,10 +163,16 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         document.head.removeChild(style);
       }
 
+      const filename = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_${type === 'questions' ? 'All_Questions' : 'All_Mark_Schemes'}.pdf`;
+      const sampleUrl = quiz.folderPath || validQuestions[0]?.questionContent || '';
+      await logDownload({
+        action: 'topical_download',
+        url: normalizePaperOrTopicalUrl(sampleUrl, { fileName: filename }),
+      });
+
       const downloadUrl = window.URL.createObjectURL(mergedBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      const filename = `${quiz.title.replace(/[^a-z0-9]/gi, '_')}_${type === 'questions' ? 'All_Questions' : 'All_Mark_Schemes'}.pdf`;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -236,6 +242,106 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   useEffect(() => {
     setSelectedMcqOption(mcqSelections[currentQuestion] ?? null);
   }, [currentQuestion, mcqSelections]);
+
+  const [jumpCheckedQuestions, setJumpCheckedQuestions] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('topical_jump_checked_questions');
+      if (saved) {
+        return new Set(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load jump checked questions:', e);
+    }
+    return new Set();
+  });
+
+  const toggleJumpChecked = (filePath: string, e?: React.SyntheticEvent) => {
+    if (e) e.stopPropagation();
+    if (!filePath) return;
+    setJumpCheckedQuestions(prev => {
+      const next = new Set(prev);
+      if (next.has(filePath)) {
+        next.delete(filePath);
+      } else {
+        next.add(filePath);
+      }
+      try {
+        localStorage.setItem('topical_jump_checked_questions', JSON.stringify(Array.from(next)));
+      } catch (err) {
+        console.error('Failed to save jump checked questions:', err);
+      }
+      return next;
+    });
+  };
+
+  const QuestionJumpCheckbox: React.FC<{
+    checked: boolean;
+    onToggle: (e: React.SyntheticEvent) => void;
+    dark?: boolean;
+  }> = ({ checked, onToggle, dark = false }) => {
+    const [justClicked, setJustClicked] = React.useState(false);
+
+    const handleClick = (e: React.SyntheticEvent) => {
+      e.stopPropagation();
+      setJustClicked(true);
+      setTimeout(() => setJustClicked(false), 350);
+      onToggle(e);
+    };
+
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`group relative flex items-center justify-center w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-[5px] transition-all duration-200 shrink-0 border select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+          justClicked ? 'animate-check-pop' : ''
+        } ${
+          checked
+            ? 'border-blue-500 dark:border-blue-400 bg-blue-50/60 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 shadow-sm'
+            : dark
+            ? 'bg-gray-800/80 border-gray-600/80 hover:border-blue-400/80 hover:bg-gray-700/80 text-gray-400'
+            : 'bg-white border-gray-300 dark:bg-gray-800 dark:border-gray-600 hover:border-blue-500 hover:bg-blue-50/40 dark:hover:border-blue-400 text-gray-400'
+        }`}
+        title={checked ? 'Unmark question' : 'Mark question'}
+        aria-label={checked ? 'Unmark question' : 'Mark question'}
+      >
+        <svg
+          viewBox="0 0 18 18"
+          className="w-3.5 h-3.5 sm:w-4 sm:h-4 overflow-visible"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Animated checkmark path */}
+          <path
+            d="M 3.8 9.2 L 7.2 12.6 L 14.2 5.4"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              strokeDasharray: 20,
+              strokeDashoffset: checked ? 0 : 20,
+              transition: 'stroke-dashoffset 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease',
+              opacity: checked ? 1 : 0,
+            }}
+          />
+
+          {/* Radiating micro-spark lines - ONLY on explicit user click */}
+          {checked && justClicked && (
+            <path
+              d="M 2 2 L 0.5 0.5 M 16 2 L 17.5 0.5 M 2 16 L 0.5 17.5 M 16 16 L 17.5 17.5"
+              stroke={dark ? '#60a5fa' : '#3b82f6'}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              className="animate-check-spark pointer-events-none"
+              style={{
+                strokeDasharray: 4.5,
+              }}
+            />
+          )}
+        </svg>
+      </button>
+    );
+  };
 
   const getAnnotationKey = (questionIndex: number, isMarkScheme: boolean): string => {
     return `q${questionIndex}_${isMarkScheme ? 'ms' : 'q'}`;
@@ -734,26 +840,36 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
           {/* Horizontal paper list bar (was sidebar) - mobile / small screens */}
           <div className="mt-3 flex w-full md:hidden overflow-x-auto border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-lg">
-            {questions.map((q, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentQuestion(idx)}
-                className={`px-3 py-2 text-xs sm:text-sm whitespace-nowrap transition-colors flex items-center gap-2 ${currentQuestion === idx
-                  ? 'bg-blue-500 text-white font-semibold'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'
-                  }`}
-              >
-                <span>{q.title || `Paper ${idx + 1}`}</span>
-                {'showUnitTags' in props && props.showUnitTags && q.unit && (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${currentQuestion === idx
-                    ? 'bg-white/20 text-white'
-                    : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                    }`}>
-                    {q.unit}
-                  </span>
-                )}
-              </button>
-            ))}
+            {questions.map((q, idx) => {
+              const qPath = q.questionContent || q.id;
+              const isJumpChecked = jumpCheckedQuestions.has(qPath);
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentQuestion(idx)}
+                  title={[q.title || `Paper ${idx + 1}`, 'showUnitTags' in props && props.showUnitTags && q.unit ? `Unit: ${q.unit}` : ''].filter(Boolean).join(' · ')}
+                  className={`px-3 py-2 text-xs sm:text-sm whitespace-nowrap transition-colors flex items-center gap-2 rounded-md ${currentQuestion === idx
+                    ? 'bg-blue-900 dark:bg-blue-950 border-1 border-blue-400 text-white font-semibold shadow-sm'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 border-2 border-transparent'
+                    }`}
+                >
+                  <QuestionJumpCheckbox
+                    checked={isJumpChecked}
+                    onToggle={(e) => toggleJumpChecked(qPath, e)}
+                    dark={currentQuestion === idx}
+                  />
+                  <span>{q.title || `Paper ${idx + 1}`}</span>
+                  {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded max-w-[8ch] truncate ${currentQuestion === idx
+                      ? 'bg-blue-800/80 text-blue-200 border border-blue-400/40'
+                      : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                      }`}>
+                      {q.unit}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
             {'isLoading' in props && props.isLoading && (
               <>
                 {/* Skeleton loading items for mobile */}
@@ -794,12 +910,12 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
           {/* Topic tags */}
           {currentQ.topicMatches && currentQ.topicMatches.length > 0 && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 px-2 py-1.5 rounded mb-2 flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Topics:</span>
+            <div className="bg-[#0a1628]/80 dark:bg-[#0a1628]/90 px-3 py-2 rounded-lg mb-2 flex items-center gap-2 flex-wrap border border-[#1a2d47]">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider shrink-0">Topics:</span>
               {currentQ.topicMatches.map((topic, idx) => (
                 <span
                   key={idx}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                  className="inline-flex items-center px-2 py-1 rounded text-[10px] font-medium bg-gray-700/50 text-gray-200"
                 >
                   {topic}
                 </span>
@@ -889,30 +1005,42 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       <div className="hidden md:flex flex-col w-52 flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
         <div className="px-3 py-3 border-b border-gray-200 dark:border-gray-800">
           <h3 className="text-sm font-semibold tracking-wide text-gray-700 dark:text-gray-200 uppercase">
-            Papers
+            Jump to question
           </h3>
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          {questions.map((q, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentQuestion(idx)}
-              className={`w-full px-3 py-2 text-sm text-left border-b border-gray-200 dark:border-gray-800 transition-colors flex items-center justify-between ${currentQuestion === idx
-                ? 'bg-blue-500 text-white font-semibold'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800'
-                }`}
-            >
-              <span>{q.title || `Paper ${idx + 1}`}</span>
-              {'showUnitTags' in props && props.showUnitTags && q.unit && (
-                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ml-2 flex-shrink-0 ${currentQuestion === idx
-                  ? 'bg-white/20 text-white'
-                  : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
-                  }`}>
-                  {q.unit}
-                </span>
-              )}
-            </button>
-          ))}
+          {questions.map((q, idx) => {
+            const qPath = q.questionContent || q.id;
+            const isJumpChecked = jumpCheckedQuestions.has(qPath);
+            return (
+              <button
+                key={idx}
+                onClick={() => setCurrentQuestion(idx)}
+                title={[q.title || `Paper ${idx + 1}`, 'showUnitTags' in props && props.showUnitTags && q.unit ? `Unit: ${q.unit}` : ''].filter(Boolean).join(' · ')}
+                className={`w-full px-3 py-2 text-sm text-left transition-colors flex items-center justify-between gap-2 rounded-md ${currentQuestion === idx
+                  ? 'bg-blue-600 dark:bg-blue-950 border border-blue-500 text-white font-semibold shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 border-b border-gray-200 dark:border-gray-800'
+                  }`}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-grow">
+                  <QuestionJumpCheckbox
+                    checked={isJumpChecked}
+                    onToggle={(e) => toggleJumpChecked(qPath, e)}
+                    dark={currentQuestion === idx}
+                  />
+                  <span className="truncate min-w-0 flex-grow">{q.title || `Paper ${idx + 1}`}</span>
+                </div>
+                {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ml-2 flex-shrink-0 max-w-[8ch] truncate ${currentQuestion === idx
+                    ? 'bg-blue-800/80 text-blue-200 border border-blue-400/40'
+                    : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-200'
+                    }`}>
+                    {q.unit}
+                  </span>
+                )}
+              </button>
+            );
+          })}
           {'isLoading' in props && props.isLoading && (
             <>
               {/* Skeleton loading items */}
@@ -965,11 +1093,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 <button
                   type="button"
                   onClick={() => setNonMcqSidebarOpen(o => !o)}
-                  className={`p-1.5 sm:p-2 rounded-md transition-colors border ${
-                    nonMcqSidebarOpen
+                  className={`p-1.5 sm:p-2 rounded-md transition-colors border ${nonMcqSidebarOpen
                       ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700 border-transparent'
-                  }`}
+                    }`}
                   title={nonMcqSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
                 >
                   <PanelRight className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -980,7 +1107,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               </span>
               <div className="flex items-center gap-1 sm:gap-2">
                 <button
-                  onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
+                  onClick={() => {
+                    setCurrentQuestion(Math.max(0, currentQuestion - 1));
+                    if (window.innerWidth < 1024) setNonMcqSidebarOpen(false);
+                  }}
                   disabled={currentQuestion === 0}
                   className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Previous"
@@ -988,7 +1118,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
                 <button
-                  onClick={() => setCurrentQuestion(Math.min(questions.length - 1, currentQuestion + 1))}
+                  onClick={() => {
+                    setCurrentQuestion(Math.min(questions.length - 1, currentQuestion + 1));
+                    if (window.innerWidth < 1024) setNonMcqSidebarOpen(false);
+                  }}
                   disabled={currentQuestion === questions.length - 1}
                   className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   title="Next"
@@ -1013,9 +1146,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {/* Non-MCQ overlay sidebar */}
             {!currentQ.mcqAnswer && (
               <div
-                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${
-                  nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-                }`}
+                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                  }`}
               >
                 {/* Topics and Report */}
                 <div className="flex items-start justify-between shrink-0">
@@ -1049,29 +1181,47 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
                   <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
-                    {questions.map((q, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentQuestion(idx)}
-                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
-                          currentQuestion === idx
-                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
-                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
-                        }`}
-                      >
-                        <span>{q.title || `Q${idx + 1}`}</span>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          {'showUnitTags' in props && props.showUnitTags && q.unit && (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                              currentQuestion === idx ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-700 text-gray-400'
-                            }`}>
-                              {q.unit}
-                            </span>
-                          )}
-                          {currentQuestion === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
-                        </div>
-                      </button>
-                    ))}
+                    {questions.map((q, idx) => {
+                      const qPath = q.questionContent || q.id;
+                      const isJumpChecked = jumpCheckedQuestions.has(qPath);
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setCurrentQuestion(idx);
+                            // Auto-close sidebar on small screens (below lg)
+                            if (window.innerWidth < 1024) {
+                              setNonMcqSidebarOpen(false);
+                            }
+                          }}
+                          title={[q.title || `Q${idx + 1}`, 'showUnitTags' in props && props.showUnitTags && q.unit ? `Unit: ${q.unit}` : ''].filter(Boolean).join(' · ')}
+                          className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${currentQuestion === idx
+                              ? 'bg-blue-900 dark:bg-blue-950 border-blue-400 text-white font-semibold shadow-md'
+                              : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-grow">
+                            <QuestionJumpCheckbox
+                              checked={isJumpChecked}
+                              onToggle={(e) => toggleJumpChecked(qPath, e)}
+                              dark={true}
+                            />
+                            <span className="truncate min-w-0 flex-grow">{q.title || `Q${idx + 1}`}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded max-w-[8ch] truncate ${currentQuestion === idx
+                                ? 'bg-blue-800/80 text-blue-200 border border-blue-400/40'
+                                : 'bg-gray-700 text-gray-400'
+                                }`} title={q.unit}>
+                                {q.unit}
+                              </span>
+                            )}
+                            {currentQuestion === idx && <span className="text-[10px] text-blue-300 font-semibold">Viewing</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1168,29 +1318,41 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 <div className="flex-1 min-w-[120px] lg:overflow-y-auto min-h-0 flex flex-col gap-2 lg:gap-3 lg:w-auto">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Q</h3>
                   <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
-                    {questions.map((q, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setCurrentQuestion(idx)}
-                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
-                          currentQuestion === idx
-                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
-                            : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
-                        }`}
-                      >
-                        <span>{q.title || `Q${idx + 1}`}</span>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
-                          {'showUnitTags' in props && props.showUnitTags && q.unit && (
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                              currentQuestion === idx ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-700 text-gray-400'
-                            }`}>
-                              {q.unit}
-                            </span>
-                          )}
-                          {currentQuestion === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
-                        </div>
-                      </button>
-                    ))}
+                    {questions.map((q, idx) => {
+                      const qPath = q.questionContent || q.id;
+                      const isJumpChecked = jumpCheckedQuestions.has(qPath);
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setCurrentQuestion(idx)}
+                          title={[q.title || `Q${idx + 1}`, 'showUnitTags' in props && props.showUnitTags && q.unit ? `Unit: ${q.unit}` : ''].filter(Boolean).join(' · ')}
+                          className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${currentQuestion === idx
+                              ? 'bg-blue-900 dark:bg-blue-950 border-blue-400 text-white font-semibold shadow-md'
+                              : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-grow">
+                            <QuestionJumpCheckbox
+                              checked={isJumpChecked}
+                              onToggle={(e) => toggleJumpChecked(qPath, e)}
+                              dark={true}
+                            />
+                            <span className="truncate min-w-0 flex-grow">{q.title || `Q${idx + 1}`}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {'showUnitTags' in props && props.showUnitTags && q.unit && (
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${currentQuestion === idx
+                                ? 'bg-blue-800/80 text-blue-200 border border-blue-400/40'
+                                : 'bg-gray-700 text-gray-400'
+                                }`}>
+                                {q.unit}
+                              </span>
+                            )}
+                            {currentQuestion === idx && <span className="text-[10px] text-blue-300 font-semibold">Viewing</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

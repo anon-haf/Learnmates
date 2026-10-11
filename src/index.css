@@ -15,6 +15,44 @@
 }
 
 @layer utilities {
+  /* Paired breathing swap for the Nibras marks.
+     Single keyframes + negative half-period delay keeps both layers
+     exactly opposite-phase forever (no drift), running on the
+     compositor (GPU) for a shake-free loop. Scale stays pinned to
+     the shared center point. */
+  @keyframes nibras-breathe {
+    0%,
+    100% {
+      transform: scale(1) translateZ(0);
+    }
+    50% {
+      transform: scale(0.55) translateZ(0);
+    }
+  }
+
+  .nibras-breathe-layer {
+    grid-area: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 50%;
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    animation: nibras-breathe 2.4s ease-in-out infinite;
+  }
+
+  .nibras-breathe-layer--alt {
+    /* Start half a cycle ahead so it grows while the other shrinks. */
+    animation-delay: -1.2s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nibras-breathe-layer,
+    .nibras-breathe-layer--alt {
+      animation: none;
+    }
+  }
 	/* When reduced motion is enabled, zero-out ALL animation and transition
 	   durations to prevent any flash or motion — including on ::before/::after
 	   pseudo-elements used by some animations. */
@@ -36,4 +74,39 @@
 	.reduce-motion [style*="opacity:0"] {
 		opacity: 1 !important;
 	}
+
+  @keyframes check-pop {
+    0% {
+      transform: scale(0.82);
+    }
+    50% {
+      transform: scale(1.12);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes check-spark {
+    0% {
+      stroke-dashoffset: 4.5px;
+      opacity: 0.9;
+    }
+    40% {
+      opacity: 1;
+    }
+    100% {
+      stroke-dashoffset: 0px;
+      opacity: 0;
+    }
+  }
+
+  .animate-check-pop {
+    animation: check-pop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .animate-check-spark {
+    animation: check-spark 0.35s ease-out forwards;
+  }
 }
+

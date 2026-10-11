@@ -274,7 +274,15 @@ const TopicalPages: React.FC = () => {
   const [headerPageEnabled, setHeaderPageEnabled] = useState(true);
   const [headerSize, setHeaderSize] = useState<number>(25);
   const [worksheetEnabled, setWorksheetEnabled] = useState(true);
+  const [interleaveMsEnabled, setInterleaveMsEnabled] = useState(false);
   const [loadId, setLoadId] = useState<number>(0);
+
+  const handleWorksheetToggle = (enabled: boolean) => {
+    setWorksheetEnabled(enabled);
+    if (!enabled) {
+      setHeaderPageEnabled(true);
+    }
+  };
 
   const {
     topicalQuiz,
@@ -596,7 +604,7 @@ const TopicalPages: React.FC = () => {
     setNeedLoad(true);
   };
 
-  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number; worksheet?: boolean }) => {
+  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean }) => {
     // Get topics from localStorage if checked is empty
     const key = `topical_checked_${selectedLevel}_${selectedBoard}_${selectedSubject}`;
     const storedTopicsStr = localStorage.getItem(key);
@@ -618,6 +626,9 @@ const TopicalPages: React.FC = () => {
     console.log('[Export] exportTopics.size:', exportTopics.size);
     console.log('[Export] exportTopics:', [...exportTopics]);
 
+    const activeWorksheet = options?.worksheet ?? worksheetEnabled;
+    const activeHeaderPage = !activeWorksheet ? true : (options?.headerPage ?? headerPageEnabled);
+
     downloadMergedTopicalPDFs(
       type,
       topicalQuiz,
@@ -634,9 +645,10 @@ const TopicalPages: React.FC = () => {
       },
       {
         extraPage: options?.extraPage ?? extraPageEnabled,
-        headerPage: options?.headerPage ?? headerPageEnabled,
+        headerPage: activeHeaderPage,
         headerSize: options?.headerSize ?? headerSize,
-        worksheet: options?.worksheet ?? worksheetEnabled
+        worksheet: activeWorksheet,
+        interleaveMs: options?.interleaveMs ?? interleaveMsEnabled,
       },
       {
         papers: Array.from(paperFilter),
@@ -676,15 +688,21 @@ const TopicalPages: React.FC = () => {
   }, [availablePapers, checked, isPaperMode, mcqFilter, paperFilter, yearFilter, strictFilter]);
 
   useEffect(() => {
-    if (yearFilter.size === 0) return;
-    const stillValid = Array.from(yearFilter).filter(year => availableYears.has(year));
-    if (stillValid.length !== yearFilter.size) {
-      const newSet = new Set(stillValid);
-      setYearFilterState(newSet);
-      updateQueryParams(checked, mcqFilter, paperFilter, newSet, orderFilter, limitFilter, strictFilter);
+    if (availableYears.size === 0) return;
+    const params = new URLSearchParams(location.search);
+    const yearsParam = params.get('years');
+    if (!yearsParam || yearsParam === 'all' || yearFilter.size === 0) {
+      setYearFilterState(new Set(availableYears));
+    } else {
+      const stillValid = Array.from(yearFilter).filter(year => availableYears.has(year));
+      if (stillValid.length !== yearFilter.size) {
+        const newSet = new Set(stillValid);
+        setYearFilterState(newSet);
+        updateQueryParams(checked, mcqFilter, paperFilter, newSet, orderFilter, limitFilter, strictFilter);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableYears, checked, mcqFilter, paperFilter, yearFilter, strictFilter]);
+  }, [availableYears]);
 
   useEffect(() => {
     if (!needLoad) return;
@@ -861,7 +879,9 @@ const TopicalPages: React.FC = () => {
                       onHeaderSizeChange={setHeaderSize}
                       showWorksheetOption={true}
                       worksheetEnabled={worksheetEnabled}
-                      onWorksheetToggle={setWorksheetEnabled}
+                      onWorksheetToggle={handleWorksheetToggle}
+                      interleaveMsEnabled={interleaveMsEnabled}
+                      onInterleaveMsToggle={setInterleaveMsEnabled}
                       loadId={loadId}
                     />
                   </div>

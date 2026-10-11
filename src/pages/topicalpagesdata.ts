@@ -237,7 +237,7 @@ export const topicalConfigs: SubjectConfig[] = [
           { "topic": "6 Energetics", "search": "Energetics" },
           { "topic": "7 Intermolecular Forces", "search": "Intermolecular Forces" },
           {
-            "topic": "8 Bonding and strucutre",
+            "topic": "8 Redox Chemistry and Groups 1, 2 and 7",
             "subtopics": [
               { "subtopic": "8A Redox chemistry", "search": "Redox chemistry" },
               { "subtopic": "8B Groups 1 and 2", "search": "Groups 1 and 2" },

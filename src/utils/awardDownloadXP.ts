@@ -6,3 +6,12 @@ export {
   downloadFileWithXP,
   downloadFileWithXPOrDirect,
 } from './downloadWithXP';
+
+export {
+  logDownload,
+  formatResourceUrl,
+  formatPaperOrTopicalUrl,
+  normalizePaperOrTopicalUrl,
+  type DownloadAction,
+  type LogDownloadParams,
+} from './downloadLogger';

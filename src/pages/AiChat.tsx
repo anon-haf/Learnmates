@@ -24,6 +24,25 @@ import { Button } from '@/components/ui';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import './AiChat.css';
+import NibrasIcon from '../assets/logos/nibras.svg?react';
+import Nibras1Icon from '../assets/logos/nibras 1.svg?react';
+import Nibras2Icon from '../assets/logos/nibras 2.svg?react';
+
+// Stacked, same-center breathing swap of the two Nibras marks.
+// Both SVGs use `currentColor`, so they inherit the parent's text color.
+// Pure CSS animation (single keyframes + negative half-period delay, see
+// index.css `.nibras-breathe-layer`) runs on the compositor for a smooth,
+// drift-free loop pinned to the shared center. Used for the AI loading state.
+const NibrasAnimatedMark: React.FC<{ className?: string }> = ({ className = 'h-6 w-6' }) => (
+  <span className={`relative grid shrink-0 place-items-center ${className}`} aria-hidden="true">
+    <span className="nibras-breathe-layer h-full w-full">
+      <Nibras1Icon className="block h-full w-full" />
+    </span>
+    <span className="nibras-breathe-layer nibras-breathe-layer--alt h-full w-full">
+      <Nibras2Icon className="block h-full w-full" />
+    </span>
+  </span>
+);
 
 /* ─── Types ───────────────────────────────────────────── */
 interface AskResponse {
@@ -426,11 +445,20 @@ const AiChat: React.FC = () => {
         const words = question.split(/\s+/);
         const title = words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '');
 
-        const { data: sessionData, error: sessionError } = await supabase
-          .from('chat_sessions')
-          .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
-          .select('id')
-          .single();
+        let sessionData, sessionError;
+        
+        if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+          sessionData = { id: `mock-session-${Date.now()}` };
+          sessionError = null;
+        } else {
+          const res = await supabase
+            .from('chat_sessions')
+            .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
+            .select('id')
+            .single();
+          sessionData = res.data;
+          sessionError = res.error;
+        }
 
         if (sessionError || !sessionData) {
           const code = sessionError?.code ? ` (code: ${sessionError.code})` : '';
@@ -456,10 +484,12 @@ const AiChat: React.FC = () => {
       const botMsgId = `a-${Date.now()}`;
 
       // Write user + assistant as a pair — only after a successful reply
-      await supabase.from('chat_messages').insert([
-        { session_id: activeSessionId, role: 'user', content: question },
-        { session_id: activeSessionId, role: 'assistant', content: answer, metadata: data },
-      ]);
+      if (!(import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true')) {
+        await supabase.from('chat_messages').insert([
+          { session_id: activeSessionId, role: 'user', content: question },
+          { session_id: activeSessionId, role: 'assistant', content: answer, metadata: data },
+        ]);
+      }
 
       const botMsg: ChatMessage = {
         id: botMsgId, role: 'assistant', text: answer,
@@ -843,16 +873,14 @@ const AiChat: React.FC = () => {
                   >
                     {/* Avatar */}
                     <div
-                      className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden ${
-                        isBot
-                          ? 'bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 theme-avatar'
+                      className={isBot
+                          ? 'flex-shrink-0 flex items-center justify-center text-xs font-bold theme-avatar'
                           : avatarUrl
-                          ? 'bg-transparent'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                      }`}
+                          ? 'flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden bg-transparent'
+                          : 'flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden bg-gray-200 dark:bg-gray-700 text-gray-500'}
                     >
                       {isBot ? (
-                        <activeSubject.icon size={16} className="theme-icon" />
+                        <NibrasIcon className="h-6 w-6 theme-icon" />
                       ) : avatarUrl ? (
                         <img src={avatarUrl} alt="You" className="w-full h-full object-cover" />
                       ) : (
@@ -919,8 +947,8 @@ const AiChat: React.FC = () => {
             {/* Thinking indicator */}
             {loading && (
               <motion.div variants={msgVariants} initial="hidden" animate="visible" className="flex gap-3">
-                <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 theme-avatar">
-                   <activeSubject.icon size={16} className="theme-icon" />
+                <div className="flex-shrink-0 theme-avatar">
+                   <NibrasAnimatedMark className="h-6 w-6" />
                 </div>
                 <div className="rounded-2xl rounded-tl-md px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-700/80 shadow-sm flex items-center gap-3">
                   <motion.span

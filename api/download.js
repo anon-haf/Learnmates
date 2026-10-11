@@ -7,6 +7,7 @@ import {
   sanitizeFilename,
 } from './_lib/download-url.js';
 import { getServerAssetAuthHeaders } from './_lib/asset-fetch.js';
+import { logDownloadServer } from './_lib/download-logger.js';
 
 function applyCors(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -93,6 +94,15 @@ export default async function handler(req, res) {
         delivery: classification.mode,
       },
     });
+
+    if (req.headers['x-client-logged'] !== 'true') {
+      await logDownloadServer(supabase, {
+        userId: user.id,
+        resourceType,
+        rawUrl: url,
+        resourceName,
+      });
+    }
 
     console.info('[download] xp committed before file delivery', {
       requestId,

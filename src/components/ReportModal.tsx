@@ -14,8 +14,12 @@ interface ReportModalProps {
 
 type ReportType = 'mismatched' | 'other' | null;
 
-function parseQuestionContent(url?: string, title?: string) {
-  if (!url) return { urlFormatted: title || 'unknown', level: '', board: '', subject: '', filename: title || 'unknown' };
+function parseQuestionContent(url?: string, title?: string, unit?: string) {
+  if (!url) {
+    const baseName = title || 'unknown';
+    const urlFormatted = unit ? `${baseName}-${unit}` : baseName;
+    return { urlFormatted, level: '', board: '', subject: '', filename: baseName };
+  }
   
   let path = url;
   try {
@@ -31,6 +35,7 @@ function parseQuestionContent(url?: string, title?: string) {
   let board = '';
   let subject = '';
   let filename = title || 'unknown';
+  let unitFromPath = '';
   
   // Support both regular /Questions/ path and /topicals/ path
   const qIndex = parts.findIndex(p => p.toLowerCase() === 'questions' || p.toLowerCase() === 'topicals');
@@ -38,6 +43,9 @@ function parseQuestionContent(url?: string, title?: string) {
     level = parts[qIndex + 1];
     board = parts[qIndex + 2];
     subject = parts[qIndex + 3];
+    if (parts.length > qIndex + 5) {
+      unitFromPath = parts[qIndex + 4];
+    }
   }
   
   const lastPart = parts[parts.length - 1];
@@ -49,9 +57,15 @@ function parseQuestionContent(url?: string, title?: string) {
     filename = title;
   }
   
+  const effectiveUnit = unit || unitFromPath;
+
   let urlFormatted = filename;
   if (level && board && subject) {
     urlFormatted = `${level}-${board}-${subject}-${filename}`;
+  }
+
+  if (effectiveUnit) {
+    urlFormatted = `${urlFormatted}-${effectiveUnit}`;
   }
   
   return { urlFormatted, level, board, subject, filename };
@@ -106,7 +120,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({ isOpen, onClose, quest
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   
-  const { urlFormatted, level, board, subject, filename } = parseQuestionContent(question?.questionContent, question?.title);
+  const { urlFormatted, level, board, subject, filename } = parseQuestionContent(question?.questionContent, question?.title, question?.unit);
   const availableTopics = getTopicsForSubject(level, board, subject);
   
   useEffect(() => {

@@ -746,10 +746,10 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
   'physics-5': {
     videos: [],
     resources: [
-    { id: 'r1', title: 'Nuclear Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (a.aseer).pdf' },
-    { id: 'r4', title: 'Nuclear Physics Notes (@GHOST)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Ghost).pdf' },
-    { id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
-    { id: 'r2', title: 'Nuclear Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics.pdf' }],
+      { id: 'r1', title: 'Nuclear Physics (a.aseer)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (a.aseer).pdf' },
+      { id: 'r4', title: 'Nuclear Physics Notes (@GHOST)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Ghost).pdf' },
+      { id: 'r3', title: 'Nuclear Physics (@Jme)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics (@Jme).pdf' },
+      { id: 'r2', title: 'Nuclear Physics (Eshal)', url: '/documents/igcse/cambridge/Physics/5-Nuclear physics/Nuclear physics.pdf' }],
     quizzes: []
   },
 
@@ -901,10 +901,19 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
     resources: [{ id: 'r1', title: 'Polymerisation Notes (Eshal)', url: '/documents/alevel/cambridge/Chemistry/AS/20-Polymerisation/Unit 20.pdf' }],
     quizzes: []
   },
+  'Chemistry-Practical(AS)': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Chemistry P3 Notes', url: '//documents/alevel/cambridge/Chemistry/Chemistry P3 Notes.pdf' }],
+    quizzes: []
+
+  },
+
+
   'chemistry-AS-revision': {
     videos: [],
     resources: [{ id: 'r1', title: 'AS organic reactions (Eshal)', url: '/documents/alevel/cambridge/Chemistry/AS organic reactions.pdf' },
     { id: 'r2', title: 'AS Chemistry notes (Veda)', url: '/documents/alevel/cambridge/Chemistry/AS/AS revision/Chemistry Notes AS - Veda.pdf', description: 'Notes  from: https://sites.google.com/view/vehemsstudyloft/home' },
+    { id: 'r3', title: 'AS Organic & Inoragnic Reactions (Pranav Balaji Pooruli)', url: '/documents/alevel/cambridge/Chemistry/AS Organic & Inoragnic reactions.pdf' }
     ],
     quizzes: []
   },
@@ -980,12 +989,17 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
     quizzes: []
   },
 
-
+  'Chemistry-Practical(A2)': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Chemistry P5 Notes', url: '/documents/alevel/cambridge/Chemistry/Chemistry P5 Notes.pdf' }, { id: 'r1', title: 'Chemistry P5 Practical Tips', url: '/documents/alevel/cambridge/Chemistry/Chemistry p5 tips.pdf' }],
+    quizzes: []
+  },
   'chemistry-A2-revision': {
     videos: [],
     resources: [{ id: 'r3', title: 'A2 Chemistry notes (Veda)', url: '/documents/alevel/cambridge/Chemistry/A2/A2 revision/Chemistry Notes A2 - Veda.pdf', description: 'Notes  from: https://sites.google.com/view/vehemsstudyloft/home' },
     { id: 'r1', title: 'A2 organic reactions(Eshal)', url: '/documents/alevel/cambridge/Chemistry/A2 organic reactions.pdf' },
-    { id: 'r2', title: 'Synthetic Routes(Eshal)', url: '/documents/alevel/cambridge/Chemistry/Synthetic Routes.pdf' }
+    { id: 'r2', title: 'Synthetic Routes(Eshal)', url: '/documents/alevel/cambridge/Chemistry/Synthetic Routes.pdf' },
+    { id: 'r4', title: 'A2 Chemistry Definitions', url: '/documents/alevel/cambridge/Chemistry/A2/A2 revision/A2 Chemistry Definitions.pdf' }
     ],
     quizzes: []
   },
@@ -1023,7 +1037,7 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
   'Biology-CH17': { videos: [], resources: [{ id: 'r1', title: 'Selection and evolution (Eshal)', url: '/documents/alevel/cambridge/Biology/A2/17. Selection and evolution/Unit 17.pdf' }], quizzes: [] },
   'Biology-CH18': { videos: [], resources: [{ id: 'r1', title: 'Classification, biodiversity and conservation (Eshal)', url: '/documents/alevel/cambridge/Biology/A2/18. Classification, biodiversity and conservation/Unit 18.pdf' }], quizzes: [] },
   'Biology-CH19': { videos: [], resources: [{ id: 'r1', title: 'Genetic technology (Eshal)', url: '/documents/alevel/cambridge/Biology/A2/19. Genetic technology/Unit 19.pdf' }], quizzes: [] },
-  'Biology-Paper5': { videos: [], resources: [{ id: 'r1', title: 'Paper 5 resources (Eshal)', url: '/documents/alevel/cambridge/Biology/A2/Paper 5/Paper 5 stuff.pdf' }], quizzes: [] },
+  'Biology-Paper5': { videos: [], resources: [{ id: 'r1', title: 'Paper 5 resources (Eshal)', url: '/documents/alevel/cambridge/Biology/A2/Paper 5/Paper 5 stuff.pdf' }, { id: 'r2', title: 'Chemistry P5 Practical Q2 Diagram drawing Guide', url: '/documents/alevel/cambridge/Biology/A2/Paper 5/Practical Q2.pdf' }], quizzes: [] },
   'Biology-A2-revision': { videos: [], resources: [{ id: 'r1', title: 'A2 Biology notes (Veda)', url: '/documents/alevel/cambridge/Biology/A2/A2 revision/Biology Notes A2 - Veda.pdf', description: 'Notes  from: https://sites.google.com/view/vehemsstudyloft/home' },] },
 
 
@@ -1672,7 +1686,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-Practical(AS)': {
     videos: [],
-    resources: [{ id: 'r2 ', title: 'Uncertainty Notes (HAF)', url: '/documents/alevel/cambridge/Physics/Practical/Uncertainty (HAF).pdf' }, { id: 'r1', title: 'Practical Skills notes ', url: '/documents/alevel/cambridge/Physics/Practical/Practical skills 1.pdf' }],
+    resources: [{ id: 'r3', title: 'Physics Paper 3 Guide', url: '/documents/alevel/cambridge/Physics/Practical/Physics paper 3.pdf' }
+      , { id: 'r2 ', title: 'Uncertainty Notes (HAF)', url: '/documents/alevel/cambridge/Physics/Practical/Uncertainty (HAF).pdf' }, { id: 'r1', title: 'Practical Skills notes ', url: '/documents/alevel/cambridge/Physics/Practical/Practical skills 1.pdf' }],
     quizzes: []
   },
 
@@ -1816,8 +1831,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-Practical(A2)': {
     videos: [],
-    resources: [
-      { id: 'r1', title: 'Practical Skills notes ', url: '/documents/alevel/cambridge/Physics/Practical/Practical skills 2.pdf' }],
+    resources: [{ id: 'r3', title: 'Physics Paper 5 Guide', url: '/documents/alevel/cambridge/Physics/Practical/Physics paper 5.pdf' },
+    { id: 'r1', title: 'Practical Skills notes ', url: '/documents/alevel/cambridge/Physics/Practical/Practical skills 2.pdf' }],
     quizzes: []
   },
 

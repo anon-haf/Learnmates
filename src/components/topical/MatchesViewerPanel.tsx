@@ -23,6 +23,8 @@ interface MatchesViewerPanelProps {
   showWorksheetOption?: boolean;
   worksheetEnabled?: boolean;
   onWorksheetToggle?: (enabled: boolean) => void;
+  interleaveMsEnabled?: boolean;
+  onInterleaveMsToggle?: (enabled: boolean) => void;
   loadId?: number;
 }
 
@@ -52,6 +54,8 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
   showWorksheetOption = false,
   worksheetEnabled = true,
   onWorksheetToggle,
+  interleaveMsEnabled = false,
+  onInterleaveMsToggle,
   loadId,
 }) => {
   return (
@@ -84,6 +88,8 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
               showWorksheetOption={showWorksheetOption}
               worksheetEnabled={worksheetEnabled}
               onWorksheetToggle={onWorksheetToggle}
+              interleaveMsEnabled={interleaveMsEnabled}
+              onInterleaveMsToggle={onInterleaveMsToggle}
             />
           )}
           {hasLoadedOnce && (
