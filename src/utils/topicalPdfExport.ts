@@ -748,7 +748,7 @@ export const mergeTopicalPDFs = async (
   selectedTopics: Set<string>,
   levelBoardSubject: { level: string; board: string; subject: string },
   onProgress?: (progress: ExportProgress) => void,
-  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean } = {},
+  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean; headerSeparatePage?: boolean } = {},
   filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
@@ -926,20 +926,72 @@ export const mergeTopicalPDFs = async (
       }
 
       if (item.kind === 'mcqAnswer') {
-        const bandH = 50;
+        // ── MCQ answer header — uses the same headerHeight but a distinct amber design ──
+        const bandH = headerHeight || 25;
         const p = mergedPdf.addPage([A4_WIDTH, bandH]);
-        drawRoundedHeaderBackground(p, 0, 0, A4_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
+
+        // Amber/gold background
+        drawRoundedHeaderBackground(p, 0, 0, A4_WIDTH, bandH, 5, rgb(1.0, 0.93, 0.73));
+
+        const mcqLabel = 'MCQ';
+        const mcqSize = titleSize * 0.85;
+        const mcqLabelW = boldFont.widthOfTextAtSize(mcqLabel, mcqSize);
+        const pillH = mcqSize * 1.6;
+        const pillX = 8;
+        const pillY = bandH / 2 - pillH / 2; // vertically centered (PDF y is from bottom)
+        const textY = bandH / 2 - titleSize / 3;
+
+        // Amber pill behind the MCQ label
+        drawRoundedHeaderBackground(p, pillX, pillY, mcqLabelW + 8, pillH, 3, rgb(0.95, 0.75, 0.2));
+        p.drawText(mcqLabel, { x: pillX + 4, y: textY, size: mcqSize, font: boldFont, color: rgb(0.5, 0.3, 0.0) });
+
+        // Centre: question title
+        const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
+        const safeRef = sanitizeForPdf(`Q${item.questionNumber}`);
+        const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+        p.drawText(safeRef, { x: pillX + mcqLabelW + 16, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+        p.drawText(safeTitle, { x: (A4_WIDTH - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+
+        // Right: the answer
+        const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
+        const answerW = boldFont.widthOfTextAtSize(answerText, titleSize);
+        p.drawText(answerText, { x: A4_WIDTH - answerW - 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.4, 0.15) });
+      } else if (needsHeader && options.headerSeparatePage) {
+        // ── Header-on-separate-page mode ──────────────────────────────────────
+        // 1. Emit a dedicated page whose height is exactly the configured headerHeight.
+        const sepPageW = item.srcWidth;
+        const sepPageH = headerHeight; // respect the user's setting exactly
+        const hdrPage = mergedPdf.addPage([sepPageW, sepPageH]);
+        drawRoundedHeaderBackground(hdrPage, 0, 0, sepPageW, sepPageH, 5, rgb(0.92, 0.92, 0.94));
+
         const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
         const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
-        const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
-        const textY = bandH / 2 - 11 / 3;
-        p.drawText(safeRef, { x: 20, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-        p.drawText(safeTitle, { x: (A4_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-        const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-        const answerSize = 14;
-        const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
-        p.drawText(answerText, { x: A4_WIDTH - answerW - 20, y: bandH / 2 - answerSize / 3, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
+        const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+        const textY = sepPageH / 2 - titleSize / 3;
+
+        hdrPage.drawText(safeRef, { x: 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+        hdrPage.drawText(safeTitle, { x: (sepPageW - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+
+        const topicsText = item.question.topicMatches && item.question.topicMatches.length > 0
+          ? formatTopicHeaderText(item.question.topicMatches) : '';
+        if (topicsText) {
+          const maxW = sepPageW - 30 - 150;
+          let rendered = sanitizeForPdf(topicsText);
+          while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxW && rendered.length > 0) rendered = rendered.slice(0, -1);
+          if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
+          const renderedW = regularFont.widthOfTextAtSize(rendered, topicSize);
+          hdrPage.drawText(rendered, { x: sepPageW - renderedW - 10, y: textY, size: topicSize, font: regularFont, color: rgb(0.35, 0.4, 0.45) });
+        }
+
+        // 2. Emit the question page normally (no extra height).
+        const qp = mergedPdf.addPage([item.srcWidth, item.srcHeight]);
+        if (item.kind === 'pdfPage') {
+          qp.drawPage(item.embedded, { x: 0, y: 0, width: item.srcWidth, height: item.srcHeight });
+        } else {
+          qp.drawImage(item.image, { x: 0, y: 0, width: item.srcWidth, height: item.srcHeight });
+        }
       } else {
+        // ── Default: header band glued to top of question page ────────────────
         const addedHeight = needsHeader ? headerHeight : 0;
         const p = mergedPdf.addPage([item.srcWidth, item.srcHeight + addedHeight]);
         
@@ -1045,26 +1097,36 @@ export const mergeTopicalPDFs = async (
 
       for (const item of group.items) {
         if (item.kind === 'mcqAnswer') {
-          const bandH = 25;
+          const bandH = headerHeight || 25;
           if (currentY - bandH < MARGIN) newA4Page();
           const bandY = currentY - bandH;
 
-          drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
+          // Amber background
+          drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(1.0, 0.93, 0.73));
 
-          const titleText = item.question.title || `Question ${item.questionNumber}`;
-          const safeTitle = sanitizeForPdf(titleText);
-          const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
-          const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
-          const textY = bandY + bandH / 2 - 11 / 3;
+          const mcqLabel = 'MCQ';
+          const mcqSize = titleSize * 0.85;
+          const mcqLabelW = boldFont.widthOfTextAtSize(mcqLabel, mcqSize);
+          const pillH = mcqSize * 1.6;
+          const pillX = MARGIN + 8;
+          const pillY = bandY + bandH / 2 - pillH / 2;
+          const textY = bandY + bandH / 2 - titleSize / 3;
 
-          currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-          currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+          // Amber pill
+          drawRoundedHeaderBackground(currentPage, pillX, pillY, mcqLabelW + 8, pillH, 3, rgb(0.95, 0.75, 0.2));
+          currentPage.drawText(mcqLabel, { x: pillX + 4, y: textY, size: mcqSize, font: boldFont, color: rgb(0.5, 0.3, 0.0) });
 
+          // Centre: title
+          const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
+          const safeRef = sanitizeForPdf(`Q${item.questionNumber}`);
+          const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+          currentPage.drawText(safeRef, { x: pillX + mcqLabelW + 16, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+          currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+
+          // Right: answer
           const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-          const answerSize = 13;
-          const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
-          const answerY = bandY + bandH / 2 - answerSize / 3;
-          currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: answerY, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
+          const answerW = boldFont.widthOfTextAtSize(answerText, titleSize);
+          currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.4, 0.15) });
 
           currentY = bandY - SPACING;
           continue;
@@ -1114,26 +1176,36 @@ export const mergeTopicalPDFs = async (
   } else {
     for (const item of renderItems) {
       if (item.kind === 'mcqAnswer') {
-        const bandH = 25;
+        const bandH = headerHeight || 25;
         if (currentY - bandH < MARGIN) newA4Page();
         const bandY = currentY - bandH;
 
-        drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(0.92, 0.92, 0.94));
+        // Amber background
+        drawRoundedHeaderBackground(currentPage, MARGIN, bandY, PRINTABLE_WIDTH, bandH, 5, rgb(1.0, 0.93, 0.73));
 
-        const titleText = item.question.title || `Question ${item.questionNumber}`;
-        const safeTitle = sanitizeForPdf(titleText);
-        const safeRef = sanitizeForPdf(`Question ${item.questionNumber}`);
-        const titleW = boldFont.widthOfTextAtSize(safeTitle, 11);
-        const textY = bandY + bandH / 2 - 11 / 3;
+        const mcqLabel = 'MCQ';
+        const mcqSize = titleSize * 0.85;
+        const mcqLabelW = boldFont.widthOfTextAtSize(mcqLabel, mcqSize);
+        const pillH = mcqSize * 1.6;
+        const pillX = MARGIN + 8;
+        const pillY = bandY + bandH / 2 - pillH / 2;
+        const textY = bandY + bandH / 2 - titleSize / 3;
 
-        currentPage.drawText(safeRef, { x: MARGIN + 10, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-        currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: 11, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
+        // Amber pill
+        drawRoundedHeaderBackground(currentPage, pillX, pillY, mcqLabelW + 8, pillH, 3, rgb(0.95, 0.75, 0.2));
+        currentPage.drawText(mcqLabel, { x: pillX + 4, y: textY, size: mcqSize, font: boldFont, color: rgb(0.5, 0.3, 0.0) });
 
+        // Centre: title
+        const safeTitle = sanitizeForPdf(item.question.title || `Question ${item.questionNumber}`);
+        const safeRef = sanitizeForPdf(`Q${item.questionNumber}`);
+        const titleW = boldFont.widthOfTextAtSize(safeTitle, titleSize);
+        currentPage.drawText(safeRef, { x: pillX + mcqLabelW + 16, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+        currentPage.drawText(safeTitle, { x: MARGIN + (PRINTABLE_WIDTH - titleW) / 2, y: textY, size: titleSize, font: boldFont, color: rgb(0.25, 0.18, 0.0) });
+
+        // Right: answer
         const answerText = `Answer: ${item.question.mcqAnswer || '?'}`;
-        const answerSize = 13;
-        const answerW = boldFont.widthOfTextAtSize(answerText, answerSize);
-        const answerY = bandY + bandH / 2 - answerSize / 3;
-        currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: answerY, size: answerSize, font: boldFont, color: rgb(0.1, 0.4, 0.25) });
+        const answerW = boldFont.widthOfTextAtSize(answerText, titleSize);
+        currentPage.drawText(answerText, { x: MARGIN + PRINTABLE_WIDTH - answerW - 10, y: textY, size: titleSize, font: boldFont, color: rgb(0.1, 0.4, 0.15) });
 
         currentY = bandY - SPACING;
         continue;
@@ -1195,7 +1267,7 @@ export const downloadMergedTopicalPDFs = async (
     onDone?: () => void;
     onError?: (message: string) => void;
   } = {},
-  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean } = {},
+  options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean; defaultFormat?: boolean; headerSeparatePage?: boolean } = {},
   filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
 ) => {
   if (questions.length === 0) {

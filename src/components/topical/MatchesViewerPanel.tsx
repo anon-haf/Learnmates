@@ -9,7 +9,7 @@ interface MatchesViewerPanelProps {
   hasLoadedOnce: boolean;
   loadingProgress: { current: number; total: number; isLoading: boolean };
   showUnitTags: boolean;
-  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; worksheet?: boolean }) => void;
+  onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; worksheet?: boolean; headerSeparatePage?: boolean }) => void;
   onExpandPicker?: () => void;
   loadFeedback?: string | null;
   showExtraPageOption?: boolean;
@@ -25,6 +25,10 @@ interface MatchesViewerPanelProps {
   onWorksheetToggle?: (enabled: boolean) => void;
   interleaveMsEnabled?: boolean;
   onInterleaveMsToggle?: (enabled: boolean) => void;
+  defaultFormatEnabled?: boolean;
+  onDefaultFormatToggle?: (enabled: boolean) => void;
+  headerSeparatePageEnabled?: boolean;
+  onHeaderSeparatePageToggle?: (enabled: boolean) => void;
   loadId?: number;
 }
 
@@ -56,6 +60,10 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
   onWorksheetToggle,
   interleaveMsEnabled = false,
   onInterleaveMsToggle,
+  defaultFormatEnabled = true,
+  onDefaultFormatToggle,
+  headerSeparatePageEnabled = false,
+  onHeaderSeparatePageToggle,
   loadId,
 }) => {
   return (
@@ -90,6 +98,10 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
               onWorksheetToggle={onWorksheetToggle}
               interleaveMsEnabled={interleaveMsEnabled}
               onInterleaveMsToggle={onInterleaveMsToggle}
+              defaultFormatEnabled={defaultFormatEnabled}
+              onDefaultFormatToggle={onDefaultFormatToggle}
+              headerSeparatePageEnabled={headerSeparatePageEnabled}
+              onHeaderSeparatePageToggle={onHeaderSeparatePageToggle}
             />
           )}
           {hasLoadedOnce && (

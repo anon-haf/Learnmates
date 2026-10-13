@@ -39,6 +39,8 @@ import { PdfDocumentSkeleton } from './PdfPageSkeleton';
 import { PdfSidebarPageThumb } from './PdfSidebarPageThumb';
 import { DrawTool, PdfDrawablePage } from './PdfDrawablePage';
 import { clearPdfThumbnailCache, loadPdfDocument } from '../utils/pdfThumbnail';
+import { clearPdfPageRenderCache } from '../utils/pdfPageRenderCache';
+import { quantizePdfRenderZoomPercent } from '../utils/pdfAnnotationMetrics';
 import { usePdfAnnotationHistory } from '../utils/pdfAnnotationHistory';
 import {
   loadAnnotations,
@@ -103,6 +105,7 @@ const MemoizedPdfDrawablePage = React.memo(
       prevProps.eraserSize === nextProps.eraserSize &&
       prevProps.allowTouchNavigation === nextProps.allowTouchNavigation &&
       prevProps.renderScale === nextProps.renderScale &&
+      prevProps.renderZoom === nextProps.renderZoom &&
       prevProps.restoredAnnotation === nextProps.restoredAnnotation
     );
   }
@@ -122,6 +125,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(100);
   const [debouncedZoom, setDebouncedZoom] = useState<number>(100);
+  const pdfRenderZoom = useMemo(
+    () => quantizePdfRenderZoomPercent(debouncedZoom),
+    [debouncedZoom]
+  );
   const [zoomInputValue, setZoomInputValue] = useState<string>('100');
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -224,7 +231,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const isZoomingRef = useRef(false);
   const zoomEndTimeoutRef = useRef<number | null>(null);
   const engagementRecordedRef = useRef({ opened: false, read: false, downloaded: false });
-  const alivePagesRef = useRef<Set<number>>(new Set());
+  const [mountedPages, setMountedPages] = useState<Set<number>>(() => new Set([1]));
+  const [pageWindowBuffer, setPageWindowBuffer] = useState(2);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [thumbnailWidth, setThumbnailWidth] = useState(100);
   const [sidebarEl, setSidebarEl] = useState<HTMLDivElement | null>(null);
@@ -248,6 +256,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     }, 300);
     return () => clearTimeout(t);
   }, [zoom]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.style.setProperty('--pdf-render-zoom', String(debouncedZoom / 100));
+  }, [debouncedZoom]);
 
   // Keep zoom input display in sync when not actively editing
   useEffect(() => {
@@ -379,6 +393,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   useEffect(() => {
     clearPdfThumbnailCache(pdfUrl);
+    clearPdfPageRenderCache(pdfUrl);
   }, [pdfUrl]);
 
 
@@ -499,6 +514,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const total = doc.numPages;
     setNumPages(total);
     setCurrentPage(1);
+    setMountedPages(new Set([1]));
     setFetchError(null);
     // Expose PDF document globally for hi-res viewport rendering
     window.__PDF_DOC__ = doc;
@@ -550,14 +566,39 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       },
       {
         root: container,
-        threshold: [0, 0.5, 1],
+        threshold: [0, 0.25, 0.5, 1],
         rootMargin: '-20% 0px -55% 0px',
       }
     );
 
-    pageRefs.current.forEach((el) => observer.observe(el));
+    const prefetchObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const page = Number((entry.target as HTMLElement).dataset.page);
+          if (page <= 0) return;
+          setMountedPages((prev) => {
+            if (prev.has(page)) return prev;
+            const next = new Set(prev);
+            next.add(page);
+            return next;
+          });
+        });
+      },
+      {
+        root: container,
+        threshold: 0,
+        rootMargin: '120% 0px 120% 0px',
+      }
+    );
+
+    pageRefs.current.forEach((el) => {
+      observer.observe(el);
+      prefetchObserver.observe(el);
+    });
     return () => {
       observer.disconnect();
+      prefetchObserver.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [numPages]);
@@ -568,6 +609,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     // Initialize the CSS variable imperatively since we no longer set it via React style prop.
     // This prevents a flash of unscaled content on first render.
     container.style.setProperty('--pdf-zoom', String(zoomRef.current / 100));
+    container.style.setProperty('--pdf-render-zoom', String(debouncedZoom / 100));
 
     const updatePageWidth = () => {
       const padding = 32;
@@ -583,7 +625,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const observer = new ResizeObserver(updatePageWidth);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [sidebarOpen]);
+  }, [sidebarOpen, debouncedZoom]);
 
 
 
@@ -945,38 +987,44 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   // recalculation which would mount/unmount pages and shift the document layout.
   const estimatedPageHeight = pageWidth * A4_ASPECT + PAGE_GAP_PX;
 
-  const dynamicBuffer = useMemo(() => {
+  useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) return 2;
-    const containerHeight = container.clientHeight;
-    // Use current zoom from ref (not state) to avoid re-renders during zoom
-    const scaledHeight = estimatedPageHeight * (zoomRef.current / 100);
-    return Math.ceil(containerHeight / scaledHeight) + 1;
-  }, [estimatedPageHeight]);
+    if (!container) return;
 
-  // Ensure minimum ±2 buffer always kept loaded
-  const effectiveBuffer = Math.max(2, dynamicBuffer);
+    const updateBuffer = () => {
+      const containerHeight = container.clientHeight;
+      const scaledHeight = estimatedPageHeight * (zoomRef.current / 100);
+      setPageWindowBuffer(
+        Math.max(2, Math.ceil(containerHeight / Math.max(scaledHeight, 1)) + 1)
+      );
+    };
+
+    updateBuffer();
+    const ro = new ResizeObserver(updateBuffer);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [estimatedPageHeight, sidebarOpen, debouncedZoom]);
+
+  const effectiveBuffer = pageWindowBuffer;
 
   const renderStart = Math.max(1, currentPage - effectiveBuffer);
   const renderEnd = Math.min(numPages || 1, currentPage + effectiveBuffer);
 
-  // Update alive pages: add new pages and lazily prune old ones
-  useMemo(() => {
-    // Add newly visible pages to alive set
-    for (let i = renderStart; i <= renderEnd; i++) {
-      alivePagesRef.current.add(i);
-    }
-
-    // Lazy prune: remove pages too far from current page
-    const pruneDistance = effectiveBuffer + 2;
-    const toRemove: number[] = [];
-    alivePagesRef.current.forEach(page => {
-      if (Math.abs(page - currentPage) > pruneDistance) {
-        toRemove.push(page);
+  useEffect(() => {
+    setMountedPages((prev) => {
+      const next = new Set(prev);
+      for (let i = renderStart; i <= renderEnd; i++) {
+        next.add(i);
       }
+      const pruneDistance = effectiveBuffer + 2;
+      for (const page of next) {
+        if (Math.abs(page - currentPage) > pruneDistance && !drawingPages.has(page)) {
+          next.delete(page);
+        }
+      }
+      return next;
     });
-    toRemove.forEach(page => alivePagesRef.current.delete(page));
-  }, [renderStart, renderEnd, currentPage, effectiveBuffer]);
+  }, [renderStart, renderEnd, currentPage, effectiveBuffer, drawingPages]);
 
   return (
     <div className={`w-full flex flex-col bg-gray-900 text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
@@ -1504,8 +1552,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 {numPages > 0 &&
                   Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => {
                     const shouldRenderPage =
-                      drawingPages.has(pageNum) ||
-                      alivePagesRef.current.has(pageNum);
+                      drawingPages.has(pageNum) || mountedPages.has(pageNum);
 
                     return (
                       <div
@@ -1522,7 +1569,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               pageNumber={pageNum}
                               pageWidth={pageWidth}
                               zoom={zoom}
-                              renderScale={1}
+                              renderZoom={pdfRenderZoom}
                               drawingEnabled={drawingEnabled}
                               drawTool={drawTool}
                               penColor={penColor}

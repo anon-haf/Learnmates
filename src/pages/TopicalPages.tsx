@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { logTopicalSearch } from '../utils/logTopicalSearch';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -275,7 +276,17 @@ const TopicalPages: React.FC = () => {
   const [headerSize, setHeaderSize] = useState<number>(25);
   const [worksheetEnabled, setWorksheetEnabled] = useState(true);
   const [interleaveMsEnabled, setInterleaveMsEnabled] = useState(false);
+  const [headerSeparatePageEnabled, setHeaderSeparatePageEnabled] = useState(false);
+  const [defaultFormatEnabled, setDefaultFormatEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('topical_export_default_format');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [loadId, setLoadId] = useState<number>(0);
+
+  const handleDefaultFormatToggle = (enabled: boolean) => {
+    setDefaultFormatEnabled(enabled);
+    localStorage.setItem('topical_export_default_format', String(enabled));
+  };
 
   const handleWorksheetToggle = (enabled: boolean) => {
     setWorksheetEnabled(enabled);
@@ -604,7 +615,7 @@ const TopicalPages: React.FC = () => {
     setNeedLoad(true);
   };
 
-  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean }) => {
+  const handleExport = (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean; defaultFormat?: boolean; headerSeparatePage?: boolean }) => {
     // Get topics from localStorage if checked is empty
     const key = `topical_checked_${selectedLevel}_${selectedBoard}_${selectedSubject}`;
     const storedTopicsStr = localStorage.getItem(key);
@@ -626,8 +637,13 @@ const TopicalPages: React.FC = () => {
     console.log('[Export] exportTopics.size:', exportTopics.size);
     console.log('[Export] exportTopics:', [...exportTopics]);
 
-    const activeWorksheet = options?.worksheet ?? worksheetEnabled;
-    const activeHeaderPage = !activeWorksheet ? true : (options?.headerPage ?? headerPageEnabled);
+    const isDefault = options?.defaultFormat ?? defaultFormatEnabled;
+    const activeWorksheet = isDefault ? true : (options?.worksheet ?? worksheetEnabled);
+    const activeHeaderPage = isDefault ? true : (options?.headerPage ?? headerPageEnabled);
+    const activeHeaderSize = isDefault ? 25 : (options?.headerSize ?? headerSize);
+    const activeInterleaveMs = isDefault ? false : (options?.interleaveMs ?? interleaveMsEnabled);
+    const activeExtraPage = isDefault ? false : (options?.extraPage ?? extraPageEnabled);
+    const activeHeaderSeparatePage = isDefault ? false : (!activeWorksheet && activeHeaderPage ? (options?.headerSeparatePage ?? headerSeparatePageEnabled) : false);
 
     downloadMergedTopicalPDFs(
       type,
@@ -644,11 +660,12 @@ const TopicalPages: React.FC = () => {
         onError: message => alert(message),
       },
       {
-        extraPage: options?.extraPage ?? extraPageEnabled,
+        extraPage: activeExtraPage,
         headerPage: activeHeaderPage,
-        headerSize: options?.headerSize ?? headerSize,
+        headerSize: activeHeaderSize,
         worksheet: activeWorksheet,
-        interleaveMs: options?.interleaveMs ?? interleaveMsEnabled,
+        interleaveMs: activeInterleaveMs,
+        headerSeparatePage: activeHeaderSeparatePage,
       },
       {
         papers: Array.from(paperFilter),
@@ -723,6 +740,14 @@ const TopicalPages: React.FC = () => {
         const key = `topical_checked_${selectedLevel}_${selectedBoard}_${selectedSubject}`;
         localStorage.setItem(key, JSON.stringify([...checked]));
         console.log('[Load] Saved to localStorage:', key, [...checked]);
+        // Log search event to Supabase (non-blocking)
+        void logTopicalSearch({
+          level: selectedLevel,
+          board: selectedBoard,
+          subject: selectedSubject,
+          topics: Array.from(checked),
+          resultCount: results.length,
+        });
       }
     };
 
@@ -882,6 +907,10 @@ const TopicalPages: React.FC = () => {
                       onWorksheetToggle={handleWorksheetToggle}
                       interleaveMsEnabled={interleaveMsEnabled}
                       onInterleaveMsToggle={setInterleaveMsEnabled}
+                      defaultFormatEnabled={defaultFormatEnabled}
+                      onDefaultFormatToggle={handleDefaultFormatToggle}
+                      headerSeparatePageEnabled={headerSeparatePageEnabled}
+                      onHeaderSeparatePageToggle={setHeaderSeparatePageEnabled}
                       loadId={loadId}
                     />
                   </div>

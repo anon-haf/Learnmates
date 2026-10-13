@@ -1,3 +1,5 @@
+import { pdfStrokeWidthInCanvasPixels } from './pdfAnnotationMetrics';
+
 export type Point = { x: number; y: number };
 
 export type VectorStroke = {
@@ -130,17 +132,44 @@ export function exportCanvasAnnotation(
 export function applyStoredAnnotation(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  stored: StoredVectorPage
+  stored: StoredVectorPage,
+  pdfPageWidthAtScale1?: number
 ): Promise<void> {
   return new Promise((resolve) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    const pageWidthScale1 =
+      pdfPageWidthAtScale1 && pdfPageWidthAtScale1 > 0
+        ? pdfPageWidthAtScale1
+        : stored.width > 0
+          ? stored.width
+          : canvas.width;
+
+    const storedWidth = stored.width > 0 ? stored.width : canvas.width;
+    const storedHeight = stored.height > 0 ? stored.height : canvas.height;
+
     // Apply vector actions first
     for (const action of stored.actions) {
       if (action.type === 'freehand') {
-        applyStroke(ctx, action);
+        applyStroke(
+          ctx,
+          action,
+          canvas.width,
+          canvas.height,
+          storedWidth,
+          storedHeight,
+          pageWidthScale1
+        );
       } else {
-        applyShape(ctx, action);
+        applyShape(
+          ctx,
+          action,
+          canvas.width,
+          canvas.height,
+          storedWidth,
+          storedHeight,
+          pageWidthScale1
+        );
       }
     }
 
@@ -172,8 +201,19 @@ export function applyStoredAnnotation(
   });
 }
 
-function applyStroke(ctx: CanvasRenderingContext2D, stroke: VectorStroke) {
+function applyStroke(
+  ctx: CanvasRenderingContext2D,
+  stroke: VectorStroke,
+  canvasWidth: number,
+  canvasHeight: number,
+  storedWidth: number,
+  storedHeight: number,
+  pageWidthScale1: number
+) {
   if (stroke.points.length < 2) return;
+
+  const sx = storedWidth > 0 ? canvasWidth / storedWidth : 1;
+  const sy = storedHeight > 0 ? canvasHeight / storedHeight : 1;
 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -181,30 +221,54 @@ function applyStroke(ctx: CanvasRenderingContext2D, stroke: VectorStroke) {
   if (stroke.tool === 'pen') {
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.size;
+    ctx.lineWidth = pdfStrokeWidthInCanvasPixels(
+      stroke.size,
+      canvasWidth,
+      pageWidthScale1
+    );
   } else {
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.lineWidth = stroke.size;
+    ctx.lineWidth = pdfStrokeWidthInCanvasPixels(
+      stroke.size,
+      canvasWidth,
+      pageWidthScale1
+    );
   }
 
   ctx.beginPath();
-  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+  ctx.moveTo(stroke.points[0].x * sx, stroke.points[0].y * sy);
 
   for (let i = 1; i < stroke.points.length; i++) {
-    ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    ctx.lineTo(stroke.points[i].x * sx, stroke.points[i].y * sy);
   }
 
   ctx.stroke();
 }
 
-function applyShape(ctx: CanvasRenderingContext2D, shape: VectorShape) {
+function applyShape(
+  ctx: CanvasRenderingContext2D,
+  shape: VectorShape,
+  canvasWidth: number,
+  canvasHeight: number,
+  storedWidth: number,
+  storedHeight: number,
+  pageWidthScale1: number
+) {
+  const sx = storedWidth > 0 ? canvasWidth / storedWidth : 1;
+  const sy = storedHeight > 0 ? canvasHeight / storedHeight : 1;
+
   ctx.globalCompositeOperation = 'source-over';
   ctx.strokeStyle = shape.color;
-  ctx.lineWidth = shape.size;
+  ctx.lineWidth = pdfStrokeWidthInCanvasPixels(
+    shape.size,
+    canvasWidth,
+    pageWidthScale1
+  );
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  const { start, end } = shape;
+  const start = { x: shape.start.x * sx, y: shape.start.y * sy };
+  const end = { x: shape.end.x * sx, y: shape.end.y * sy };
   const width = end.x - start.x;
   const height = end.y - start.y;
 
