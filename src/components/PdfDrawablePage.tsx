@@ -9,6 +9,11 @@ import {
   clampOutputDevicePixelRatio,
   pdfStrokeWidthInCanvasPixels,
 } from '../utils/pdfAnnotationMetrics';
+import {
+  getCachedPageRender,
+  pdfRenderCacheKey,
+  setCachedPageRender,
+} from '../utils/pdfPageRenderCache';
 import './PdfViewerTextLayer.css';
 
 declare global {
@@ -237,6 +242,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   pageWidth,
   renderZoom = 100,
   renderScale,
+  pdfCacheKey,
   drawingEnabled = false,
   drawTool = 'pen',
   penColor = '#000000',
@@ -282,10 +288,42 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const renderZoomPercent = renderScale != null ? renderScale * 100 : renderZoom;
   const renderZoomFactor = Math.max(0.25, renderZoomPercent / 100);
   const displayWidth = Math.max(1, Math.round(pageWidth * renderZoomFactor));
+  const outputDevicePixelRatio = clampOutputDevicePixelRatio(
+    typeof window !== 'undefined' ? window.devicePixelRatio : 1
+  );
+  const pageRenderCacheKey = pdfCacheKey
+    ? pdfRenderCacheKey(
+        pdfCacheKey,
+        pageNumber,
+        displayWidth,
+        renderZoomPercent,
+        outputDevicePixelRatio
+      )
+    : null;
+  const renderIdentity =
+    pageRenderCacheKey ??
+    `${pageNumber}|${displayWidth}|${renderZoomPercent}|${outputDevicePixelRatio}`;
+  const pdfIdentity = pdfCacheKey ?? '';
 
-  const [rendered, setRendered] = useState(false);
+  const [renderedIdentity, setRenderedIdentity] = useState<string | null>(null);
+  const rendered = renderedIdentity === renderIdentity;
+  const [renderedPdfIdentity, setRenderedPdfIdentity] = useState<string | null>(null);
+  const hasRenderedPdf = renderedPdfIdentity === pdfIdentity;
+  const renderIdentityRef = useRef(renderIdentity);
+  renderIdentityRef.current = renderIdentity;
   const [pageHeight, setPageHeight] = useState(() => pageWidth * A4_ASPECT);
-  const [pageImgSrc, setPageImgSrc] = useState<string | null>(null);
+  const [pagePreview, setPagePreview] = useState<{
+    pdfKey: string;
+    renderKey: string | null;
+    src: string;
+  } | null>(() => {
+    const cached = pageRenderCacheKey
+      ? getCachedPageRender(pageRenderCacheKey)
+      : undefined;
+    return cached && pdfCacheKey
+      ? { pdfKey: pdfCacheKey, renderKey: pageRenderCacheKey, src: cached.dataUrl }
+      : null;
+  });
   const [invertActive, setInvertActive] = useState(() => {
     try {
       return localStorage.getItem('universal-pdf-invert-colors') === 'true';
@@ -332,12 +370,29 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   }, [getRestoredAnnotation, restoredAnnotation]);
 
   useEffect(() => {
-    setRendered(false);
     setPageHeight(pageWidth * A4_ASPECT);
     drawCtxRef.current = null;
     appliedRestoreKeyRef.current = null;
-    setPageImgSrc(null);
-  }, [pageNumber, pageWidth, displayWidth]);
+    const drawCanvas = drawCanvasRef.current;
+    if (drawCanvas?.width && drawCanvas.height) {
+      const aspect = drawCanvas.height / drawCanvas.width;
+      drawCanvas.style.width = `${displayWidth}px`;
+      drawCanvas.style.height = `${displayWidth * aspect}px`;
+    }
+    const cached = pageRenderCacheKey
+      ? getCachedPageRender(pageRenderCacheKey)
+      : undefined;
+    setPagePreview((previous) => {
+      if (cached && pdfCacheKey) {
+        return {
+          pdfKey: pdfCacheKey,
+          renderKey: pageRenderCacheKey,
+          src: cached.dataUrl,
+        };
+      }
+      return previous?.pdfKey === pdfCacheKey ? previous : null;
+    });
+  }, [pageNumber, pageWidth, displayWidth, pdfCacheKey, pageRenderCacheKey]);
 
   const getDrawContext = useCallback((canvas: HTMLCanvasElement) => {
     if (!drawCtxRef.current) {
@@ -415,30 +470,49 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   }, [getDrawContext]);
 
   const handleRenderSuccess = (page?: { originalWidth?: number }) => {
+    if (renderIdentityRef.current !== renderIdentity) return;
     if (page?.originalWidth && page.originalWidth > 0) {
       pdfPageWidthScale1Ref.current = page.originalWidth;
     }
-    setRendered(true);
+    setRenderedIdentity(renderIdentity);
+    setRenderedPdfIdentity(pdfIdentity);
     requestAnimationFrame(() => {
       syncOverlayToPdfCanvas();
       void applyRestoredAnnotationToOverlay();
 
-      if (mode === 'inline') {
-        const container = containerRef.current;
-        if (container) {
-          const pdfCanvas = container.querySelector(
-            'canvas.react-pdf__Page__canvas'
-          ) as HTMLCanvasElement | null;
-          if (pdfCanvas && pdfCanvas.width > 0 && pdfCanvas.height > 0) {
-            try {
-              const dataUrl = pdfCanvas.toDataURL('image/png');
-              setPageImgSrc(dataUrl);
-            } catch (e) {
-              console.warn('Failed to convert PDF canvas to image data URL:', e);
-            }
-          }
+      const canvas = containerRef.current?.querySelector(
+        'canvas.react-pdf__Page__canvas'
+      ) as HTMLCanvasElement | null;
+      if (!canvas || !pageRenderCacheKey || !pdfCacheKey) return;
+
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.warn(`Failed to cache PDF render for page ${pageNumber}`);
+          return;
         }
-      }
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result !== 'string') {
+            console.warn(`Failed to read cached PDF render for page ${pageNumber}`);
+            return;
+          }
+          const entry = {
+            dataUrl: reader.result,
+            width: canvas.width,
+            height: canvas.height,
+          };
+          setCachedPageRender(pageRenderCacheKey, entry);
+          setPagePreview({
+            pdfKey: pdfCacheKey,
+            renderKey: pageRenderCacheKey,
+            src: reader.result,
+          });
+        };
+        reader.onerror = () => {
+          console.warn(`Failed to read cached PDF render for page ${pageNumber}`);
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.82);
     });
   };
 
@@ -449,6 +523,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   }, [rendered, restoredAnnotation, syncOverlayToPdfCanvas, applyRestoredAnnotationToOverlay]);
 
   useEffect(() => {
+    if (!rendered) return;
     const canvas = drawCanvasRef.current;
     onCanvasMount?.(pageNumber, canvas);
     return () => onCanvasMount?.(pageNumber, null);
@@ -896,9 +971,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
           key={`${pageNumber}-${displayWidth}-${pageWidth}`}
           pageNumber={pageNumber}
           width={displayWidth}
-          devicePixelRatio={clampOutputDevicePixelRatio(
-            typeof window !== 'undefined' ? window.devicePixelRatio : 1
-          )}
+          devicePixelRatio={outputDevicePixelRatio}
           renderMode="canvas"
           renderTextLayer={mode !== 'inline' && !drawingEnabled}
           renderAnnotationLayer={false}
@@ -906,22 +979,28 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
             <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
           }
           onRenderSuccess={handleRenderSuccess}
-          onRenderError={() => handleRenderSuccess()}
+          onRenderError={(error) => console.error('PDF page render failed:', error)}
         />
 
-        {mode === 'inline' && pageImgSrc && (
-          <img
-            src={pageImgSrc}
-            alt={`Page ${pageNumber}`}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-auto select-none z-10"
-            draggable={false}
-          />
-        )}
+        {pagePreview?.pdfKey === pdfCacheKey &&
+          pagePreview.src &&
+          (mode === 'inline'
+            ? rendered
+              ? pagePreview.renderKey === pageRenderCacheKey
+              : true
+            : !rendered) && (
+            <img
+              src={pagePreview.src}
+              alt={`Page ${pageNumber}`}
+              className="absolute inset-0 w-full h-full object-contain pointer-events-auto select-none z-10"
+              draggable={false}
+            />
+          )}
 
-        {rendered && (
+        {hasRenderedPdf && (
           <canvas
             ref={drawCanvasRef}
-            className={`absolute z-20 ${cursorClass} ${invertActive ? 'invert hue-rotate-180' : ''}`}
+            className={`absolute z-20 ${rendered ? cursorClass : 'pointer-events-none'} ${invertActive ? 'invert hue-rotate-180' : ''}`}
             style={{
               touchAction: !drawingEnabled
                 ? 'auto'
@@ -943,6 +1022,7 @@ function pdfDrawablePagePropsAreEqual(
   if (prev.mode !== next.mode) return false;
   if (prev.pageNumber !== next.pageNumber) return false;
   if (prev.pageWidth !== next.pageWidth) return false;
+  if (prev.pdfCacheKey !== next.pdfCacheKey) return false;
   if (prev.drawingEnabled !== next.drawingEnabled) return false;
   if (prev.allowTouchNavigation !== next.allowTouchNavigation) return false;
   if (prev.drawTool !== next.drawTool) return false;

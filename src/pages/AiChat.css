@@ -59,6 +59,16 @@
 .ai-answer-content h2 { font-size: 1.1rem; }
 .ai-answer-content h3 { font-size: 1rem; }
 
+.ai-answer-content sub,
+.ai-answer-content sup {
+  font-size: 0.72em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.ai-answer-content sub { bottom: -0.25em; }
+.ai-answer-content sup { top: -0.5em; }
+
 .ai-answer-content p {
   margin-bottom: 0.5rem;
 }
@@ -201,4 +211,8 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.nibras-consent-copy {
+  font-family: 'Patrick Hand', cursive;
 }

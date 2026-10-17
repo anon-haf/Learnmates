@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Download, Search, X } from 'lucide-react';
+import { Download, Eye, Search, X } from 'lucide-react';
 import { topicalConfigs } from './topicalpagesdata';
 import { useRouteBase, withBase } from '../utils/routeBase';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
@@ -344,6 +344,12 @@ const PastpapersPage: React.FC = () => {
   const pastpapersPath = (...parts: string[]) => withBase(base, `/pastpapers/${parts.join('/')}`);
   const { level: urlLevel, board: urlBoard, subject: urlSubject } = useParams<{ level?: string; board?: string; subject?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as { focusPaperKey?: unknown } | null;
+  const focusPaperKey = typeof locationState?.focusPaperKey === 'string'
+    ? locationState.focusPaperKey
+    : undefined;
+  const restoredPaperKey = useRef<string | null>(null);
 
   const configs = topicalConfigs;
   const levels = Array.from(new Set(configs.map(c => c.level)));
@@ -616,6 +622,30 @@ const PastpapersPage: React.FC = () => {
     loadPapers();
   }, [loadPapers]);
 
+  useEffect(() => {
+    if (!focusPaperKey || loading || restoredPaperKey.current === focusPaperKey) return;
+
+    const targetPaper = papers.find((paper) => paper.key === focusPaperKey);
+    if (!targetPaper) return;
+
+    setExpandedYears((years) => {
+      if (years.has(targetPaper.year)) return years;
+      const nextYears = new Set(years);
+      nextYears.add(targetPaper.year);
+      return nextYears;
+    });
+
+    const timeout = window.setTimeout(() => {
+      restoredPaperKey.current = focusPaperKey;
+      document.getElementById(`paper-${focusPaperKey}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [focusPaperKey, loading, papers]);
+
   const toggleYear = (year: number) => {
     setExpandedYears(prev => {
       const next = new Set(prev);
@@ -634,7 +664,7 @@ const PastpapersPage: React.FC = () => {
       paper.shortName,
       paper.unit
     );
-    navigate(paperPath);
+    navigate(paperPath, { state: { focusPaperKey: paper.key } });
   };
 
   const getUnitBadgeColor = (_unit: string) => {
@@ -956,6 +986,7 @@ const PastpapersPage: React.FC = () => {
                           return (
                             <div
                               key={paper.key}
+                              id={`paper-${paper.key}`}
                               className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all overflow-hidden flex flex-col"
                             >
                               {/* Paper info row — navigates to viewer */}
@@ -993,6 +1024,14 @@ const PastpapersPage: React.FC = () => {
 
                               {/* Download buttons row — same style as PaperViewer */}
                               <div className="flex items-center gap-1.5 px-3 pb-3 border-t border-gray-100 dark:border-gray-700 pt-2">
+                                <button
+                                  onClick={() => navigateToPaper(paper)}
+                                  title="View paper"
+                                  className="flex items-center justify-center gap-1.5 flex-1 px-2 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  View
+                                </button>
                                 <button
                                   onClick={(e) => handleDownloadQP(e, paper)}
                                   disabled={!!downloadingQP[paper.key]}

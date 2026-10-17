@@ -68,6 +68,10 @@ export const getDefaultPaperOptions = (level: string, board: string, subject: st
     ['Further Mathematics'].some(candidate => normalizeSubject(candidate) === normalized)) {
     return [1, 2, 3, 4];  // Cambridge A-Level Math papers P1-P6
   }
+  if (level === 'igcse' && board === 'cambridge' &&
+    ['Computer Science'].some(candidate => normalizeSubject(candidate) === normalized)) {
+    return [1, 2];  // Cambridge A-Level Math papers P1-P6
+  }
 
 
   return [1, 2, 3, 4];

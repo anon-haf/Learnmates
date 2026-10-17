@@ -62,6 +62,13 @@ export const PdfSidebarPageThumb: React.FC<PdfSidebarPageThumbProps> = ({
       };
     }
 
+    if (typeof IntersectionObserver === 'undefined') {
+      loadThumbnail();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const root = scrollRoot ?? null;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -79,14 +86,9 @@ export const PdfSidebarPageThumb: React.FC<PdfSidebarPageThumbProps> = ({
 
     observer.observe(element);
 
-    const fallbackTimer = window.setTimeout(() => {
-      if (!cancelled) loadThumbnail();
-    }, 300);
-
     return () => {
       cancelled = true;
       observer.disconnect();
-      window.clearTimeout(fallbackTimer);
     };
   }, [pdfDoc, pageNumber, thumbnailWidth, cacheKey, scrollRoot, eager]);
 

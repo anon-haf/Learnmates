@@ -11,6 +11,7 @@ export type UserProfile = {
   profile_complete: boolean;
   avatar_url: string | null;
   is_private: boolean;
+  nibras_disclosure_accepted_at: string | null;
 };
 
 /** Max avatar file size: 2 MB */
@@ -87,7 +88,7 @@ export async function syncFavoriteSubjectsToDb(
 export async function fetchProfile(userId: string): Promise<UserProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('username, name, email, study_level, boards, exam_session, profile_complete, avatar_url, is_private')
+    .select('username, name, email, study_level, boards, exam_session, profile_complete, avatar_url, is_private, nibras_disclosure_accepted_at')
     .eq('id', userId)
     .maybeSingle();
 

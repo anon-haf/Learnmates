@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
@@ -42,6 +42,7 @@ const PaperViewerPage: React.FC = () => {
   const { level, board, subject, year, paperKey, unit } = useParams<PaperViewerProps>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [papers, setPapers] = useState<PaperEntry[]>([]);
@@ -337,7 +338,7 @@ const PaperViewerPage: React.FC = () => {
 
       <div className="mb-6">
         <button
-          onClick={() => navigate(backUrl)}
+          onClick={() => navigate(backUrl, { state: location.state })}
           className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

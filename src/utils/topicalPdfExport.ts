@@ -3,8 +3,20 @@ import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage, PDFEmbeddedPage } fr
 import { Question } from '../components/TopicalQuiz';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from './awardDownloadXP';
+import { topicalConfigs } from '../pages/topicalpagesdata';
 
 export type ExportType = 'questions' | 'markschemes';
+
+export interface ExportFilters {
+  papers?: number[];
+  years?: number[];
+  order?: string;
+  strict?: boolean;
+  questionType?: 'all' | 'mcq' | 'theory';
+  limit?: string;
+  months?: string[];
+  variants?: number[];
+}
 
 export interface ExportProgress {
   current: number;
@@ -201,6 +213,7 @@ const buildTopicsStructure = (
   );
 
   Array.from(selectedTopics).forEach(key => {
+    if (!cfg) return;
     if (typeof key !== 'string') return;
     const parts = key.split('||');
     if (parts.length < 5) return;
@@ -217,33 +230,28 @@ const buildTopicsStructure = (
       return;
     }
 
-    if (!topicsStructure[unit]) topicsStructure[unit] = {};
+    const unitObj = cfg.units.find(u => u.unit.toLowerCase() === unit.toLowerCase());
+    if (!unitObj) return;
 
-    let isMainTopic = false;
-    let parentTopic = name;
+    const mainMatch = unitObj.topics.find(t => t.topic.toLowerCase() === name.toLowerCase());
+    const parentMatch = unitObj.topics.find(t => t.subtopics?.some(st => st.subtopic.toLowerCase() === name.toLowerCase()));
+    const subtopicMatch = parentMatch?.subtopics?.find(st => st.subtopic.toLowerCase() === name.toLowerCase());
+    if (!mainMatch && !subtopicMatch) return;
 
-    const unitObj = cfg?.units.find(u => u.unit.toLowerCase() === unit.toLowerCase());
-    if (unitObj) {
-      const mainMatch = unitObj.topics.find(t => t.topic.toLowerCase() === name.toLowerCase());
-      if (mainMatch) {
-        isMainTopic = true;
-        parentTopic = mainMatch.topic;
-      } else {
-        const parentMatch = unitObj.topics.find(t => t.subtopics?.some(st => st.subtopic.toLowerCase() === name.toLowerCase()));
-        if (parentMatch) {
-          parentTopic = parentMatch.topic;
-        }
-      }
-    }
+    const isMainTopic = Boolean(mainMatch);
+    const parentTopic = mainMatch?.topic ?? parentMatch?.topic;
+    if (!parentTopic) return;
 
-    if (!topicsStructure[unit][parentTopic]) {
-      topicsStructure[unit][parentTopic] = [];
+    if (!topicsStructure[unitObj.unit]) topicsStructure[unitObj.unit] = {};
+
+    if (!topicsStructure[unitObj.unit][parentTopic]) {
+      topicsStructure[unitObj.unit][parentTopic] = [];
       totalTopicCount++;
     }
 
-    if (!isMainTopic && parentTopic !== name) {
-      if (!topicsStructure[unit][parentTopic].includes(name)) {
-        topicsStructure[unit][parentTopic].push(name);
+    if (!isMainTopic && subtopicMatch && parentTopic !== subtopicMatch.subtopic) {
+      if (!topicsStructure[unitObj.unit][parentTopic].includes(subtopicMatch.subtopic)) {
+        topicsStructure[unitObj.unit][parentTopic].push(subtopicMatch.subtopic);
         totalTopicCount++;
       }
     }
@@ -377,7 +385,8 @@ export const createCoverPage = async (
   levelBoardSubject: { level: string; board: string; subject: string },
   boldFont: PDFFont,
   regularFont: PDFFont,
-  filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
+  filters?: ExportFilters,
+  questionCount = 0
 ) => {
   const width = 612; // Standard letter width
   const height = 792; // Standard letter height
@@ -476,21 +485,31 @@ export const createCoverPage = async (
   console.log('[CoverPage] totalTopicCount:', totalTopicCount);
   console.log('[CoverPage] sortedUnits:', sortedUnits);
 
-  const leftMargin = 50;
-  const rightMargin = 50;
-  const contentWidth = width - leftMargin - rightMargin;
-  const leftColumnWidth = contentWidth * 0.6;
-  const rightColumnWidth = contentWidth * 0.35;
-  const rightColumnX = leftMargin + leftColumnWidth + 20;
+  const leftMargin = 42;
+  const contentTop = height - 360;
+  const columnGap = 16;
+  const contentWidth = width - leftMargin * 2 - columnGap;
+  const topicColumnWidth = contentWidth * 0.7;
+  const filterColumnX = leftMargin + topicColumnWidth + columnGap;
+  const filterColumnWidth = contentWidth - topicColumnWidth;
+  const topicColumnX = leftMargin;
+  let topicY = contentTop;
 
-  let leftY = height - 360;
-  let rightY = height - 360;
+  const questionCountText = `Questions included: ${questionCount}`;
+  const questionCountSize = 10;
+  page.drawText(questionCountText, {
+    x: (width - regularFont.widthOfTextAtSize(questionCountText, questionCountSize)) / 2,
+    y: height - 335,
+    size: questionCountSize,
+    font: regularFont,
+    color: rgb(0.35, 0.4, 0.45),
+  });
 
-  // Draw right column box background for filters
+  // Draw the applied filters in the right column.
   if (filters) {
-    const filterLines = [];
-    if (filters.papers && filters.papers.length > 0) filterLines.push(`Papers: ${filters.papers.map(p => `P${p}`).join(', ')}`);
-    if (filters.years && filters.years.length > 0) {
+    const filterLines: string[] = [];
+    filterLines.push(`Papers: ${filters.papers?.length ? filters.papers.map(p => `P${p}`).join(', ') : 'All'}`);
+    if (filters.years?.length) {
       const sortedYears = [...filters.years].sort((a, b) => a - b);
       const yearRanges = [];
       let start = sortedYears[0];
@@ -507,59 +526,79 @@ export const createCoverPage = async (
       }
       yearRanges.push(start === end ? `${start}` : `${start}-${end}`);
       filterLines.push(`Years: ${yearRanges.join(', ')}`);
+    } else {
+      filterLines.push('Years: All');
     }
-    if (filters.order) filterLines.push(`Order: ${filters.order === 'newest' ? 'New -> Old' : filters.order === 'oldest' ? 'Old -> New' : 'Random'}`);
-    if (filters.strict) filterLines.push('Strict: Yes (exclusive topic match)');
+    filterLines.push(`Question type: ${filters.questionType === 'mcq' ? 'MCQ' : filters.questionType === 'theory' ? 'Theory' : 'All'}`);
+    filterLines.push(`Order: ${filters.order === 'oldest' ? 'Old -> New' : filters.order === 'random' ? 'Random' : 'New -> Old'}`);
+    filterLines.push(`Max questions: ${filters.limit || 'All'}`);
+    filterLines.push(`Strict: ${filters.strict ? 'On' : 'Off'}`);
+    if (filters.months) filterLines.push(`Months: ${filters.months.length ? filters.months.join(', ') : 'All'}`);
+    if (filters.variants) filterLines.push(`Variants: ${filters.variants.length ? filters.variants.join(', ') : 'All'}`);
 
     const boxPadding = 10;
-    const lineHeight = 14;
-    const boxHeight = filterLines.length * lineHeight + boxPadding * 2 + 20; // +20 for title
-    const boxY = rightY - boxHeight;
+    const filterFontSize = 8;
+    const lineHeight = 11;
+    const textWidth = filterColumnWidth - boxPadding * 2;
+    const wrappedFilterLines = filterLines.flatMap(line => {
+      const words = sanitizeForPdf(line).split(/\s+/);
+      const wrapped: string[] = [];
+      let currentLine = '';
+      for (const word of words) {
+        const candidate = currentLine ? `${currentLine} ${word}` : word;
+        if (currentLine && regularFont.widthOfTextAtSize(candidate, filterFontSize) > textWidth) {
+          wrapped.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = candidate;
+        }
+      }
+      if (currentLine) wrapped.push(currentLine);
+      return wrapped;
+    });
+    const boxHeight = wrappedFilterLines.length * lineHeight + boxPadding * 2 + 22;
+    const boxY = contentTop - boxHeight + 8;
 
-    // Box background
     page.drawRectangle({
-      x: rightColumnX,
+      x: filterColumnX,
       y: boxY,
-      width: rightColumnWidth,
+      width: filterColumnWidth,
       height: boxHeight,
       color: rgb(0.95, 0.95, 0.95),
       borderColor: rgb(0.7, 0.7, 0.7),
       borderWidth: 1,
     });
 
-    // Filters title
     page.drawText('Filters Applied', {
-      x: rightColumnX + boxPadding,
-      y: rightY - 14,
+      x: filterColumnX + boxPadding,
+      y: contentTop - 14,
       size: 10,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
-    rightY -= 24;
 
-    // Filter lines
-    for (const line of filterLines) {
-      page.drawText(sanitizeForPdf(line), {
-        x: rightColumnX + boxPadding,
-        y: rightY,
-        size: 9,
+    let filterY = contentTop - 31;
+    for (const line of wrappedFilterLines) {
+      page.drawText(line, {
+        x: filterColumnX + boxPadding,
+        y: filterY,
+        size: filterFontSize,
         font: regularFont,
         color: rgb(0.3, 0.3, 0.3),
-        maxWidth: rightColumnWidth - boxPadding * 2,
       });
-      rightY -= lineHeight;
+      filterY -= lineHeight;
     }
   }
 
-  // Left column - Topics Selected
+  // Topics use the wider left column.
   page.drawText('Topics Selected:', {
-    x: leftMargin,
-    y: leftY,
+    x: topicColumnX,
+    y: topicY,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
-  leftY -= 18;
+  topicY -= 18;
 
   const unitSize = 10;
   const mainTopicSize = 9;
@@ -567,57 +606,59 @@ export const createCoverPage = async (
   const topicLineHeight = 11;
 
   const checkNewPage = (threshold: number) => {
-    if (leftY < threshold) {
+    if (topicY < threshold) {
       page = pdf.addPage([width, height]);
       coverPages.push(page);
       page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.98, 0.98, 0.98) });
-      leftY = height - 80;
+      topicY = height - 80;
       page.drawText('Topics Selected (continued):', {
-        x: leftMargin,
-        y: leftY,
+        x: topicColumnX,
+        y: topicY,
         size: 12,
         font: boldFont,
         color: rgb(0, 0, 0),
       });
-      leftY -= 25;
+      topicY -= 25;
     }
   };
 
   sortedUnits.forEach(unit => {
     checkNewPage(120);
 
-    page.drawText(sanitizeForPdf(`${unit}`), { x: leftMargin, y: leftY, size: unitSize, font: boldFont, color: rgb(0, 0.3, 0.6) });
-    leftY -= topicLineHeight;
+    page.drawText(sanitizeForPdf(`${unit}`), { x: topicColumnX, y: topicY, size: unitSize, font: boldFont, color: rgb(0, 0.3, 0.6) });
+    topicY -= topicLineHeight;
 
     const mainTopicsForUnit = Object.keys(topicsStructure[unit]).sort();
     mainTopicsForUnit.forEach(mainTopic => {
       checkNewPage(100);
 
-      page.drawText(sanitizeForPdf(`${mainTopic}`), { x: leftMargin + 20, y: leftY, size: mainTopicSize, font: boldFont, color: rgb(0, 0, 0) });
-      leftY -= topicLineHeight;
+      page.drawText(sanitizeForPdf(`${mainTopic}`), { x: topicColumnX + 12, y: topicY, size: mainTopicSize, font: boldFont, color: rgb(0, 0, 0) });
+      topicY -= topicLineHeight;
 
       const subtopics = topicsStructure[unit][mainTopic].sort();
       subtopics.forEach(subtopic => {
         checkNewPage(100);
-        const displayText = `  \u2022 ${subtopic}`;
+        const displayText = `\u2022 ${subtopic}`;
+        const sanitizedDisplayText = sanitizeForPdf(displayText);
+        const availableWidth = topicColumnWidth - 36;
         page.drawText(sanitizeForPdf(displayText), {
-          x: leftMargin + 20,
-          y: leftY,
+          x: topicColumnX + 24,
+          y: topicY,
           size: topicSize,
           font: regularFont,
           color: rgb(0.2, 0.2, 0.2),
-          maxWidth: leftColumnWidth - 40,
+          maxWidth: availableWidth,
         });
         
-        const textWidth = regularFont.widthOfTextAtSize(sanitizeForPdf(displayText), topicSize);
-        const lines = Math.ceil(textWidth / (leftColumnWidth - 40));
-        leftY -= topicLineHeight * (lines > 0 ? lines : 1);
+        const textWidth = regularFont.widthOfTextAtSize(sanitizedDisplayText, topicSize);
+        const lines = Math.ceil(textWidth / availableWidth);
+        topicY -= topicLineHeight * Math.max(lines, 1);
       });
 
-      leftY -= 2;
+      topicY -= 2;
     });
 
-    leftY -= 5;
+    topicY -= 5;
   });
 
   coverPages.forEach((p, index) => {
@@ -749,7 +790,7 @@ export const mergeTopicalPDFs = async (
   levelBoardSubject: { level: string; board: string; subject: string },
   onProgress?: (progress: ExportProgress) => void,
   options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean; headerSeparatePage?: boolean } = {},
-  filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
+  filters?: ExportFilters
 ): Promise<Blob> => {
   const mergedPdf = await PDFDocument.create();
 
@@ -757,7 +798,7 @@ export const mergeTopicalPDFs = async (
   const regularFont = await mergedPdf.embedFont(StandardFonts.Helvetica);
 
   try {
-    await createCoverPage(mergedPdf, type, selectedTopics, levelBoardSubject, boldFont, regularFont, filters);
+    await createCoverPage(mergedPdf, type, selectedTopics, levelBoardSubject, boldFont, regularFont, filters, questions.length);
   } catch (error) {
     console.warn('Failed to create cover page:', error);
   }
@@ -1268,7 +1309,7 @@ export const downloadMergedTopicalPDFs = async (
     onError?: (message: string) => void;
   } = {},
   options: { extraPage?: boolean; headerPage?: boolean; mergeHeader?: boolean; headerSize?: number; worksheet?: boolean; interleaveMs?: boolean; defaultFormat?: boolean; headerSeparatePage?: boolean } = {},
-  filters?: { papers?: number[]; years?: number[]; order?: string; strict?: boolean }
+  filters?: ExportFilters
 ) => {
   if (questions.length === 0) {
     callbacks.onError?.('No questions to download');

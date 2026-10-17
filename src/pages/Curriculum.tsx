@@ -33,8 +33,10 @@ const curriculums = [
       description: 'Comprehensive resources for IGCSE subjects, designed to help students aged 14-16 excel in their examinations.',
       subjects: ['Mathematics', 'Physics', 'Chemistry', 'Biology'],
       icon: <BookText className="w-12 h-12" />,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'from-blue-500 to-blue-600'
+      accent: 'bg-blue-600',
+      accentHover: 'hover:bg-blue-700',
+      surface: 'bg-blue-50 dark:bg-slate-800',
+      iconBackground: 'bg-blue-600'
     },
     {
       id: 'a-level',
@@ -43,8 +45,10 @@ const curriculums = [
       description: 'Advanced study materials for A-Level students aged 16-18, preparing them for university and beyond.',
       subjects: ['Mathematics', 'Physics', 'Chemistry', 'Biology'],
       icon: <GraduationCap className="w-12 h-12" />,
-      color: 'from-teal-500 to-teal-600',
-      bgColor: 'from-teal-500 to-teal-600'
+      accent: 'bg-teal-600',
+      accentHover: 'hover:bg-teal-700',
+      surface: 'bg-teal-50 dark:bg-slate-800',
+      iconBackground: 'bg-teal-600'
     }
   ];
 
@@ -88,29 +92,29 @@ const curriculums = [
             >
               <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lg hover:shadow-2xl transition-shadow duration-300 overflow-hidden border border-slate-200 dark:border-slate-700">
                 {/* Header */}
-                <div className={`bg-gradient-to-r ${curriculum.bgColor} p-8`}>
+                <div className={`${curriculum.surface} p-8`}>
                   <div className="flex items-center justify-between mb-6">
-                    <div className={`w-16 h-16 bg-gradient-to-r ${curriculum.color} rounded-xl flex items-center justify-center text-white`}>
+                    <div className={`w-16 h-16 ${curriculum.iconBackground} rounded-xl flex items-center justify-center text-white`}>
                       {curriculum.icon}
                     </div>
                     <div className="text-right">
-                      <h2 className="text-3xl font-bold text-white">{curriculum.title}</h2>
-                      <p className="text-sm text-blue-100">{curriculum.fullName}</p>
+                      <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{curriculum.title}</h2>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{curriculum.fullName}</p>
                     </div>
                   </div>
-                  <p className="text-blue-100 leading-relaxed">{curriculum.description}</p>
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{curriculum.description}</p>
                 </div>
 
                 {/* Content */}
                 <div className="p-8">
-                  <h3 className="text-xl font-bold text-white mb-4 dark:text-white mb-8">Available Subjects</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-8">Available Subjects</h3>
                   <div className="grid grid-cols-2 gap-3 mb-8">
                     {curriculum.subjects.map((subject, subIndex) => (
                       <div
                         key={subIndex}
-                        className="flex items-center space-x-2 text-white"
+                        className="flex items-center space-x-2 text-slate-700 dark:text-slate-300"
                       >
-                        <div className={`w-4 h-1.5 bg-gradient-to-r ${curriculum.color} rounded-full`}></div>
+                        <div className={`w-4 h-1.5 ${curriculum.accent} rounded-full`}></div>
                         <span className="text-lg">{subject}</span>
                       </div>
                     ))}
@@ -120,7 +124,7 @@ const curriculums = [
                   {/* CTA Button */}
                   <Link
                     to={withBase(base, `/curriculum/${curriculum.id}`)}
-                    className={`block w-full text-center py-4 px-6 bg-gradient-to-r ${curriculum.color} text-white rounded-xl hover:shadow-lg transition-all duration-200 group-hover:scale-105 font-medium`}
+                    className={`block w-full text-center py-4 px-6 ${curriculum.accent} ${curriculum.accentHover} text-white rounded-xl hover:shadow-lg transition-all duration-200 group-hover:scale-105 font-medium`}
                   >
                     <span className="flex items-center justify-center">
                       Explore {curriculum.title}

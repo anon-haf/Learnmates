@@ -27,6 +27,7 @@ import { useReducedMotion } from "../context/ReducedMotionContext";
 import { type BoardKey } from "../utils/curriculumData";
 import { useAuth } from "../context/AuthContext";
 import { useUser } from "../context/UserContext";
+import { useUserRole } from "../hooks/useUserRole";
 import {
   fetchProfile,
   loadFavoriteSubjectsForUser,
@@ -111,6 +112,7 @@ const ProfilePageSkeleton = () => (
 
 const ProfilePage = () => {
   const { user: authUser } = useAuth();
+  const { role } = useUserRole(authUser?.id);
   const { user } = useUser();
   const navigate = useNavigate();
   const { isReducedMotion, setIsReducedMotion } = useReducedMotion();
@@ -912,6 +914,18 @@ const ProfilePage = () => {
             </h3>
           </div>
           <div className="space-y-3">
+            {role === "tester" && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  Nibras AI chat disclosure
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {profile?.nibras_disclosure_accepted_at
+                    ? `Agreed on ${new Date(profile.nibras_disclosure_accepted_at).toLocaleDateString()}`
+                    : "Not yet accepted"}
+                </p>
+              </div>
+            )}
             <Link
               to="/privacy"
               className="group flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors border border-gray-100 dark:border-gray-700"

@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import path from 'path';
 
-
 const runningUnderVercelDev = Boolean(process.env.VERCEL && process.env.PORT);
 
 // https://vitejs.dev/config/
@@ -20,7 +19,7 @@ export default defineConfig(({ mode }) => {
         // Plain `import x from './foo.svg'` still returns the URL — no breaking changes.
         include: '**/*.svg?react',
         svgrOptions: {
-          // Use currentColor + inherit sizing so it drops in next to lucide icons
+          // Use currentColor + inherit sizing so it drops in next to the parent's text color.
           icon: true,
         },
       }),
@@ -34,9 +33,9 @@ export default defineConfig(({ mode }) => {
             '/api/ask': {
               target: apiBase,
               changeOrigin: true,
-              rewrite: (p: string) => p.replace(/^\/api/, ''),
+              rewrite: (requestPath: string) => requestPath.replace(/^\/api/, ''),
               headers: {
-                Authorization: `Bearer ${apiSecret}`,
+                'X-API-Key': apiSecret,
               },
             },
           },

@@ -1,48 +1,53 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { Readable } from 'node:stream';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+  maxDuration: 120,
+};
 
 /**
- * Vercel Serverless Proxy — POST /api/ask
- *
- * Forwards the request body to the Oracle Cloud RAG API,
- * injecting the shared secret from environment variables.
- * The secret never reaches the browser bundle.
+ * Streams the multipart request to the RAG API and adds the server-side API key.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS preflight (only needed if the frontend ever calls from a different origin)
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ detail: 'Method not allowed' });
   }
 
-  const API_BASE_URL = process.env.API_BASE_URL || 'https://api.learnmates.org';
-  const API_SHARED_SECRET = process.env.API_SHARED_SECRET;
+  const apiBaseUrl = (process.env.API_BASE_URL || 'https://api.learnmates.org').replace(/\/+$/, '');
+  const apiKey = process.env.API_SHARED_SECRET;
 
-  if (!API_SHARED_SECRET) {
+  if (!apiKey) {
     console.error('API_SHARED_SECRET is not configured');
-    return res.status(500).json({ error: 'Server configuration error' });
+    return res.status(500).json({ detail: 'Tutor service is not configured.' });
+  }
+
+  const contentType = req.headers['content-type'];
+  if (!contentType?.toLowerCase().startsWith('multipart/form-data;')) {
+    return res.status(400).json({ detail: 'Expected a multipart form upload.' });
   }
 
   try {
-    const upstream = await fetch(`${API_BASE_URL}/ask`, {
+    const requestOptions: RequestInit & { duplex: 'half' } = {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${API_SHARED_SECRET}`,
+        'Content-Type': contentType,
+        'X-API-Key': apiKey,
       },
-      body: JSON.stringify(req.body),
-    });
+      body: Readable.toWeb(req) as ReadableStream<Uint8Array>,
+      duplex: 'half',
+    };
+    const upstream = await fetch(`${apiBaseUrl}/ask`, requestOptions);
 
-    const data = await upstream.json();
-    return res.status(upstream.status).json(data);
-  } catch (err: any) {
+    const body = await upstream.text();
+    const responseContentType = upstream.headers.get('content-type');
+    if (responseContentType) res.setHeader('Content-Type', responseContentType);
+    return res.status(upstream.status).send(body);
+  } catch (err: unknown) {
     console.error('Proxy error:', err);
-    return res.status(502).json({ error: 'Failed to reach upstream API' });
+    return res.status(502).json({ detail: 'Tutor temporarily unavailable. Please try again.' });
   }
 }

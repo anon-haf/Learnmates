@@ -671,7 +671,11 @@ const TopicalPages: React.FC = () => {
         papers: Array.from(paperFilter),
         years: Array.from(yearFilter),
         order: orderFilter,
-        strict: strictFilter
+        strict: strictFilter,
+        questionType: mcqFilter,
+        limit: limitFilter,
+        months: Array.from(monthFilter),
+        variants: Array.from(variantFilter),
       }
     );
   };

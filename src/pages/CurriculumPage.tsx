@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { BookOpen, ArrowRight, FlaskConical, Gauge, Dna, Rocket, Sigma, PieChart, CheckCircle } from 'lucide-react';
@@ -24,6 +24,11 @@ const CurriculumPage: React.FC = () => {
   const curriculumPath = (...parts: string[]) => withBase(base, `/curriculum/${parts.join('/')}`);
   const { user, addRecentCourse } = useUser();
   const params = useParams<{ type?: string; board?: string; subject?: string }>();
+  const location = useLocation();
+  const locationState = location.state as { focusTopicId?: unknown } | null;
+  const focusTopicId = typeof locationState?.focusTopicId === 'string'
+    ? locationState.focusTopicId
+    : undefined;
   const typeParam = params.type ? params.type.toLowerCase() : undefined;
   const boardParam = params.board ? params.board.toLowerCase() : undefined;
   const subjectParam = params.subject ? decodeURIComponent(params.subject) : undefined;
@@ -101,19 +106,6 @@ const CurriculumPage: React.FC = () => {
     return icons[subject] || <BookOpen className="w-7 h-7 text-neutral-600 dark:text-neutral-300 transform transition-transform group-hover:scale-125" />;
   };
 
-  const getSubjectColor = (subject: string) => {
-    const colors: Record<string, string> = {
-      'Chemistry': 'from-teal-500 to-teal-600 dark:from-teal-400 dark:to-teal-500',
-      'Biology': 'from-green-500 to-green-600 dark:from-green-400 dark:to-green-500',
-      'Physics': 'from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500',
-      'Mathematics': 'from-orange-500 to-orange-600 dark:from-orange-400 dark:to-orange-500',
-      'Pure Mathematics': 'from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500',
-      'Statistics': 'from-purple-500 to-purple-600 dark:from-purple-400 dark:to-purple-500',
-      'Mechanics': 'from-red-500 to-red-600 dark:from-red-400 dark:to-red-500',
-    };
-    return colors[subject] || 'from-primary-600 to-primary-500 dark:from-primary-700 dark:to-primary-800';
-  };
-
   // Step 1: Select Board
   if (!selectedBoard) {
     return (
@@ -145,7 +137,7 @@ const CurriculumPage: React.FC = () => {
           <motion.button
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{ delay: 0.1 }}
             className="flex-1 rounded-2xl shadow-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-8 py-8 text-left transform hover:-translate-y-1 hover:shadow-md hover:border-teal-300 dark:hover:border-teal-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-teal-100 dark:focus:ring-teal-900 group"
             onClick={() => navigate(curriculumPath(selectedLevel, 'edexcel'))}
           >
@@ -171,11 +163,6 @@ const CurriculumPage: React.FC = () => {
   if (!selectedSubject) {
     if (!curriculum || !selectedBoard) return null;
     const subjects: string[] = Array.from(new Set(boardTopics.map((t: Topic) => t.subject)));
-    const subjectColors: Record<string, string> = {};
-    const ACCENT_GRADIENT = 'from-primary-600 to-primary-500 dark:from-primary-700 dark:to-primary-800';
-    subjects.forEach((subject) => {
-      subjectColors[subject] = subjectColors[subject] || ACCENT_GRADIENT;
-    });
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex flex-col items-center">
         <Helmet>
@@ -267,7 +254,7 @@ const CurriculumPage: React.FC = () => {
             </div>
             <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2.5">
               <div
-                className={`bg-gradient-to-r ${getSubjectColor(selectedSubject || '')} h-2.5 rounded-full transition-all duration-300`}
+                className="bg-blue-600 dark:bg-blue-500 h-2.5 rounded-full transition-all duration-300"
                 style={{ width: `${subjectProgress.percent}%` }}
               />
             </div>
@@ -278,6 +265,7 @@ const CurriculumPage: React.FC = () => {
       {/* Topics Grid */}
       <TopicGroupList
         topics={subjectTopics}
+        focusTopicId={focusTopicId}
         onTopicClick={(topic) => {
           if (user) {
             addRecentCourse({
@@ -295,11 +283,6 @@ const CurriculumPage: React.FC = () => {
           const completed = isTopicDone(topic);
           const hasResources = getTopicResources(topic.id).length > 0;
           const countsTowardProgress = !isRevisionTopic(topic);
-          const mobileSidebarClass = topic.color ? `bg-gradient-to-b ${topic.color}` : 'bg-blue-600 dark:bg-blue-700';
-          const desktopSidebarClass = topic.color ? `bg-gradient-to-b ${topic.color}` : 'bg-blue-600 dark:bg-blue-700';
-          const buttonClass = topic.color
-            ? `bg-gradient-to-r ${topic.color} hover:brightness-110`
-            : 'bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600';
           return (
             <div
               className="bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 transform hover:-translate-y-1 transition-all duration-200 overflow-hidden group h-full"
@@ -308,10 +291,11 @@ const CurriculumPage: React.FC = () => {
               {/* Mobile List View */}
               <Link
                 to={curriculumPath(curriculum.title.toLowerCase(), selectedBoard!, topic.subject, getTopicSlug(topic))}
+                state={{ focusTopicId: topic.id }}
                 className="flex lg:hidden flex-col hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors"
               >
                 <div className="flex items-start p-4 gap-3">
-                  <div className={`w-1 rounded-full flex-shrink-0 ${mobileSidebarClass}`} style={{ height: '100%', minHeight: '80px' }} />
+                  <div className="w-1 rounded-full flex-shrink-0 bg-blue-600 dark:bg-blue-500" style={{ height: '100%', minHeight: '80px' }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                       <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">{topic.subject}</span>
@@ -347,7 +331,7 @@ const CurriculumPage: React.FC = () => {
               {/* Desktop Card View */}
               <div className="hidden lg:flex h-full flex-col">
                 <div className="flex flex-1">
-                  <div className={`w-1.5 mr-4 rounded-full ${desktopSidebarClass} transition-all duration-200 group-hover:w-3`} />
+                  <div className="w-1.5 mr-4 rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-200 group-hover:w-3" />
                   <div className="flex-1 p-5 flex flex-col bg-white dark:bg-gray-700">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
@@ -385,7 +369,8 @@ const CurriculumPage: React.FC = () => {
                   {/* CTA Button */}
                   <Link
                     to={curriculumPath(curriculum.title.toLowerCase(), selectedBoard!, topic.subject, getTopicSlug(topic))}
-                    className={`block w-full text-center py-2.5 px-4 ${buttonClass} text-white rounded-lg hover:shadow-md transition-all duration-200 group-hover:scale-105 font-medium text-sm`}
+                    state={{ focusTopicId: topic.id }}
+                    className="block w-full text-center py-2.5 px-4 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg hover:shadow-md transition-all duration-200 group-hover:scale-105 font-medium text-sm"
                   >
                     <span className="flex items-center justify-center">
                       {completed ? 'Review Topic' : hasResources ? 'Start Learning' : 'Open Topic'}

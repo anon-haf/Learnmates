@@ -16,21 +16,9 @@ export function pdfStrokeWidthInCanvasPixels(
   return sizeInPdfUnits * (canvasWidthPx / pdfPageWidthAtScale1);
 }
 
-/** Discrete device pixel ratio tiers (1×, 2×, 3×). */
+/** Bound PDF canvas backing stores to 2× to avoid excessive memory use on high-DPI screens. */
 export function clampOutputDevicePixelRatio(dpr?: number): number {
   const base = typeof dpr === 'number' && dpr > 0 ? dpr : 1;
   if (base <= 1.25) return 1;
-  if (base <= 2.25) return 2;
-  return 3;
-}
-
-/**
- * Maps continuous view zoom to a small number of PDF render resolutions.
- * Visual zoom stays on `--pdf-zoom`; this only controls canvas re-rasterization.
- */
-export function quantizePdfRenderZoomPercent(viewZoomPercent: number): number {
-  const z = viewZoomPercent;
-  if (z <= 100) return 100;
-  if (z <= 165) return 150;
-  return 200;
+  return 2;
 }

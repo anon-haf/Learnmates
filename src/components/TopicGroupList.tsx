@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { Topic } from '../utils/curriculumData';
@@ -7,6 +7,7 @@ interface TopicGroupListProps {
   topics: Topic[];
   onTopicClick: (topic: Topic) => void;
   renderTopicCard: (topic: Topic, index: number) => React.ReactNode;
+  focusTopicId?: string;
 }
 
 type Section =
@@ -20,9 +21,11 @@ type Section =
 const TopicGroupList: React.FC<TopicGroupListProps> = ({ 
   topics, 
   onTopicClick, 
-  renderTopicCard 
+  renderTopicCard,
+  focusTopicId,
 }) => {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Revision', 'Practical']));
+  const restoredTopicId = useRef<string | null>(null);
 
   // Build ordered sections with chunks of ungrouped topics and positioned groups
   const sections: Section[] = useMemo(() => {
@@ -75,6 +78,33 @@ const TopicGroupList: React.FC<TopicGroupListProps> = ({
     return sectionsArr;
   }, [topics]);
 
+  useEffect(() => {
+    if (!focusTopicId || restoredTopicId.current === focusTopicId) return;
+
+    const targetTopic = topics.find((topic) => topic.id === focusTopicId);
+    if (!targetTopic) return;
+
+    const targetGroup = targetTopic.group;
+    if (targetGroup) {
+      setExpandedGroups((groups) => {
+        if (groups.has(targetGroup)) return groups;
+        const nextGroups = new Set(groups);
+        nextGroups.add(targetGroup);
+        return nextGroups;
+      });
+    }
+
+    const timeout = window.setTimeout(() => {
+      restoredTopicId.current = focusTopicId;
+      document.getElementById(`topic-${focusTopicId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, targetGroup ? 350 : 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [focusTopicId, topics]);
+
   const toggleGroup = (groupName: string) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(groupName)) {
@@ -116,6 +146,7 @@ const TopicGroupList: React.FC<TopicGroupListProps> = ({
           return (
             <motion.div
               key={topic.id}
+              id={`topic-${topic.id}`}
               variants={itemVariants}
               onClick={() => onTopicClick(topic)}
             >
@@ -131,6 +162,7 @@ const TopicGroupList: React.FC<TopicGroupListProps> = ({
                 return (
                   <motion.div
                     key={topic.id}
+                    id={`topic-${topic.id}`}
                     variants={itemVariants}
                     onClick={() => onTopicClick(topic)}
                   >
@@ -185,6 +217,7 @@ const TopicGroupList: React.FC<TopicGroupListProps> = ({
                           return (
                             <motion.div
                               key={topic.id}
+                              id={`topic-${topic.id}`}
                               variants={itemVariants}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}

@@ -23,10 +23,10 @@
   @keyframes nibras-breathe {
     0%,
     100% {
-      transform: scale(1) translateZ(0);
+      transform: scale(1.5) translateZ(0);
     }
     50% {
-      transform: scale(0.55) translateZ(0);
+      transform: scale(0.75) translateZ(0);
     }
   }
 

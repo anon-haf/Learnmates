@@ -5,8 +5,17 @@ type CacheEntry = {
   at: number;
 };
 
-const MAX_ENTRIES = 48;
+const MAX_ENTRIES = 24;
+const MAX_CACHE_BYTES = 32 * 1024 * 1024;
 const cache = new Map<string, CacheEntry>();
+let cachedBytes = 0;
+
+function removeCachedRender(key: string) {
+  const entry = cache.get(key);
+  if (!entry) return;
+  cachedBytes -= Math.ceil(entry.dataUrl.length * 0.75);
+  cache.delete(key);
+}
 
 export function pdfRenderCacheKey(
   pdfKey: string,
@@ -29,7 +38,14 @@ export function getCachedPageRender(key: string): CacheEntry | undefined {
 }
 
 export function setCachedPageRender(key: string, entry: Omit<CacheEntry, 'at'>) {
-  if (cache.size >= MAX_ENTRIES) {
+  const entryBytes = Math.ceil(entry.dataUrl.length * 0.75);
+  if (entryBytes > MAX_CACHE_BYTES) return;
+
+  removeCachedRender(key);
+  while (
+    cache.size >= MAX_ENTRIES ||
+    cachedBytes + entryBytes > MAX_CACHE_BYTES
+  ) {
     let oldestKey: string | null = null;
     let oldestAt = Infinity;
     cache.forEach((value, k) => {
@@ -38,18 +54,21 @@ export function setCachedPageRender(key: string, entry: Omit<CacheEntry, 'at'>) 
         oldestKey = k;
       }
     });
-    if (oldestKey) cache.delete(oldestKey);
+    if (!oldestKey) break;
+    removeCachedRender(oldestKey);
   }
   cache.set(key, { ...entry, at: Date.now() });
+  cachedBytes += entryBytes;
 }
 
 export function clearPdfPageRenderCache(pdfKey?: string) {
   if (!pdfKey) {
     cache.clear();
+    cachedBytes = 0;
     return;
   }
   const prefix = `${pdfKey}|`;
   for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) cache.delete(key);
+    if (key.startsWith(prefix)) removeCachedRender(key);
   }
 }

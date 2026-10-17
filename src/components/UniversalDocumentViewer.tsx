@@ -38,9 +38,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { PdfDocumentSkeleton } from './PdfPageSkeleton';
 import { PdfSidebarPageThumb } from './PdfSidebarPageThumb';
 import { DrawTool, PdfDrawablePage } from './PdfDrawablePage';
-import { clearPdfThumbnailCache, loadPdfDocument } from '../utils/pdfThumbnail';
-import { clearPdfPageRenderCache } from '../utils/pdfPageRenderCache';
-import { quantizePdfRenderZoomPercent } from '../utils/pdfAnnotationMetrics';
+import { clearPdfThumbnailCache } from '../utils/pdfThumbnail';
 import { usePdfAnnotationHistory } from '../utils/pdfAnnotationHistory';
 import {
   loadAnnotations,
@@ -64,6 +62,7 @@ export interface UniversalDocumentViewerProps {
   savedAnnotation?: string;
   onSaveAnnotation?: (data: string) => void;
   hideToolbar?: boolean;
+  readOnly?: boolean;
 
   pdfUrl: string;
   fileName?: string;
@@ -73,7 +72,7 @@ export interface UniversalDocumentViewerProps {
 
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 500;
-const PAGE_GAP_PX = 12;
+const PDF_RENDER_ZOOM = 100;
 const A4_ASPECT = 297 / 210;
 const AUTO_SAVE_DEBOUNCE_MS = 5000;
 const AUTO_SAVE_RETRY_MS = 750;
@@ -106,6 +105,7 @@ const MemoizedPdfDrawablePage = React.memo(
       prevProps.allowTouchNavigation === nextProps.allowTouchNavigation &&
       prevProps.renderScale === nextProps.renderScale &&
       prevProps.renderZoom === nextProps.renderZoom &&
+      prevProps.pdfCacheKey === nextProps.pdfCacheKey &&
       prevProps.restoredAnnotation === nextProps.restoredAnnotation
     );
   }
@@ -116,6 +116,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   savedAnnotation,
   onSaveAnnotation,
   hideToolbar = false,
+  readOnly = false,
   pdfUrl,
   fileName = 'document.pdf',
   onClose,
@@ -124,11 +125,6 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(100);
-  const [debouncedZoom, setDebouncedZoom] = useState<number>(100);
-  const pdfRenderZoom = useMemo(
-    () => quantizePdfRenderZoomPercent(debouncedZoom),
-    [debouncedZoom]
-  );
   const [zoomInputValue, setZoomInputValue] = useState<string>('100');
   const [isEditingZoom, setIsEditingZoom] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -225,14 +221,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     isDirty,
   } = usePdfAnnotationHistory();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const pdfBytesForThumbnailsRef = useRef<Uint8Array | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const isProgrammaticScroll = useRef(false);
   const isZoomingRef = useRef(false);
   const zoomEndTimeoutRef = useRef<number | null>(null);
   const engagementRecordedRef = useRef({ opened: false, read: false, downloaded: false });
   const [mountedPages, setMountedPages] = useState<Set<number>>(() => new Set([1]));
-  const [pageWindowBuffer, setPageWindowBuffer] = useState(2);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [thumbnailWidth, setThumbnailWidth] = useState(100);
   const [sidebarEl, setSidebarEl] = useState<HTMLDivElement | null>(null);
@@ -249,19 +243,6 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   );
   const pageAspectRatiosRef = useRef<Record<number, number>>({});
   storedPagesRef.current = storedPages;
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDebouncedZoom(zoomRef.current);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [zoom]);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.style.setProperty('--pdf-render-zoom', String(debouncedZoom / 100));
-  }, [debouncedZoom]);
 
   // Keep zoom input display in sync when not actively editing
   useEffect(() => {
@@ -345,7 +326,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
     const loadPdf = async () => {
       setPdfFile(null);
-      pdfBytesForThumbnailsRef.current = null;
+      setPdfDoc(null);
       setFetchError(null);
       setNumPages(0);
       setCurrentPage(1);
@@ -371,13 +352,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
         const data = new Uint8Array(await response.arrayBuffer());
         if (!cancelled) {
-          pdfBytesForThumbnailsRef.current = data.slice();
           setPdfFile({ data });
         }
       } catch (err) {
         console.warn('PDF arraybuffer fetch failed, falling back to URL:', err);
         if (!cancelled) {
-          pdfBytesForThumbnailsRef.current = null;
           const resolvedUrl = (await resolveFromR2(pdfUrl)) || pdfUrl;
           setPdfFile(resolvedUrl);
           setFetchError('Loaded via URL fallback — some images may not render.');
@@ -393,41 +372,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   useEffect(() => {
     clearPdfThumbnailCache(pdfUrl);
-    clearPdfPageRenderCache(pdfUrl);
   }, [pdfUrl]);
-
-
-
-  useEffect(() => {
-    if (!pdfFile || numPages === 0) {
-      setPdfDoc(null);
-      return;
-    }
-
-    let cancelled = false;
-    let doc: PDFDocumentProxy | null = null;
-
-    const thumbnailSource =
-      pdfBytesForThumbnailsRef.current != null
-        ? { data: pdfBytesForThumbnailsRef.current }
-        : pdfFile;
-
-    void loadPdfDocument(thumbnailSource)
-      .then((loaded) => {
-        doc = loaded;
-        if (!cancelled) setPdfDoc(loaded);
-      })
-      .catch((error) => {
-        console.warn('Sidebar PDF document load failed:', error);
-        if (!cancelled) setPdfDoc(null);
-      });
-
-    return () => {
-      cancelled = true;
-      doc?.destroy();
-      setPdfDoc(null);
-    };
-  }, [pdfFile, numPages]);
 
   useEffect(() => {
     if (!sidebarEl) return;
@@ -446,6 +391,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     let cancelled = false;
 
     const loadStoredAnnotations = async () => {
+      if (readOnly) {
+        setStoredPages({});
+        return;
+      }
+
       const storageMode = mode === 'inline' ? 'temporary' : 'permanent';
       const stored = await loadAnnotations(pdfUrl, storageMode);
       if (cancelled) return;
@@ -478,7 +428,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfUrl, mode, savedAnnotation, pageWidth, resetAnnotationHistory, resetCache, markSaved]);
+  }, [pdfUrl, mode, savedAnnotation, pageWidth, readOnly, resetAnnotationHistory, resetCache, markSaved]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -512,6 +462,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   const onDocumentLoadSuccess = (doc: PDFDocumentProxy) => {
     const total = doc.numPages;
+    setPdfDoc(doc);
     setNumPages(total);
     setCurrentPage(1);
     setMountedPages(new Set([1]));
@@ -571,34 +522,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       }
     );
 
-    const prefetchObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const page = Number((entry.target as HTMLElement).dataset.page);
-          if (page <= 0) return;
-          setMountedPages((prev) => {
-            if (prev.has(page)) return prev;
-            const next = new Set(prev);
-            next.add(page);
-            return next;
-          });
-        });
-      },
-      {
-        root: container,
-        threshold: 0,
-        rootMargin: '120% 0px 120% 0px',
-      }
-    );
-
     pageRefs.current.forEach((el) => {
       observer.observe(el);
-      prefetchObserver.observe(el);
     });
     return () => {
       observer.disconnect();
-      prefetchObserver.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [numPages]);
@@ -609,15 +537,14 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     // Initialize the CSS variable imperatively since we no longer set it via React style prop.
     // This prevents a flash of unscaled content on first render.
     container.style.setProperty('--pdf-zoom', String(zoomRef.current / 100));
-    container.style.setProperty('--pdf-render-zoom', String(debouncedZoom / 100));
 
     const updatePageWidth = () => {
-      const padding = 32;
+      const padding = readOnly ? 0 : 32;
       const available = container.clientWidth - padding;
       setPageWidth(prev => {
         // Ignore small changes (< 24px) to prevent infinite loop from scrollbar flickering
-        if (Math.abs(prev - available) < 24) return prev;
-        return Math.max(280, available);
+        if (!readOnly && Math.abs(prev - available) < 24) return prev;
+        return Math.max(readOnly ? 1 : 280, available);
       });
     };
 
@@ -625,7 +552,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const observer = new ResizeObserver(updatePageWidth);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [sidebarOpen, debouncedZoom]);
+  }, [readOnly, sidebarOpen]);
 
 
 
@@ -982,52 +909,21 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     [getCachedPage]
   );
 
-  // Intentionally NOT including zoom here — the buffer should be based on the
-  // unscaled page height so that zoom state changes don't trigger buffer
-  // recalculation which would mount/unmount pages and shift the document layout.
-  const estimatedPageHeight = pageWidth * A4_ASPECT + PAGE_GAP_PX;
+  const renderStart = Math.max(1, currentPage - 2);
+  const renderEnd = Math.min(numPages || 1, currentPage + 2);
 
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const updateBuffer = () => {
-      const containerHeight = container.clientHeight;
-      const scaledHeight = estimatedPageHeight * (zoomRef.current / 100);
-      setPageWindowBuffer(
-        Math.max(2, Math.ceil(containerHeight / Math.max(scaledHeight, 1)) + 1)
-      );
-    };
-
-    updateBuffer();
-    const ro = new ResizeObserver(updateBuffer);
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, [estimatedPageHeight, sidebarOpen, debouncedZoom]);
-
-  const effectiveBuffer = pageWindowBuffer;
-
-  const renderStart = Math.max(1, currentPage - effectiveBuffer);
-  const renderEnd = Math.min(numPages || 1, currentPage + effectiveBuffer);
-
-  useEffect(() => {
-    setMountedPages((prev) => {
-      const next = new Set(prev);
-      for (let i = renderStart; i <= renderEnd; i++) {
-        next.add(i);
-      }
-      const pruneDistance = effectiveBuffer + 2;
-      for (const page of next) {
-        if (Math.abs(page - currentPage) > pruneDistance && !drawingPages.has(page)) {
-          next.delete(page);
-        }
+    setMountedPages(() => {
+      const next = new Set(drawingPages);
+      for (let page = renderStart; page <= renderEnd; page++) {
+        next.add(page);
       }
       return next;
     });
-  }, [renderStart, renderEnd, currentPage, effectiveBuffer, drawingPages]);
+  }, [renderStart, renderEnd, drawingPages]);
 
   return (
-    <div className={`w-full flex flex-col bg-gray-900 text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
+    <div className={`w-full flex flex-col ${readOnly ? 'bg-transparent' : 'bg-gray-900'} text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
       {showSaveDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div
@@ -1108,89 +1004,92 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 <ZoomIn className={toolbarIconSize} />
               </button>
 
-              <div className="w-px h-6 bg-gray-700 mx-0.5" />
-
-              <button
-                onClick={toggleInvertColors}
-                className={`${iconBtn} ${invertColors ? iconBtnActive : iconBtnIdle}`}
-                title="Invert PDF colors"
-                aria-pressed={invertColors}
-              >
-                <Moon className={toolbarIconSize} />
-              </button>
-
-              <button
-                onClick={() => {
-                  setDrawingEnabled(prev => {
-                    if (!prev) setDrawTool('pen');
-                    return !prev;
-                  });
-                }}
-                className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle}`}
-                title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
-              >
-                <PenTool className={toolbarIconSize} />
-              </button>
-
-              {drawingEnabled && (
+              {!readOnly && (
                 <>
                   <div className="w-px h-6 bg-gray-700 mx-0.5" />
-                  <button onClick={undo} disabled={!canUndo} className={`${iconBtn} ${iconBtnIdle}`} title="Undo"><Undo2 className={toolbarIconSize} /></button>
-                  <button onClick={redo} disabled={!canRedo} className={`${iconBtn} ${iconBtnIdle}`} title="Redo"><Redo2 className={toolbarIconSize} /></button>
-                  <div className="w-px h-6 bg-gray-700 mx-0.5" />
-                  <button onClick={() => setTouchScrollInDrawMode(prev => !prev)} className={`${iconBtn} ${touchScrollInDrawMode ? iconBtnActive : iconBtnIdle}`} title="Finger scroll & pinch zoom" aria-pressed={touchScrollInDrawMode}><Hand className={toolbarIconSize} /></button>
-                  <div className="w-px h-6 bg-gray-700 mx-0.5" />
-                  <div className="relative tool-dropdown-container">
-                    <button onClick={() => { setDrawTool('pen'); setActiveDropdown(activeDropdown === 'pen' ? null : 'pen'); }} className={`${iconBtn} ${drawTool === 'pen' ? iconBtnActive : iconBtnIdle}`} title="Pen"><Pen className={toolbarIconSize} /></button>
-                    {activeDropdown === 'pen' && (
-                      <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Pen color" />
-                          <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
-                            <span>Size</span>
-                            <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                            <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
-                          </label>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={toggleInvertColors}
+                    className={`${iconBtn} ${invertColors ? iconBtnActive : iconBtnIdle}`}
+                    title="Invert PDF colors"
+                    aria-pressed={invertColors}
+                  >
+                    <Moon className={toolbarIconSize} />
+                  </button>
 
-                  <div className="relative tool-dropdown-container">
-                    <button onClick={() => { setDrawTool(isShapeTool(drawTool) ? drawTool : 'line'); setActiveDropdown(activeDropdown === 'shapes' ? null : 'shapes'); }} className={`${iconBtn} ${isShapeTool(drawTool) ? iconBtnActive : iconBtnIdle}`} title="Shapes"><Shapes className={toolbarIconSize} /></button>
-                    {activeDropdown === 'shapes' && (
-                      <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
-                        <div className="flex items-center gap-1 rounded-md overflow-hidden border border-gray-600 w-full mb-1">
-                          <button onClick={() => setDrawTool('line')} className={`flex-1 p-2 transition flex justify-center ${drawTool === 'line' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Line"><Minus className={toolbarIconSize} /></button>
-                          <button onClick={() => setDrawTool('rectangle')} className={`flex-1 p-2 transition border-x border-gray-600 flex justify-center ${drawTool === 'rectangle' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Rectangle"><Square className={toolbarIconSize} /></button>
-                          <button onClick={() => setDrawTool('ellipse')} className={`flex-1 p-2 transition flex justify-center ${drawTool === 'ellipse' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Ellipse"><Circle className={toolbarIconSize} /></button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Stroke color" />
-                          <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
-                            <span>Border</span>
-                            <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                            <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
-                          </label>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => {
+                      setDrawingEnabled(prev => {
+                        if (!prev) setDrawTool('pen');
+                        return !prev;
+                      });
+                    }}
+                    className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle}`}
+                    title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
+                  >
+                    <PenTool className={toolbarIconSize} />
+                  </button>
 
-                  <div className="relative tool-dropdown-container">
-                    <button onClick={() => { setDrawTool('eraser'); setActiveDropdown(activeDropdown === 'eraser' ? null : 'eraser'); }} className={`${iconBtn} ${drawTool === 'eraser' ? iconBtnActive : iconBtnIdle}`} title="Eraser"><Eraser className={toolbarIconSize} /></button>
-                    {activeDropdown === 'eraser' && (
-                      <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[180px]">
-                        <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
-                          <span>Size</span>
-                          <input type="range" min={1} max={100} value={eraserSize} onChange={e => setEraserSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                          <span className="w-6 tabular-nums text-gray-300">{eraserSize}</span>
-                        </label>
+                  {drawingEnabled && (
+                    <>
+                      <div className="w-px h-6 bg-gray-700 mx-0.5" />
+                      <button onClick={undo} disabled={!canUndo} className={`${iconBtn} ${iconBtnIdle}`} title="Undo"><Undo2 className={toolbarIconSize} /></button>
+                      <button onClick={redo} disabled={!canRedo} className={`${iconBtn} ${iconBtnIdle}`} title="Redo"><Redo2 className={toolbarIconSize} /></button>
+                      <div className="w-px h-6 bg-gray-700 mx-0.5" />
+                      <button onClick={() => setTouchScrollInDrawMode(prev => !prev)} className={`${iconBtn} ${touchScrollInDrawMode ? iconBtnActive : iconBtnIdle}`} title="Finger scroll & pinch zoom" aria-pressed={touchScrollInDrawMode}><Hand className={toolbarIconSize} /></button>
+                      <div className="w-px h-6 bg-gray-700 mx-0.5" />
+                      <div className="relative tool-dropdown-container">
+                        <button onClick={() => { setDrawTool('pen'); setActiveDropdown(activeDropdown === 'pen' ? null : 'pen'); }} className={`${iconBtn} ${drawTool === 'pen' ? iconBtnActive : iconBtnIdle}`} title="Pen"><Pen className={toolbarIconSize} /></button>
+                        {activeDropdown === 'pen' && (
+                          <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[200px]">
+                            <div className="flex items-center gap-2">
+                              <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Pen color" />
+                              <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
+                                <span>Size</span>
+                                <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  <button onClick={clearAll} className={`${iconBtn} text-red-400 hover:bg-red-900/40`} title="Clear all"><Trash2 className={toolbarIconSize} /></button>
+                      <div className="relative tool-dropdown-container">
+                        <button onClick={() => { setDrawTool(isShapeTool(drawTool) ? drawTool : 'line'); setActiveDropdown(activeDropdown === 'shapes' ? null : 'shapes'); }} className={`${iconBtn} ${isShapeTool(drawTool) ? iconBtnActive : iconBtnIdle}`} title="Shapes"><Shapes className={toolbarIconSize} /></button>
+                        {activeDropdown === 'shapes' && (
+                          <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
+                            <div className="flex items-center gap-1 rounded-md overflow-hidden border border-gray-600 w-full mb-1">
+                              <button onClick={() => setDrawTool('line')} className={`flex-1 p-2 transition flex justify-center ${drawTool === 'line' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Line"><Minus className={toolbarIconSize} /></button>
+                              <button onClick={() => setDrawTool('rectangle')} className={`flex-1 p-2 transition border-x border-gray-600 flex justify-center ${drawTool === 'rectangle' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Rectangle"><Square className={toolbarIconSize} /></button>
+                              <button onClick={() => setDrawTool('ellipse')} className={`flex-1 p-2 transition flex justify-center ${drawTool === 'ellipse' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Ellipse"><Circle className={toolbarIconSize} /></button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Stroke color" />
+                              <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
+                                <span>Border</span>
+                                <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative tool-dropdown-container">
+                        <button onClick={() => { setDrawTool('eraser'); setActiveDropdown(activeDropdown === 'eraser' ? null : 'eraser'); }} className={`${iconBtn} ${drawTool === 'eraser' ? iconBtnActive : iconBtnIdle}`} title="Eraser"><Eraser className={toolbarIconSize} /></button>
+                        {activeDropdown === 'eraser' && (
+                          <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[180px]">
+                            <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
+                              <span>Size</span>
+                              <input type="range" min={1} max={100} value={eraserSize} onChange={e => setEraserSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                              <span className="w-6 tabular-nums text-gray-300">{eraserSize}</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
+                      <button onClick={clearAll} className={`${iconBtn} text-red-400 hover:bg-red-900/40`} title="Clear all"><Trash2 className={toolbarIconSize} /></button>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -1317,20 +1216,22 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
               <Moon className={toolbarIconSize} />
             </button>
 
-            <button
-              onClick={() => {
-                setDrawingEnabled(prev => {
-                  if (!prev) setDrawTool('pen');
-                  return !prev;
-                });
-              }}
-              className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle
-                }`}
-              title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
-              aria-pressed={drawingEnabled}
-            >
-              <PenTool className={toolbarIconSize} />
-            </button></>}
+            {!readOnly && (
+              <button
+                onClick={() => {
+                  setDrawingEnabled(prev => {
+                    if (!prev) setDrawTool('pen');
+                    return !prev;
+                  });
+                }}
+                className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle
+                  }`}
+                title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
+                aria-pressed={drawingEnabled}
+              >
+                <PenTool className={toolbarIconSize} />
+              </button>
+            )}</>}
 
           {mode === 'modal' && (
             <button
@@ -1382,7 +1283,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         </div>
       </div>}
 
-      {drawingEnabled && !hideToolbar && mode === 'modal' && (
+      {drawingEnabled && !readOnly && !hideToolbar && mode === 'modal' && (
         <div className="bg-gray-800/95 border-b border-gray-700 px-3 py-2 sm:px-4 sm:py-2.5">
           <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
             <button
@@ -1502,7 +1403,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                       thumbnailWidth={thumbnailWidth}
                       cacheKey={pdfUrl}
                       scrollRoot={sidebarEl}
-                      eager={page <= 6}
+                      eager={page === 1}
                       isActive={currentPage === page}
                       onSelect={() => goToPage(page)}
                     />
@@ -1531,7 +1432,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
         <div
           ref={scrollContainerRef}
-          className="flex-1 bg-gray-950 overflow-y-auto overflow-x-auto p-4"
+          className={`flex-1 overflow-y-auto overflow-x-auto ${readOnly ? 'bg-transparent p-0' : 'bg-gray-950 p-4'}`}
           style={{ touchAction: 'pan-x pan-y pinch-zoom' } as React.CSSProperties}
           data-pdf-scroll-container="true"
         >
@@ -1547,7 +1448,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 loading={<PdfDocumentSkeleton pageCount={2} />}
                 error={<div className="text-red-400 p-8 text-center">Failed to load PDF</div>}
                 onLoadError={(error) => console.error('PDF Load Error:', error)}
-                className={`flex flex-col gap-[calc(12px*var(--pdf-zoom,1))] ${invertColors ? 'invert hue-rotate-180' : ''}`}
+                className={`flex flex-col ${readOnly ? 'gap-0' : 'gap-[calc(12px*var(--pdf-zoom,1))]'} ${invertColors ? 'invert hue-rotate-180' : ''}`}
               >
                 {numPages > 0 &&
                   Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => {
@@ -1569,7 +1470,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               pageNumber={pageNum}
                               pageWidth={pageWidth}
                               zoom={zoom}
-                              renderZoom={pdfRenderZoom}
+                              renderZoom={PDF_RENDER_ZOOM}
+                              pdfCacheKey={pdfUrl}
                               drawingEnabled={drawingEnabled}
                               drawTool={drawTool}
                               penColor={penColor}

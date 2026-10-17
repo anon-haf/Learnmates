@@ -382,7 +382,33 @@ export const topicalConfigs: SubjectConfig[] = [
 
 
 
+      },      {
+        "unit": "U5",
+
+        "topics": [
+          {
+            "topic": "7 Respiration, Muscles and the Internal Environment",
+            "subtopics": [
+              { "subtopic": "7A Cellular Respiration", "search": "7A Cellular Respiration" },
+              { "subtopic": "7B Muscles, Movement and the Heart", "search": "7B Muscles, Movement and the Heart" },
+              { "subtopic": "7C Control of the Internal Environment", "search": "7C Control of the Internal Environment" },
+            ]
+          },
+          {
+            "topic": "8 Coordination, Response and Gene Technology",
+            "subtopics": [
+              { "subtopic": "8A The Nervous System and Neurones", "search": "8A The Nervous System and Neurones" },
+              { "subtopic": "8B Coordination in Animals and Plants", "search": "8B Coordination in Animals and Plants" },
+              { "subtopic": "8C Gene Technology", "search": "8C Gene Technology" }
+            ]
+          }
+
+        ]
+
+
+
       },
+      
     ]
   },
 
@@ -2721,7 +2747,94 @@ export const topicalConfigs: SubjectConfig[] = [
         ]
       }
     ]
-  }
+  },
+  {
+    "subject": "Computer Science",
+    "board": "cambridge",
+    "level": "igcse",
+    "units": [
+      {
+        "unit": "Computer Science",
+        "topics": [
+          {
+            "topic": "1 Data representation",
+            "subtopics": [
+              { "subtopic": "1.1 Number systems", "search": "1.1 Number systems" },
+              { "subtopic": "1.2 Text, sound and images", "search": "1.2 Text, sound and images" },
+              { "subtopic": "1.3 Data storage and compression", "search": "1.3 Data storage and compression" }
+            ]
+          },
+          {
+            "topic": "2 Data transmission",
+            "subtopics": [
+              { "subtopic": "2.1 Types and methods of data transmission", "search": "2.1 Types and methods of data transmission" },
+              { "subtopic": "2.2 Methods of error detection", "search": "2.2 Methods of error detection" },
+              { "subtopic": "2.3 Encryption", "search": "2.3 Encryption" }
+            ]
+          },
+          {
+            "topic": "3 Hardware",
+            "subtopics": [
+              { "subtopic": "3.1 Computer architecture", "search": "3.1 Computer architecture" },
+              { "subtopic": "3.2 Input and output devices", "search": "3.2 Input and output devices" },
+              { "subtopic": "3.3 Data storage", "search": "3.3 Data storage" },
+              { "subtopic": "3.4 Network hardware", "search": "3.4 Network hardware" }
+            ]
+          },
+          {
+            "topic": "4 Software",
+            "subtopics": [
+              { "subtopic": "4.1 Types of software and interrupts", "search": "4.1 Types of software and interrupts" },
+              { "subtopic": "4.2 Types of programming language, translators and integrated development environments (IDEs)", "search": "4.2 Types of programming language, translators and integrated development environments (IDEs)" }
+            ]
+          },
+          {
+            "topic": "5 The internet and its uses",
+            "subtopics": [
+              { "subtopic": "5.1 The internet and the world wide web", "search": "5.1 The internet and the world wide web" },
+              { "subtopic": "5.2 Digital currency", "search": "5.2 Digital currency" },
+              { "subtopic": "5.3 Cyber security", "search": "5.3 Cyber security" }
+            ]
+          },
+          {
+            "topic": "6 Automated and emerging technologies",
+            "subtopics": [
+              { "subtopic": "6.1 Automated systems", "search": "6.1 Automated systems" },
+              { "subtopic": "6.2 Robotics", "search": "6.2 Robotics" },
+              { "subtopic": "6.3 Artificial intelligence", "search": "6.3 Artificial intelligence" }
+            ]
+          },
+        
+          {
+            "topic": "7 Algorithm design and problem-solving",
+            "subtopics": [
+              { "subtopic": "7 Algorithm design and problem-solving", "search": "7 Algorithm design and problem-solving" }
+            ]
+          },
+          {
+            "topic": "8 Programming",
+            "subtopics": [
+              { "subtopic": "8.1 Programming concepts", "search": "8.1 Programming concepts" },
+              { "subtopic": "8.2 Arrays", "search": "8.2 Arrays" },
+              { "subtopic": "8.3 File handling", "search": "8.3 File handling" }
+            ]
+          },
+          {
+            "topic": "9 Databases",
+            "subtopics": [
+              { "subtopic": "9 Databases", "search": "9 Databases" }
+            ]
+          },
+          {
+            "topic": "10 Boolean logic",
+            "subtopics": [
+              { "subtopic": "10 Boolean logic", "search": "10 Boolean logic" }
+            ]
+          }
+        ]
+      }
+    ]
+}
 
   // additional config objects can be added here
 ];

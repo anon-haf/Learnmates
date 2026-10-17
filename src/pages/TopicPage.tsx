@@ -296,7 +296,11 @@ const TopicPage: React.FC = () => {
       </Helmet>
       <motion.div variants={itemVariants} className="mb-8">
         <div className="flex items-center mb-4">
-          <Link to={curriculumPath(routeType, routeBoard || 'cambridge', encodeURIComponent(topic.subject))} className="text-primary-600 hover:text-primary-700 font-medium mr-4 flex items-center">
+          <Link
+            to={curriculumPath(routeType, routeBoard || 'cambridge', encodeURIComponent(topic.subject))}
+            state={{ focusTopicId: topicKey }}
+            className="text-primary-600 hover:text-primary-700 font-medium mr-4 flex items-center"
+          >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to {topic.subject}
           </Link>

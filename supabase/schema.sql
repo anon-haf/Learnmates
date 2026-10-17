@@ -13,6 +13,7 @@ create table if not exists public.profiles (
   exam_session text,
   profile_complete boolean not null default false,
   onboarding_skipped boolean not null default false,
+  nibras_disclosure_accepted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
