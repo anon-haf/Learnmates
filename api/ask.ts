@@ -118,11 +118,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'X-API-Key': apiKey,
       };
       if (visitorIp) headers['X-Real-IP'] = visitorIp;
+      const requestBodyBytes = new Uint8Array(requestBody.length);
+      requestBodyBytes.set(requestBody);
 
       const upstream = await fetch(`${apiBaseUrl}/ask`, {
         method: 'POST',
         headers,
-        body: requestBody,
+        body: requestBodyBytes,
         signal: controller.signal,
       });
       console.info('Ask proxy upstream response', { status: upstream.status });
