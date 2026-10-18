@@ -98,6 +98,24 @@ const SUBJECTS = [
   { value: 'IAL_Bio', label: 'Edexcel IAL Biology', shortLabel: 'IAL Bio', icon: Dna, theme: 'biology', level: 'IAL', subjectName: 'Biology' },
 ] as const;
 
+function getConversationContext(messages: ChatMessage[], excludedMessageId?: string): string {
+  const turns: string[] = [];
+  let pendingUserMessage: ChatMessage | null = null;
+
+  for (const message of messages) {
+    if (message.isError || message.id === excludedMessageId) continue;
+
+    if (message.role === 'user') {
+      pendingUserMessage = message;
+    } else if (pendingUserMessage) {
+      turns.push(`User: ${pendingUserMessage.text}\nAssistant: ${message.text}`);
+      pendingUserMessage = null;
+    }
+  }
+
+  return turns.join('\n\n');
+}
+
 function getPastPaperDocument(subjectValue: string, sourceName: string): PastPaperDocument | null {
   const subject = SUBJECTS.find(item => item.value === subjectValue);
   const cleanSource = sourceName.trim();
@@ -881,10 +899,13 @@ const AiChat: React.FC = () => {
     addAttachments(namedImages);
   };
 
-  const fetchAnswer = async (question: string, files: File[]): Promise<AskResponse> => {
+  const fetchAnswer = async (question: string, files: File[], conversationContext: string): Promise<AskResponse> => {
     const formData = new FormData();
     formData.append('subject', activeSubjectValue);
-    formData.append('question', question);
+    const requestQuestion = conversationContext
+      ? `Earlier conversation for context:\n${conversationContext}\n\nCurrent request:\n${question || 'Please help with the attached files.'}`
+      : question;
+    formData.append('question', requestQuestion);
     files.forEach(file => formData.append('files', file, file.name));
 
     const controller = new AbortController();
@@ -1020,6 +1041,7 @@ const AiChat: React.FC = () => {
     startLoadingPhases();
 
     try {
+      const conversationContext = getConversationContext(messages, retry?.messageId);
       let activeSessionId = currentSessionId;
 
       if (!activeSessionId) {
@@ -1066,7 +1088,7 @@ const AiChat: React.FC = () => {
         }
       }
 
-      const data = await fetchAnswer(question, filesToSend);
+      const data = await fetchAnswer(question, filesToSend, conversationContext);
       const answer = data.answer || '';
       const botMsgId = `a-${Date.now()}`;
       const storedQuestion = question || `Attached files: ${filesToSend.map(file => file.name).join(', ')}`;
@@ -1814,7 +1836,7 @@ const AiChat: React.FC = () => {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center mt-2 pb-4">
                 <div className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 text-xs px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-2 shadow-sm">
                   <Sparkles size={14} className="opacity-70" />
-                  <span>Each tutor request is independent and does not include earlier messages. Start a new chat to keep things organized.</span>
+                  <span>Earlier messages in this chat are included as context for each tutor request.</span>
                   <button onClick={handleNewChat} className="font-semibold underline ml-1 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">New Chat</button>
                 </div>
               </motion.div>
