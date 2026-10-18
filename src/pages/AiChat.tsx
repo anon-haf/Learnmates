@@ -277,6 +277,7 @@ function escapeHtml(value: string): string {
 
 function formatAnswer(raw: string): { html: string; pastPaperPaths: string[] } {
   const pastPaperPaths: string[] = [];
+  raw = raw.replace(/\r\n?/g, '\n');
   raw = raw.replace(/\[\[(?:pp:)?(.+?)\]\]/g, (_match, source: string) => {
     pastPaperPaths.push(source.trim());
     return `%%PAST_PAPER_${pastPaperPaths.length - 1}%%`;
@@ -330,9 +331,9 @@ function formatAnswer(raw: string): { html: string; pastPaperPaths: string[] } {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^[\t ]*[-*][\t ]+(.+)$/gm, '<li>$1</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
-  html = html.replace(/^\d+\. (.+)$/gm, '<ol-item>$1</ol-item>');
+  html = html.replace(/^[\t ]*\d+\.[\t ]+(.+)$/gm, '<ol-item>$1</ol-item>');
   html = html.replace(/((?:<ol-item>[^\n]*<\/ol-item>\n?)+)/g, (m) =>
     '<ol>' + m.replace(/<ol-item>/g, '<li>').replace(/<\/ol-item>/g, '</li>') + '</ol>'
   );
@@ -605,7 +606,8 @@ const AiChat: React.FC = () => {
         if (sessionError) throw sessionError;
         if (!session?.access_token) throw new Error('Please sign in again to check your daily AI message limit.');
 
-        const response = await fetch('/api/ai-chat-usage', {
+        const response = await fetch('/api/ask', {
+          method: 'GET',
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
         const payload: unknown = await response.json();

@@ -57,8 +57,34 @@ function getVisitorIp(req: VercelRequest): string | undefined {
  * Buffers the multipart request before forwarding it to the RAG API.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    try {
+      const auth = await authenticateAiChatRequest(req);
+      if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
+
+      const { data, error } = await auth.supabase
+        .from('ai_chat_daily_usage')
+        .select('message_count')
+        .eq('user_id', auth.user.id)
+        .eq('usage_date', getUtcDate())
+        .maybeSingle();
+
+      if (error) throw error;
+
+      const used = data?.message_count ?? 0;
+      return res.status(200).json({
+        limit: DAILY_MESSAGE_LIMIT,
+        used,
+        remaining: Math.max(0, DAILY_MESSAGE_LIMIT - used),
+      });
+    } catch (error: unknown) {
+      console.error('AI chat usage lookup failed:', error);
+      return res.status(500).json({ detail: 'Could not load your daily AI message usage.' });
+    }
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ detail: 'Method not allowed' });
   }
 
