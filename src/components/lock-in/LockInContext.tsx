@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -70,8 +70,22 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useAuth();
   
   const [devices, setDevices] = useState<UserDevice[]>([]);
+  const devicesRef = useRef<UserDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string>('');
   const [sessionState, setSessionState] = useState<LockInSessionState | null>(null);
+
+  const applyDeviceUpdate = useCallback((device: UserDevice) => {
+    const activeSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const nextDevices = devicesRef.current.filter(
+      existing => existing.id !== device.id && existing.last_active_at >= activeSince
+    );
+    if (device.last_active_at >= activeSince) {
+      nextDevices.push(device);
+    }
+    nextDevices.sort((a, b) => b.last_active_at.localeCompare(a.last_active_at));
+    devicesRef.current = nextDevices;
+    setDevices(nextDevices);
+  }, []);
 
   const fetchSession = useCallback(async () => {
     if (!user) return;
@@ -94,8 +108,12 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .gte('last_active_at', fiveMinsAgo)
       .order('last_active_at', { ascending: false });
 
-    if (data && !error) {
-      setDevices(data as UserDevice[]);
+    if (error) {
+      console.error('Failed to fetch active devices', error);
+    } else if (data) {
+      const activeDevices = data as UserDevice[];
+      devicesRef.current = activeDevices;
+      setDevices(activeDevices);
     }
   }, [user]);
 
@@ -104,19 +122,14 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const now = new Date().toISOString();
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    
-    // Check if we need to claim host
-    const { data: activeDevices } = await supabase
-      .from('user_devices')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('last_active_at', fiveMinsAgo)
-      .order('last_active_at', { ascending: false });
+    const activeDevices = devicesRef.current.filter(
+      device => device.last_active_at >= fiveMinsAgo
+    );
       
     let shouldBeHost = false;
     let shouldDemote = false;
 
-    if (activeDevices) {
+    if (activeDevices.length > 0) {
       const hosts = activeDevices.filter(d => d.is_host);
       const isAlreadyHost = activeDevices.some(d => d.device_id === id && d.is_host);
       
@@ -140,7 +153,7 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       shouldBeHost = true;
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_devices')
       .update({ 
         last_active_at: now, 
@@ -150,39 +163,67 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       })
       .eq('user_id', user.id)
       .eq('device_id', id)
-      .select();
+      .select('id, device_id, device_name, status, lock_until, last_active_at, is_host');
 
-    if (!data || data.length === 0) {
-      await supabase.from('user_devices').insert({
-        user_id: user.id,
-        device_id: id,
-        device_name: name,
-        status: 'lobby',
-        last_active_at: now,
-        is_host: shouldBeHost
-      });
+    if (error) {
+      console.error('Failed to update active device', error);
+      return;
     }
-    fetchDevices();
-  }, [user, fetchDevices]);
+
+    if (data?.[0]) {
+      applyDeviceUpdate(data[0] as UserDevice);
+    } else {
+      const { data: insertedDevice, error: insertError } = await supabase
+        .from('user_devices')
+        .insert({
+          user_id: user.id,
+          device_id: id,
+          device_name: name,
+          status: 'lobby',
+          last_active_at: now,
+          is_host: shouldBeHost
+        })
+        .select('id, device_id, device_name, status, lock_until, last_active_at, is_host')
+        .single();
+      if (insertError) {
+        console.error('Failed to register device', insertError);
+      } else if (insertedDevice) {
+        applyDeviceUpdate(insertedDevice as UserDevice);
+      }
+    }
+  }, [user, applyDeviceUpdate]);
 
   useEffect(() => {
     if (!user) return;
 
-    fetchSession();
-
     const id = getDeviceId();
     const name = getDeviceName();
     setDeviceId(id);
-
-    heartbeat(id, name);
-    const interval = setInterval(() => heartbeat(id, name), 60000);
 
     const deviceChannel = supabase
       .channel(`user_devices_${user.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'user_devices', filter: `user_id=eq.${user.id}` },
-        () => fetchDevices()
+        payload => {
+          if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as Partial<UserDevice>).id;
+            if (deletedId) {
+              const activeSince = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+              const nextDevices = devicesRef.current.filter(
+                device => device.id !== deletedId && device.last_active_at >= activeSince
+              );
+              devicesRef.current = nextDevices;
+              setDevices(nextDevices);
+            } else {
+              void fetchDevices();
+            }
+            return;
+          }
+
+          const changedDevice = payload.new as UserDevice;
+          applyDeviceUpdate(changedDevice);
+        }
       )
       .subscribe();
       
@@ -195,12 +236,24 @@ export const LockInProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       )
       .subscribe();
 
+    let isMounted = true;
+    const initialize = async () => {
+      await Promise.all([fetchSession(), fetchDevices()]);
+      if (isMounted) {
+        await heartbeat(id, name);
+      }
+    };
+    void initialize();
+
+    const interval = setInterval(() => heartbeat(id, name), 120000);
+
     return () => {
+      isMounted = false;
       clearInterval(interval);
       supabase.removeChannel(deviceChannel);
       supabase.removeChannel(sessionChannel);
     };
-  }, [user, heartbeat, fetchDevices, fetchSession]);
+  }, [user, heartbeat, fetchDevices, fetchSession, applyDeviceUpdate]);
 
   const currentDevice = devices.find(d => d.device_id === deviceId);
 

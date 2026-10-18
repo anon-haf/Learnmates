@@ -1,10 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticateAiChatRequest } from './_lib/ai-chat-auth.js';
-import { createServerClient } from './_lib/supabase-server.js';
 
 const MAX_REQUEST_BYTES = 4.4 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 55_000;
-const DAILY_MESSAGE_LIMIT = 5;
 
 export const config = {
   api: {
@@ -53,42 +51,12 @@ function getVisitorIp(req: VercelRequest): string | undefined {
   return cfIp?.trim() || forwardedIp?.split(',')[0]?.trim() || req.socket.remoteAddress;
 }
 
-function getUtcDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * Buffers the multipart request before forwarding it to the RAG API.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === 'GET') {
-    try {
-      const auth = await authenticateAiChatRequest(req);
-      if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
-
-      const { data, error } = await auth.supabase
-        .from('ai_chat_daily_usage')
-        .select('message_count')
-        .eq('user_id', auth.user.id)
-        .eq('usage_date', getUtcDate())
-        .maybeSingle();
-
-      if (error) throw error;
-
-      const used = data?.message_count ?? 0;
-      return res.status(200).json({
-        limit: DAILY_MESSAGE_LIMIT,
-        used,
-        remaining: Math.max(0, DAILY_MESSAGE_LIMIT - used),
-      });
-    } catch (error: unknown) {
-      console.error('AI chat usage lookup failed:', error);
-      return res.status(500).json({ detail: 'Could not load your daily AI message usage.' });
-    }
-  }
-
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'GET, POST');
+    res.setHeader('Allow', 'POST');
     return res.status(405).json({ detail: 'Method not allowed' });
   }
 
@@ -105,37 +73,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ detail: 'Expected a multipart form upload.' });
   }
 
-  let reservationDate: string | null = null;
-  let reservationCommitted = false;
-  let userId: string | null = null;
-  let quotaClient: ReturnType<typeof createServerClient> | null = null;
-  let failureStage: 'authorization' | 'quota' | 'proxy' | 'upstream' = 'authorization';
+  let failureStage: 'authorization' | 'proxy' | 'upstream' = 'authorization';
 
   try {
     const auth = await authenticateAiChatRequest(req);
     if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
-    userId = auth.user.id;
-    quotaClient = auth.supabase;
-
-    failureStage = 'quota';
-    const { data: reservationData, error: reservationError } = await quotaClient
-      .rpc('reserve_ai_chat_message', { p_user_id: userId });
-    if (reservationError) throw reservationError;
-
-    const reservation = Array.isArray(reservationData) ? reservationData[0] : reservationData;
-    if (!reservation || typeof reservation.allowed !== 'boolean' || typeof reservation.usage_date !== 'string') {
-      throw new Error('AI chat quota reservation returned an invalid response.');
-    }
-    if (!reservation.allowed) {
-      return res.status(429).json({
-        code: 'DAILY_MESSAGE_LIMIT_REACHED',
-        detail: 'You have used all 5 AI tutor messages for today. Your limit resets at midnight UTC.',
-        limit: DAILY_MESSAGE_LIMIT,
-        used: reservation.used,
-        remaining: 0,
-      });
-    }
-    reservationDate = reservation.usage_date;
 
     failureStage = 'proxy';
     const requestBody = await readRequestBody(req);
@@ -180,10 +122,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (upstream.ok && !hasAnswer) {
         return res.status(502).json({ detail: 'The tutor returned an unexpected response. Please try again.' });
       }
-      if (upstream.ok && hasAnswer) {
-        reservationCommitted = true;
-        res.setHeader('X-AI-Messages-Remaining', String(Math.max(0, DAILY_MESSAGE_LIMIT - reservation.used)));
-      }
       if (responseContentType) res.setHeader('Content-Type', responseContentType);
       return res.status(upstream.status).send(body);
     } finally {
@@ -204,27 +142,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.error(`Ask proxy ${failureStage} error:`, err);
-    if (failureStage === 'quota') {
-      return res.status(503).json({
-        code: 'AI_CHAT_QUOTA_UNAVAILABLE',
-        detail: 'The daily AI message limit could not be checked. Please try again later.',
-      });
-    }
     if (failureStage === 'authorization') {
       return res.status(500).json({ detail: 'Could not verify access to the tutor service. Please try again later.' });
     }
     return res.status(502).json({ detail: 'Tutor temporarily unavailable. Please try again.' });
-  } finally {
-    if (quotaClient && userId && reservationDate && !reservationCommitted) {
-      try {
-        const { error } = await quotaClient.rpc('release_ai_chat_message', {
-          p_user_id: userId,
-          p_usage_date: reservationDate,
-        });
-        if (error) throw error;
-      } catch (error: unknown) {
-        console.error('Failed to release unused AI chat message quota:', error);
-      }
-    }
   }
 }

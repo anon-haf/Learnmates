@@ -63,8 +63,6 @@ interface AskResponse {
   };
 }
 
-const DAILY_MESSAGE_LIMIT = 5;
-
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -544,9 +542,6 @@ const AiChat: React.FC = () => {
   const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { user: authUser, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(authUser?.id);
-  const [messagesRemaining, setMessagesRemaining] = useState<number | null>(null);
-  const [quotaLoading, setQuotaLoading] = useState(false);
-  const [quotaError, setQuotaError] = useState<string | null>(null);
   const [consentStatus, setConsentStatus] = useState<'loading' | 'required' | 'accepted' | 'error'>('loading');
   const [consentUserId, setConsentUserId] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
@@ -583,72 +578,6 @@ const AiChat: React.FC = () => {
       });
     }
   }, [authUser]);
-
-  useEffect(() => {
-    if (!authUser || roleLoading || role !== 'tester') {
-      setMessagesRemaining(null);
-      setQuotaError(null);
-      return;
-    }
-
-    let isMounted = true;
-    setQuotaLoading(true);
-    setQuotaError(null);
-
-    const loadDailyUsage = async () => {
-      try {
-        if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
-          if (isMounted) setMessagesRemaining(DAILY_MESSAGE_LIMIT);
-          return;
-        }
-
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        if (!session?.access_token) throw new Error('Please sign in again to check your daily AI message limit.');
-
-        const response = await fetch('/api/ask', {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        const payload: unknown = await response.json();
-        const responseObject = isRecord(payload) ? payload : null;
-        if (!response.ok) {
-          throw new Error(getErrorDetail(responseObject?.detail) || 'Could not load your daily AI message usage.');
-        }
-        if (!responseObject || typeof responseObject.remaining !== 'number') {
-          throw new Error('The daily AI message usage response was invalid.');
-        }
-        if (isMounted) setMessagesRemaining(Math.max(0, Math.min(DAILY_MESSAGE_LIMIT, responseObject.remaining)));
-      } catch (error: unknown) {
-        console.error('Failed to load daily AI message usage:', error);
-        if (isMounted) {
-          setMessagesRemaining(null);
-          setQuotaError(error instanceof Error ? error.message : 'Could not load your daily AI message usage.');
-        }
-      } finally {
-        if (isMounted) setQuotaLoading(false);
-      }
-    };
-
-    void loadDailyUsage();
-    let resetTimeout: number;
-    const scheduleDailyReset = () => {
-      const now = new Date();
-      const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
-      resetTimeout = window.setTimeout(() => {
-        if (!isMounted) return;
-        setQuotaLoading(true);
-        setQuotaError(null);
-        void loadDailyUsage().then(scheduleDailyReset);
-      }, nextUtcMidnight - now.getTime() + 100);
-    };
-    scheduleDailyReset();
-
-    return () => {
-      isMounted = false;
-      window.clearTimeout(resetTimeout);
-    };
-  }, [authUser, role, roleLoading]);
 
   useEffect(() => {
     if (!authUser || roleLoading || role !== 'tester') return;
@@ -1049,10 +978,6 @@ const AiChat: React.FC = () => {
     const detail = getErrorDetail(responseObject?.detail);
 
     if (!response.ok) {
-      if (response.status === 429 && responseObject?.code === 'DAILY_MESSAGE_LIMIT_REACHED') {
-        setMessagesRemaining(0);
-        throw new Error(detail || 'You have used all 5 AI tutor messages for today. Your limit resets at midnight UTC.');
-      }
       if (response.status === 400) {
         throw new Error(detail ? `Please check your question or attachments: ${detail}` : 'Please check your question and attachments.');
       }
@@ -1072,12 +997,6 @@ const AiChat: React.FC = () => {
         throw new Error(detail || 'The tutor is temporarily unavailable. Please try again.');
       }
       throw new Error(detail || 'The tutor request failed. Please try again.');
-    }
-
-    const remainingHeader = response.headers.get('X-AI-Messages-Remaining');
-    if (remainingHeader !== null) {
-      const remaining = Number(remainingHeader);
-      if (Number.isInteger(remaining) && remaining >= 0) setMessagesRemaining(remaining);
     }
 
     if (!responseObject || typeof responseObject.answer !== 'string') {
@@ -1106,7 +1025,7 @@ const AiChat: React.FC = () => {
     const question = (questionOverride ?? input).trim();
     const filesToSend = retry?.files ?? attachments;
     const userMessageId = retry?.messageId ?? `u-${Date.now()}`;
-    if ((!question && filesToSend.length === 0) || loading || isReplyTyping || !authUser || messagesRemaining === 0) return;
+    if ((!question && filesToSend.length === 0) || loading || isReplyTyping || !authUser) return;
     if (!SUBJECTS.some(subject => subject.value === activeSubjectValue)) {
       setAttachmentError('Please select a valid subject.');
       return;
@@ -2082,57 +2001,14 @@ const AiChat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleSend()}
-                disabled={loading || isReplyTyping || messagesRemaining === 0 || (!input.trim() && attachments.length === 0)}
+                disabled={loading || isReplyTyping || (!input.trim() && attachments.length === 0)}
                 className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                aria-label={messagesRemaining === 0 ? 'Daily AI message limit reached' : 'Send'}
-                title={messagesRemaining === 0 ? 'Daily limit reached. Resets at midnight UTC.' : 'Send message'}
+                aria-label="Send"
+                title="Send message"
               >
                 <ArrowRight size={18} />
               </button>
             </div>
-            <div className="mt-2 flex min-h-6 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs">
-              {quotaLoading ? (
-                <span className="text-gray-400 dark:text-gray-500">Checking today&apos;s messages…</span>
-              ) : messagesRemaining !== null ? (
-                <>
-                  <span
-                    role="status"
-                    className={messagesRemaining === 0
-                      ? 'font-medium text-amber-700 dark:text-amber-300'
-                      : 'text-gray-500 dark:text-gray-400'}
-                  >
-                    {messagesRemaining === 0
-                      ? 'Daily limit reached · resets at midnight UTC'
-                      : `${messagesRemaining} of ${DAILY_MESSAGE_LIMIT} messages left today`}
-                  </span>
-                  <span className="flex items-center gap-1" aria-hidden="true">
-                    {Array.from({ length: DAILY_MESSAGE_LIMIT }, (_, index) => (
-                      <span
-                        key={index}
-                        className={`h-1.5 w-4 rounded-full ${
-                          index < messagesRemaining
-                            ? 'bg-violet-500 dark:bg-violet-400'
-                            : 'bg-gray-200 dark:bg-gray-700'
-                        }`}
-                      />
-                    ))}
-                  </span>
-                </>
-              ) : quotaError ? (
-                <span role="status" className="text-amber-700 dark:text-amber-300">
-                  Daily limit will be checked when you send.
-                </span>
-              ) : (
-                <span className="text-gray-400 dark:text-gray-500">
-                  {DAILY_MESSAGE_LIMIT} AI messages per day · resets at midnight UTC
-                </span>
-              )}
-            </div>
-            {quotaError && messagesRemaining === null && (
-              <p className="px-1 pt-1 text-[11px] text-gray-400 dark:text-gray-500" title={quotaError}>
-                {quotaError}
-              </p>
-            )}
             {attachmentError && (
               <p role="alert" className="pt-2 text-xs text-red-500 dark:text-red-400">{attachmentError}</p>
             )}
