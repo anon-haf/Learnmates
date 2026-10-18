@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
@@ -63,6 +63,8 @@ interface AskResponse {
   };
 }
 
+const DAILY_MESSAGE_LIMIT = 5;
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -98,7 +100,7 @@ const SUBJECTS = [
   { value: 'IAL_Bio', label: 'Edexcel IAL Biology', shortLabel: 'IAL Bio', icon: Dna, theme: 'biology', level: 'IAL', subjectName: 'Biology' },
 ] as const;
 
-function getConversationContext(messages: ChatMessage[], excludedMessageId?: string): string {
+function getConversationContext(messages: ChatMessage[], excludedMessageId?: string, maxPairs = 3): string {
   const turns: string[] = [];
   let pendingUserMessage: ChatMessage | null = null;
 
@@ -113,7 +115,7 @@ function getConversationContext(messages: ChatMessage[], excludedMessageId?: str
     }
   }
 
-  return turns.join('\n\n');
+  return turns.slice(-maxPairs).join('\n\n');
 }
 
 function getPastPaperDocument(subjectValue: string, sourceName: string): PastPaperDocument | null {
@@ -541,6 +543,9 @@ const AiChat: React.FC = () => {
   const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { user: authUser, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole(authUser?.id);
+  const [messagesRemaining, setMessagesRemaining] = useState<number | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [quotaError, setQuotaError] = useState<string | null>(null);
   const [consentStatus, setConsentStatus] = useState<'loading' | 'required' | 'accepted' | 'error'>('loading');
   const [consentUserId, setConsentUserId] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
@@ -548,6 +553,8 @@ const AiChat: React.FC = () => {
   const [consentRetry, setConsentRetry] = useState(0);
   const [consentChecked, setConsentChecked] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { chatId } = useParams<{ chatId?: string }>();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -575,6 +582,71 @@ const AiChat: React.FC = () => {
       });
     }
   }, [authUser]);
+
+  useEffect(() => {
+    if (!authUser || roleLoading || role !== 'tester') {
+      setMessagesRemaining(null);
+      setQuotaError(null);
+      return;
+    }
+
+    let isMounted = true;
+    setQuotaLoading(true);
+    setQuotaError(null);
+
+    const loadDailyUsage = async () => {
+      try {
+        if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+          if (isMounted) setMessagesRemaining(DAILY_MESSAGE_LIMIT);
+          return;
+        }
+
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session?.access_token) throw new Error('Please sign in again to check your daily AI message limit.');
+
+        const response = await fetch('/api/ai-chat-usage', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const payload: unknown = await response.json();
+        const responseObject = isRecord(payload) ? payload : null;
+        if (!response.ok) {
+          throw new Error(getErrorDetail(responseObject?.detail) || 'Could not load your daily AI message usage.');
+        }
+        if (!responseObject || typeof responseObject.remaining !== 'number') {
+          throw new Error('The daily AI message usage response was invalid.');
+        }
+        if (isMounted) setMessagesRemaining(Math.max(0, Math.min(DAILY_MESSAGE_LIMIT, responseObject.remaining)));
+      } catch (error: unknown) {
+        console.error('Failed to load daily AI message usage:', error);
+        if (isMounted) {
+          setMessagesRemaining(null);
+          setQuotaError(error instanceof Error ? error.message : 'Could not load your daily AI message usage.');
+        }
+      } finally {
+        if (isMounted) setQuotaLoading(false);
+      }
+    };
+
+    void loadDailyUsage();
+    let resetTimeout: number;
+    const scheduleDailyReset = () => {
+      const now = new Date();
+      const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+      resetTimeout = window.setTimeout(() => {
+        if (!isMounted) return;
+        setQuotaLoading(true);
+        setQuotaError(null);
+        void loadDailyUsage().then(scheduleDailyReset);
+      }, nextUtcMidnight - now.getTime() + 100);
+    };
+    scheduleDailyReset();
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(resetTimeout);
+    };
+  }, [authUser, role, roleLoading]);
 
   useEffect(() => {
     if (!authUser || roleLoading || role !== 'tester') return;
@@ -740,6 +812,9 @@ const AiChat: React.FC = () => {
   const handleNewChat = () => {
     setCurrentSessionId(null);
     setMessages([]);
+    setAttachments([]);
+    setAttachmentError(null);
+    if (chatId) navigate('/nibra');
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
 
@@ -759,11 +834,13 @@ const AiChat: React.FC = () => {
     });
   };
 
-  const handleLoadSession = async (sessionId: string) => {
+  const handleLoadSession = useCallback(async (sessionId: string, updateUrl = true) => {
     setCurrentSessionId(sessionId);
     setMessages([]);
     setLoading(true);
     setAttachmentError(null);
+    setAttachments([]);
+    if (updateUrl && chatId !== sessionId) navigate(`/nibra/${sessionId}`);
     if (window.innerWidth < 1024) setSidebarOpen(false);
 
     const session = sessions.find(s => s.id === sessionId);
@@ -812,7 +889,29 @@ const AiChat: React.FC = () => {
       setMessages(loadedMessages);
     }
     setLoading(false);
-  };
+  }, [activeSubjectValue, chatId, navigate, sessions]);
+
+  useEffect(() => {
+    if (fetchingSessions) return;
+
+    if (!chatId) {
+      if (currentSessionId) {
+        setCurrentSessionId(null);
+        setMessages([]);
+      }
+      return;
+    }
+
+    if (chatId === currentSessionId) return;
+    if (sessions.some(session => session.id === chatId)) {
+      void handleLoadSession(chatId, false);
+      return;
+    }
+
+    setCurrentSessionId(null);
+    setMessages([]);
+    navigate('/nibra', { replace: true });
+  }, [chatId, currentSessionId, fetchingSessions, handleLoadSession, navigate, sessions]);
 
   const LOADING_PHASES = [
     'Thinking it through…',
@@ -914,13 +1013,19 @@ const AiChat: React.FC = () => {
     let responseText: string;
 
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Please sign in again before sending a message.');
+
       response = await fetch('/api/ask', {
         method: 'POST',
         body: formData,
+        headers: { Authorization: `Bearer ${session.access_token}` },
         signal: controller.signal,
       });
       responseText = await response.text();
     } catch (error: unknown) {
+      if (error instanceof Error && /Please sign in again/.test(error.message)) throw error;
       if (controller.signal.aborted) {
         throw new Error('This request took too long. Please try again.');
       }
@@ -942,6 +1047,10 @@ const AiChat: React.FC = () => {
     const detail = getErrorDetail(responseObject?.detail);
 
     if (!response.ok) {
+      if (response.status === 429 && responseObject?.code === 'DAILY_MESSAGE_LIMIT_REACHED') {
+        setMessagesRemaining(0);
+        throw new Error(detail || 'You have used all 5 AI tutor messages for today. Your limit resets at midnight UTC.');
+      }
       if (response.status === 400) {
         throw new Error(detail ? `Please check your question or attachments: ${detail}` : 'Please check your question and attachments.');
       }
@@ -961,6 +1070,12 @@ const AiChat: React.FC = () => {
         throw new Error('The tutor is temporarily unavailable. Please try again.');
       }
       throw new Error(detail || 'The tutor request failed. Please try again.');
+    }
+
+    const remainingHeader = response.headers.get('X-AI-Messages-Remaining');
+    if (remainingHeader !== null) {
+      const remaining = Number(remainingHeader);
+      if (Number.isInteger(remaining) && remaining >= 0) setMessagesRemaining(remaining);
     }
 
     if (!responseObject || typeof responseObject.answer !== 'string') {
@@ -989,7 +1104,7 @@ const AiChat: React.FC = () => {
     const question = (questionOverride ?? input).trim();
     const filesToSend = retry?.files ?? attachments;
     const userMessageId = retry?.messageId ?? `u-${Date.now()}`;
-    if ((!question && filesToSend.length === 0) || loading || isReplyTyping || !authUser) return;
+    if ((!question && filesToSend.length === 0) || loading || isReplyTyping || !authUser || messagesRemaining === 0) return;
     if (!SUBJECTS.some(subject => subject.value === activeSubjectValue)) {
       setAttachmentError('Please select a valid subject.');
       return;
@@ -1042,74 +1157,93 @@ const AiChat: React.FC = () => {
 
     try {
       const conversationContext = getConversationContext(messages, retry?.messageId);
+      const shorterConversationContext = getConversationContext(messages, retry?.messageId, 2);
       let activeSessionId = currentSessionId;
 
-      if (!activeSessionId) {
-        const words = question.split(/\s+/);
-        const title = words.length > 0 && words[0]
-          ? words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '')
-          : `Attachments: ${filesToSend.map(file => file.name).join(', ')}`;
-
-        let sessionData, sessionError;
-        
-        if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
-          sessionData = { id: `mock-session-${Date.now()}` };
-          sessionError = null;
-        } else {
-          const res = await supabase
-            .from('chat_sessions')
-            .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
-            .select('id')
-            .single();
-          sessionData = res.data;
-          sessionError = res.error;
-        }
-
-        if (sessionError || !sessionData) {
-          const code = sessionError?.code ? ` (code: ${sessionError.code})` : '';
-          const msg = sessionError?.message || 'Unknown database error';
-          throw new Error(`Failed to create chat session: ${msg}${code}. Please refresh the page and try again.`);
-        }
-
-        activeSessionId = sessionData.id;
-        setCurrentSessionId(activeSessionId);
-        setSessions(prev => [{ id: activeSessionId, title, subject: activeSubjectValue, created_at: new Date().toISOString() }, ...prev]);
+      let data: AskResponse;
+      try {
+        data = await fetchAnswer(question, filesToSend, conversationContext);
+      } catch (error: unknown) {
+        const isQuestionTooLong = error instanceof Error && /question is too long/i.test(error.message);
+        if (!isQuestionTooLong || shorterConversationContext === conversationContext) throw error;
+        data = await fetchAnswer(question, filesToSend, shorterConversationContext);
       }
-
-      const attachmentStorageKey = filesToSend.length
-        ? `${authUser.id}:${activeSessionId}:${userMessageId}`
-        : undefined;
-      if (attachmentStorageKey) {
-        try {
-          await storeChatAttachments(attachmentStorageKey, filesToSend);
-        } catch (error: unknown) {
-          const detail = error instanceof Error ? ` ${error.message}` : '';
-          setAttachmentError(`Attachments could not be saved on this device.${detail}`);
-        }
-      }
-
-      const data = await fetchAnswer(question, filesToSend, conversationContext);
       const answer = data.answer || '';
       const botMsgId = `a-${Date.now()}`;
       const storedQuestion = question || `Attached files: ${filesToSend.map(file => file.name).join(', ')}`;
 
-      // Write user + assistant as a pair — only after a successful reply
-      if (!(import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true')) {
-        await supabase.from('chat_messages').insert([
-          {
-            session_id: activeSessionId,
-            role: 'user',
-            content: storedQuestion,
-            metadata: filesToSend.length ? {
-              attachmentStorageKey,
-              attachments: filesToSend.map(file => ({
-                name: file.name,
-                isImage: isImageAttachment(file),
-              })),
-            } : null,
-          },
-          { session_id: activeSessionId, role: 'assistant', content: answer, metadata: data },
-        ]);
+      try {
+        if (!activeSessionId) {
+          const words = question.split(/\s+/);
+          const title = words.length > 0 && words[0]
+            ? words.slice(0, 5).join(' ') + (words.length > 5 ? '...' : '')
+            : `Attachments: ${filesToSend.map(file => file.name).join(', ')}`;
+          let newSessionId: string;
+
+          if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+            newSessionId = `mock-session-${Date.now()}`;
+          } else {
+            const { data: sessionData, error: sessionError } = await supabase
+              .from('chat_sessions')
+              .insert({ user_id: authUser.id, title, subject: activeSubjectValue })
+              .select('id')
+              .single();
+
+            if (sessionError || !sessionData) {
+              const code = sessionError?.code ? ` (code: ${sessionError.code})` : '';
+              const detail = sessionError?.message || 'Unknown database error';
+              throw new Error(`Failed to save chat history: ${detail}${code}.`);
+            }
+            newSessionId = sessionData.id;
+          }
+
+          activeSessionId = newSessionId;
+          setCurrentSessionId(newSessionId);
+          setSessions(prev => [{
+            id: newSessionId,
+            title,
+            subject: activeSubjectValue,
+            created_at: new Date().toISOString(),
+          }, ...prev]);
+          navigate(`/nibra/${newSessionId}`);
+        }
+
+        const resolvedSessionId = activeSessionId;
+        if (!resolvedSessionId) throw new Error('Could not determine the chat session to save.');
+
+        const resolvedAttachmentStorageKey = filesToSend.length
+          ? `${authUser.id}:${resolvedSessionId}:${userMessageId}`
+          : undefined;
+        if (resolvedAttachmentStorageKey) {
+          try {
+            await storeChatAttachments(resolvedAttachmentStorageKey, filesToSend);
+          } catch (error: unknown) {
+            const detail = error instanceof Error ? ` ${error.message}` : '';
+            setAttachmentError(`Attachments could not be saved on this device.${detail}`);
+          }
+        }
+
+        if (!(import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true')) {
+          const { error: messageError } = await supabase.from('chat_messages').insert([
+            {
+              session_id: resolvedSessionId,
+              role: 'user',
+              content: storedQuestion,
+              metadata: filesToSend.length ? {
+                attachmentStorageKey: resolvedAttachmentStorageKey,
+                attachments: filesToSend.map(file => ({
+                  name: file.name,
+                  isImage: isImageAttachment(file),
+                })),
+              } : null,
+            },
+            { session_id: resolvedSessionId, role: 'assistant', content: answer, metadata: data },
+          ]);
+          if (messageError) throw messageError;
+        }
+      } catch (error: unknown) {
+        console.error('AI tutor replied, but chat history could not be saved:', error);
+        setAttachmentError('Your tutor replied, but this chat could not be saved to history.');
       }
 
       const botMsg: ChatMessage = {
@@ -1439,6 +1573,7 @@ const AiChat: React.FC = () => {
                       // Only clear chat, do NOT close sidebar on mobile when switching subject
                       setCurrentSessionId(null);
                       setMessages([]);
+                      if (chatId) navigate('/nibra');
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -1945,13 +2080,57 @@ const AiChat: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleSend()}
-                disabled={loading || isReplyTyping || (!input.trim() && attachments.length === 0)}
+                disabled={loading || isReplyTyping || messagesRemaining === 0 || (!input.trim() && attachments.length === 0)}
                 className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
-                aria-label="Send"
+                aria-label={messagesRemaining === 0 ? 'Daily AI message limit reached' : 'Send'}
+                title={messagesRemaining === 0 ? 'Daily limit reached. Resets at midnight UTC.' : 'Send message'}
               >
                 <ArrowRight size={18} />
               </button>
             </div>
+            <div className="mt-2 flex min-h-6 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 text-xs">
+              {quotaLoading ? (
+                <span className="text-gray-400 dark:text-gray-500">Checking today&apos;s messages…</span>
+              ) : messagesRemaining !== null ? (
+                <>
+                  <span
+                    role="status"
+                    className={messagesRemaining === 0
+                      ? 'font-medium text-amber-700 dark:text-amber-300'
+                      : 'text-gray-500 dark:text-gray-400'}
+                  >
+                    {messagesRemaining === 0
+                      ? 'Daily limit reached · resets at midnight UTC'
+                      : `${messagesRemaining} of ${DAILY_MESSAGE_LIMIT} messages left today`}
+                  </span>
+                  <span className="flex items-center gap-1" aria-hidden="true">
+                    {Array.from({ length: DAILY_MESSAGE_LIMIT }, (_, index) => (
+                      <span
+                        key={index}
+                        className={`h-1.5 w-4 rounded-full ${
+                          index < messagesRemaining
+                            ? 'bg-violet-500 dark:bg-violet-400'
+                            : 'bg-gray-200 dark:bg-gray-700'
+                        }`}
+                      />
+                    ))}
+                  </span>
+                </>
+              ) : quotaError ? (
+                <span role="status" className="text-amber-700 dark:text-amber-300">
+                  Daily limit will be checked when you send.
+                </span>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500">
+                  {DAILY_MESSAGE_LIMIT} AI messages per day · resets at midnight UTC
+                </span>
+              )}
+            </div>
+            {quotaError && messagesRemaining === null && (
+              <p className="px-1 pt-1 text-[11px] text-gray-400 dark:text-gray-500" title={quotaError}>
+                {quotaError}
+              </p>
+            )}
             {attachmentError && (
               <p role="alert" className="pt-2 text-xs text-red-500 dark:text-red-400">{attachmentError}</p>
             )}

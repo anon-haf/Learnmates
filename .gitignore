@@ -44,6 +44,11 @@ public/Questions/**/*.webp
 public/topicals/
 public/topicals/**
 supabase
+!supabase/
+supabase/*
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/20261018000000_create_ai_chat_daily_quota.sql
 # Optionally exclude documents folder if it's also too large:
 # public/documents/**/*.pdf
 # public/documents/**/*.png

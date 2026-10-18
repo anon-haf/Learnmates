@@ -1,6 +1,6 @@
 import { AuthProvider } from './context/AuthContext';
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { AuthLayout } from './components/AuthLayout';
 import { PublicLayout } from './components/PublicLayout';
 import Home from './pages/Home';
@@ -68,7 +68,9 @@ function AppContent() {
 
         {/* Public routes using DashboardShell */}
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/ai" element={<AiChat />} />
+        <Route path="/nibra" element={<AiChat />} />
+        <Route path="/nibra/:chatId" element={<AiChat />} />
+        <Route path="/ai" element={<Navigate to="/nibra" replace />} />
 
         {/* Conditional layout routes - DashboardShell if logged in, PublicLayout if not */}
         <Route element={<ConditionalLayout />}>

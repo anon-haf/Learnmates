@@ -1,7 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { authenticateAiChatRequest } from './_lib/ai-chat-auth.js';
+import { createServerClient } from './_lib/supabase-server.js';
 
 const MAX_REQUEST_BYTES = 4.4 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 55_000;
+const DAILY_MESSAGE_LIMIT = 5;
 
 export const config = {
   api: {
@@ -72,7 +75,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ detail: 'Expected a multipart form upload.' });
   }
 
+  let reservationDate: string | null = null;
+  let reservationCommitted = false;
+  let userId: string | null = null;
+  let quotaClient: ReturnType<typeof createServerClient> | null = null;
+
   try {
+    const auth = await authenticateAiChatRequest(req);
+    if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
+    userId = auth.user.id;
+    quotaClient = auth.supabase;
+
+    const { data: reservationData, error: reservationError } = await quotaClient
+      .rpc('reserve_ai_chat_message', { p_user_id: userId });
+    if (reservationError) throw reservationError;
+
+    const reservation = Array.isArray(reservationData) ? reservationData[0] : reservationData;
+    if (!reservation || typeof reservation.allowed !== 'boolean' || typeof reservation.usage_date !== 'string') {
+      throw new Error('AI chat quota reservation returned an invalid response.');
+    }
+    if (!reservation.allowed) {
+      return res.status(429).json({
+        code: 'DAILY_MESSAGE_LIMIT_REACHED',
+        detail: 'You have used all 5 AI tutor messages for today. Your limit resets at midnight UTC.',
+        limit: DAILY_MESSAGE_LIMIT,
+        used: reservation.used,
+        remaining: 0,
+      });
+    }
+    reservationDate = reservation.usage_date;
+
     const requestBody = await readRequestBody(req);
     console.info('Ask proxy received request body', { bytes: requestBody.length });
 
@@ -97,6 +129,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const body = await upstream.text();
       const responseContentType = upstream.headers.get('content-type');
+      let hasAnswer = false;
+      if (upstream.ok) {
+        try {
+          const responseBody: unknown = JSON.parse(body);
+          hasAnswer = typeof responseBody === 'object'
+            && responseBody !== null
+            && !Array.isArray(responseBody)
+            && typeof (responseBody as { answer?: unknown }).answer === 'string';
+        } catch {
+          hasAnswer = false;
+        }
+      }
+      if (upstream.ok && !hasAnswer) {
+        return res.status(502).json({ detail: 'The tutor returned an unexpected response. Please try again.' });
+      }
+      if (upstream.ok && hasAnswer) {
+        reservationCommitted = true;
+        res.setHeader('X-AI-Messages-Remaining', String(Math.max(0, DAILY_MESSAGE_LIMIT - reservation.used)));
+      }
       if (responseContentType) res.setHeader('Content-Type', responseContentType);
       return res.status(upstream.status).send(body);
     } finally {
@@ -118,5 +169,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.error('Proxy error:', err);
     return res.status(502).json({ detail: 'Tutor temporarily unavailable. Please try again.' });
+  } finally {
+    if (quotaClient && userId && reservationDate && !reservationCommitted) {
+      try {
+        const { error } = await quotaClient.rpc('release_ai_chat_message', {
+          p_user_id: userId,
+          p_usage_date: reservationDate,
+        });
+        if (error) throw error;
+      } catch (error: unknown) {
+        console.error('Failed to release unused AI chat message quota:', error);
+      }
+    }
   }
 }
