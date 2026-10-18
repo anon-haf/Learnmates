@@ -390,6 +390,7 @@ function formatAnswer(raw: string): { html: string; pastPaperPaths: string[] } {
 const MAX_QUESTION_LENGTH = 4000;
 const MAX_FILES = 5;
 const MAX_IMAGES = 4;
+const getMockConsentStorageKey = (userId: string) => `nibras_disclosure_accepted:${userId}`;
 const IMAGE_MAX_SIZE = 5 * 1024 * 1024;
 const DOCUMENT_MAX_SIZE = 15 * 1024 * 1024;
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
@@ -567,6 +568,20 @@ const AiChat: React.FC = () => {
     setConsentChecked(false);
 
     const loadConsent = async () => {
+      if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+        try {
+          const acceptedAt = localStorage.getItem(getMockConsentStorageKey(authUser.id));
+          setConsentUserId(authUser.id);
+          setConsentStatus(acceptedAt ? 'accepted' : 'required');
+        } catch (error) {
+          console.error('Failed to load local Nibras disclosure consent:', error);
+          setConsentError('We could not load your local agreement. Check your browser storage and try again.');
+          setConsentUserId(authUser.id);
+          setConsentStatus('error');
+        }
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('nibras_disclosure_accepted_at')
@@ -608,6 +623,20 @@ const AiChat: React.FC = () => {
     setConsentSaving(true);
     setConsentError(null);
     const acceptedAt = new Date().toISOString();
+    if (import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true') {
+      try {
+        localStorage.setItem(getMockConsentStorageKey(authUser.id), acceptedAt);
+        setConsentUserId(authUser.id);
+        setConsentStatus('accepted');
+      } catch (error) {
+        console.error('Failed to save local Nibras disclosure consent:', error);
+        setConsentError('We could not save your local agreement. Check your browser storage and try again.');
+      } finally {
+        setConsentSaving(false);
+      }
+      return;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .update({ nibras_disclosure_accepted_at: acceptedAt })
