@@ -816,7 +816,7 @@ const AiChat: React.FC = () => {
     setMessages([]);
     setAttachments([]);
     setAttachmentError(null);
-    if (chatId) navigate('/nibra');
+    if (chatId) navigate('/nibras');
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
 
@@ -842,7 +842,7 @@ const AiChat: React.FC = () => {
     setLoading(true);
     setAttachmentError(null);
     setAttachments([]);
-    if (updateUrl && chatId !== sessionId) navigate(`/nibra/${sessionId}`);
+    if (updateUrl && chatId !== sessionId) navigate(`/nibras/${sessionId}`);
     if (window.innerWidth < 1024) setSidebarOpen(false);
 
     const session = sessions.find(s => s.id === sessionId);
@@ -912,7 +912,7 @@ const AiChat: React.FC = () => {
 
     setCurrentSessionId(null);
     setMessages([]);
-    navigate('/nibra', { replace: true });
+    navigate('/nibras', { replace: true });
   }, [chatId, currentSessionId, fetchingSessions, handleLoadSession, navigate, sessions]);
 
   const LOADING_PHASES = [
@@ -1069,7 +1069,7 @@ const AiChat: React.FC = () => {
         throw new Error('The tutor is receiving too many requests. Please wait a moment and try again.');
       }
       if (response.status === 502) {
-        throw new Error('The tutor is temporarily unavailable. Please try again.');
+        throw new Error(detail || 'The tutor is temporarily unavailable. Please try again.');
       }
       throw new Error(detail || 'The tutor request failed. Please try again.');
     }
@@ -1207,7 +1207,7 @@ const AiChat: React.FC = () => {
             subject: activeSubjectValue,
             created_at: new Date().toISOString(),
           }, ...prev]);
-          navigate(`/nibra/${newSessionId}`);
+          navigate(`/nibras/${newSessionId}`);
         }
 
         const resolvedSessionId = activeSessionId;
@@ -1575,7 +1575,7 @@ const AiChat: React.FC = () => {
                       // Only clear chat, do NOT close sidebar on mobile when switching subject
                       setCurrentSessionId(null);
                       setMessages([]);
-                      if (chatId) navigate('/nibra');
+                      if (chatId) navigate('/nibras');
                     }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -1973,7 +1973,7 @@ const AiChat: React.FC = () => {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-center mt-2 pb-4">
                 <div className="bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 text-xs px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 flex items-center gap-2 shadow-sm">
                   <Sparkles size={14} className="opacity-70" />
-                  <span>Earlier messages in this chat are included as context for each tutor request.</span>
+                  <span>For best results, start a new chat. Fresh conversations keep the AI focused and accurate—longer chats can lose context over time.</span>
                   <button onClick={handleNewChat} className="font-semibold underline ml-1 hover:text-gray-900 dark:hover:text-gray-200 transition-colors">New Chat</button>
                 </div>
               </motion.div>

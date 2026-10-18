@@ -53,6 +53,10 @@ function getVisitorIp(req: VercelRequest): string | undefined {
   return cfIp?.trim() || forwardedIp?.split(',')[0]?.trim() || req.socket.remoteAddress;
 }
 
+function getUtcDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
  * Buffers the multipart request before forwarding it to the RAG API.
  */
@@ -105,6 +109,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let reservationCommitted = false;
   let userId: string | null = null;
   let quotaClient: ReturnType<typeof createServerClient> | null = null;
+  let failureStage: 'authorization' | 'quota' | 'proxy' | 'upstream' = 'authorization';
 
   try {
     const auth = await authenticateAiChatRequest(req);
@@ -112,6 +117,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     userId = auth.user.id;
     quotaClient = auth.supabase;
 
+    failureStage = 'quota';
     const { data: reservationData, error: reservationError } = await quotaClient
       .rpc('reserve_ai_chat_message', { p_user_id: userId });
     if (reservationError) throw reservationError;
@@ -131,6 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     reservationDate = reservation.usage_date;
 
+    failureStage = 'proxy';
     const requestBody = await readRequestBody(req);
     console.info('Ask proxy received request body', { bytes: requestBody.length });
 
@@ -144,13 +151,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'X-API-Key': apiKey,
       };
       if (visitorIp) headers['X-Real-IP'] = visitorIp;
-      const requestBodyBytes = new Uint8Array(requestBody.length);
-      requestBodyBytes.set(requestBody);
+      const requestBodyBuffer = new ArrayBuffer(requestBody.length);
+      new Uint8Array(requestBodyBuffer).set(requestBody);
 
+      failureStage = 'upstream';
       const upstream = await fetch(`${apiBaseUrl}/ask`, {
         method: 'POST',
         headers,
-        body: requestBodyBytes,
+        body: requestBodyBuffer,
         signal: controller.signal,
       });
       console.info('Ask proxy upstream response', { status: upstream.status });
@@ -195,7 +203,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(504).json({ detail: 'Tutor service timed out. Please try again.' });
     }
 
-    console.error('Proxy error:', err);
+    console.error(`Ask proxy ${failureStage} error:`, err);
+    if (failureStage === 'quota') {
+      return res.status(503).json({
+        code: 'AI_CHAT_QUOTA_UNAVAILABLE',
+        detail: 'The daily AI message limit could not be checked. Please try again later.',
+      });
+    }
+    if (failureStage === 'authorization') {
+      return res.status(500).json({ detail: 'Could not verify access to the tutor service. Please try again later.' });
+    }
     return res.status(502).json({ detail: 'Tutor temporarily unavailable. Please try again.' });
   } finally {
     if (quotaClient && userId && reservationDate && !reservationCommitted) {
