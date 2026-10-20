@@ -224,11 +224,6 @@ const TopicPage: React.FC = () => {
   }) : [];
   const progress = topicKey ? user?.progress?.[topicKey] || 0 : 0;
 
-  const getSubjectColor = (subject: string) => {
-    const colors: Record<string, string> = {};
-    return colors[subject] || 'from-neutral-500 to-neutral-600';
-  };
-
   const routeType = typeParam ? typeParam.toLowerCase() : (typeof topic?.curriculum === 'string' && topic.curriculum.toLowerCase().includes('igcse') ? 'igcse' : 'a-level');
   const routeBoard = boardParam || 'cambridge';
   const topicSlug = topic ? getTopicSlug({ title: topic.title, group: topic.group }) : '';
@@ -307,7 +302,7 @@ const TopicPage: React.FC = () => {
         </div>
 
         <Card variant="elevated" padding="none" className="overflow-hidden">
-          <div className={`dark:bg-gray-700 bg-gray-200 ${topic.color ? topic.color : getSubjectColor(topic.subject)} p-8 text-white`}>
+          <div className={`bg-gradient-to-r ${topic.color || 'from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800'} p-8 text-white`}>
             <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
               <div className="flex items-center gap-2 flex-wrap">
                 {(() => {

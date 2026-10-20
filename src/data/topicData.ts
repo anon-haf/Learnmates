@@ -1686,7 +1686,7 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-Practical(AS)': {
     videos: [],
-    resources: [{ id: 'r3', title: 'Physics Paper 3 Guide', url: '/documents/alevel/cambridge/Physics/Practical/Physics paper 3.pdf' }
+    resources: [{ id: 'r3', title: 'Physics Paper 3 Guide', url: '/documents/alevel/cambridge/Physics/Practical/Physics paper 3.pdf' }, { id: 'r4', title: 'Question 2 Improvements', url: '/documents/alevel/cambridge/Physics/Practical/Improvements.pdf' }
       , { id: 'r2 ', title: 'Uncertainty Notes (HAF)', url: '/documents/alevel/cambridge/Physics/Practical/Uncertainty (HAF).pdf' }, { id: 'r1', title: 'Practical Skills notes ', url: '/documents/alevel/cambridge/Physics/Practical/Practical skills 1.pdf' }],
     quizzes: []
   },

@@ -293,7 +293,7 @@ function formatAnswer(raw: string): { html: string; pastPaperPaths: string[] } {
     } catch {
       placeholders.push({ html: `<code>${tex}</code>`, display });
     }
-    return `%%MATH_${placeholders.length - 1}%%`;
+    return `MATHPLACEHOLDER${placeholders.length - 1}END`;
   };
 
   raw = raw.replace(/\$\$([\s\S]+?)\$\$/g, (_m, tex) => placeholder(tex, true));
@@ -395,7 +395,7 @@ function formatAnswer(raw: string): { html: string; pastPaperPaths: string[] } {
   html = html.replace(/%%PRE_(\d+)%%/g, (_m, idx) => `<pre><code class="code-block">${preBlocks[Number(idx)]}</code></pre>`);
   html = html.replace(/%%INLINE_CODE_(\d+)%%/g, (_m, idx) => `<code>${inlineCodeBlocks[Number(idx)]}</code>`);
 
-  html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(%%MATH_(\d+)%%)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
+  html = html.replace(/((?:<br\/>|<div[^>]*><\/div>|\s)*)(MATHPLACEHOLDER(\d+)END)((?:<br\/>|<div[^>]*><\/div>|\s)*)/g, (match, prefix, placeholder, idxStr, suffix) => {
     const p = placeholders[Number(idxStr)];
     if (p.display) {
       return p.html; 

@@ -6,7 +6,7 @@ import MediaViewer from './MediaViewer';
 import { QuestionViewTracker } from './QuestionViewTracker';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
-import { commitDownloadAward, downloadFileWithXP, logDownload, normalizePaperOrTopicalUrl } from '../utils/awardDownloadXP';
+import { commitDownloadAward, logDownload, normalizePaperOrTopicalUrl } from '../utils/awardDownloadXP';
 
 export interface Question {
   id: string;
@@ -113,19 +113,38 @@ const Quiz: React.FC<QuizComponentProps> = (props) => {
         return;
       }
 
-      await downloadFileWithXP({
-        url: absoluteUrl,
+      const response = await fetchWithTimeout(absoluteUrl, 30000);
+      if (!response.ok) {
+        throw new Error(`Download failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('The downloaded file is empty');
+      }
+
+      await commitDownloadAward({
         resourceId: url,
         resourceName: filename,
         resourceType: 'paper',
-        filename,
       });
+
+      await logDownload({
+        action: 'past_paper_download',
+        url: normalizePaperOrTopicalUrl(url, { fileName: filename }),
+      });
+
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Error downloading file:', error);
-      const absoluteUrl = url.startsWith('http') || url.startsWith('blob:')
-        ? url
-        : new URL(url, window.location.origin).href;
-      window.open(absoluteUrl, '_blank');
+      alert('Failed to download file. Please try again.');
     }
   };
 

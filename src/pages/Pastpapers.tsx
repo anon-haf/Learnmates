@@ -978,7 +978,7 @@ const PastpapersPage: React.FC = () => {
                   </div>
 
                   {/* ── Papers grid ── */}
-                  <div className={`overflow-hidden transition-all duration-300 ${expandedYears.has(year) ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`transition-all duration-300 ${expandedYears.has(year) ? 'max-h-[70vh] overflow-y-auto overscroll-contain opacity-100' : 'max-h-0 overflow-hidden opacity-0'}`}>
                     <div className="p-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {yearPapers.map((paper) => {
