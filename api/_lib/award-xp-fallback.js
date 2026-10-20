@@ -1,4 +1,10 @@
 const DOWNLOAD_ACTIONS = new Set(['download', 'paper_download', 'topical_paper_download']);
+const IDEMPOTENT_ACTIONS = new Set([
+  ...DOWNLOAD_ACTIONS,
+  'active_time',
+  'streak_visit',
+  'question_view',
+]);
 
 function isMissingColumnError(error) {
   if (!error) return false;
@@ -65,7 +71,7 @@ export async function awardCappedXPFallback(supabase, {
     return 0;
   }
 
-  if (refId && DOWNLOAD_ACTIONS.has(action)) {
+  if (refId && IDEMPOTENT_ACTIONS.has(action)) {
     const { data: existing, error: dupError } = await supabase
       .from('xp_events')
       .select('id')
@@ -96,7 +102,7 @@ export async function awardCappedXPFallback(supabase, {
   const { data: insertedEvent, error: insertError } = await insertXpEvent(supabase, eventRow);
 
   if (insertError) {
-    if (insertError.code === '23505' && refId && DOWNLOAD_ACTIONS.has(action)) {
+    if (insertError.code === '23505' && refId && IDEMPOTENT_ACTIONS.has(action)) {
       return 0;
     }
     console.error('[awardCappedXPFallback] insert xp_events failed:', insertError);

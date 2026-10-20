@@ -30,7 +30,6 @@ import LockIn from './pages/LockIn';
 import Leaderboard from './pages/Leaderboard';
 import { DashboardShell } from './layouts/DashboardShell';
 import { useXP } from './hooks/useXP';
-import { useStreakXP } from './hooks/useStreakXP';
 import { XPRewardNotification } from './components/XPRewardNotification';
 import { LockInProvider } from './components/lock-in/LockInContext';
 import { GlobalLockInManager } from './components/lock-in/GlobalLockInManager';
@@ -40,7 +39,6 @@ import { ReducedMotionProvider } from './context/ReducedMotionContext';
 function AppContent() {
   // Global XP tracking
   useXP();
-    useStreakXP();
   return (
     <>
       <XPRewardNotification />

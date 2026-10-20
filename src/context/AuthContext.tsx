@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { getAuthRedirectUrl, supabase } from '../lib/supabaseClient';
 import { updateStreak } from '../utils/streakUtils';
@@ -22,9 +22,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const streakUpdatedUserIds = useRef(new Set<string>());
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
+
+    const updateStreakForUser = (userId: string) => {
+      if (streakUpdatedUserIds.current.has(userId)) return;
+      streakUpdatedUserIds.current.add(userId);
+      void updateStreak().catch((error) => {
+        streakUpdatedUserIds.current.delete(userId);
+        console.error('Failed to update user streak:', error);
+      });
+    };
 
     const initAuth = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -86,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
       if (session?.user) {
-        updateStreak();
+        updateStreakForUser(session.user.id);
       }
     };
 
@@ -102,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
         if (session?.user) {
-          updateStreak();
+          updateStreakForUser(session.user.id);
         }
       }
     );

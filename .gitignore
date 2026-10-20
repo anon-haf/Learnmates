@@ -49,6 +49,7 @@ supabase/*
 !supabase/migrations/
 supabase/migrations/*
 !supabase/migrations/20261018000000_create_ai_chat_daily_quota.sql
+!supabase/migrations/20261020200000_make_streak_xp_idempotent.sql
 # Optionally exclude documents folder if it's also too large:
 # public/documents/**/*.pdf
 # public/documents/**/*.png

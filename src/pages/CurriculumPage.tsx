@@ -283,6 +283,7 @@ const CurriculumPage: React.FC = () => {
           const completed = isTopicDone(topic);
           const hasResources = getTopicResources(topic.id).length > 0;
           const countsTowardProgress = !isRevisionTopic(topic);
+          const topicColor = topic.color || 'from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800';
           return (
             <div
               className="bg-white dark:bg-gray-700 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 transform hover:-translate-y-1 transition-all duration-200 overflow-hidden group h-full"
@@ -295,7 +296,7 @@ const CurriculumPage: React.FC = () => {
                 className="flex lg:hidden flex-col hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors"
               >
                 <div className="flex items-start p-4 gap-3">
-                  <div className="w-1 rounded-full flex-shrink-0 bg-blue-600 dark:bg-blue-500" style={{ height: '100%', minHeight: '80px' }} />
+                  <div className={`w-1 rounded-full flex-shrink-0 bg-gradient-to-b ${topicColor}`} style={{ height: '100%', minHeight: '80px' }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                       <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">{topic.subject}</span>
@@ -331,7 +332,7 @@ const CurriculumPage: React.FC = () => {
               {/* Desktop Card View */}
               <div className="hidden lg:flex h-full flex-col">
                 <div className="flex flex-1">
-                  <div className="w-1.5 mr-4 rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-200 group-hover:w-3" />
+                  <div className={`w-1.5 mr-4 rounded-full bg-gradient-to-b ${topicColor} transition-all duration-200 group-hover:w-3`} />
                   <div className="flex-1 p-5 flex flex-col bg-white dark:bg-gray-700">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400 uppercase tracking-wide">
@@ -370,7 +371,7 @@ const CurriculumPage: React.FC = () => {
                   <Link
                     to={curriculumPath(curriculum.title.toLowerCase(), selectedBoard!, topic.subject, getTopicSlug(topic))}
                     state={{ focusTopicId: topic.id }}
-                    className="block w-full text-center py-2.5 px-4 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded-lg hover:shadow-md transition-all duration-200 group-hover:scale-105 font-medium text-sm"
+                    className={`block w-full text-center py-2.5 px-4 bg-gradient-to-r ${topicColor} hover:brightness-110 text-white rounded-lg hover:shadow-md transition-all duration-200 group-hover:scale-105 font-medium text-sm`}
                   >
                     <span className="flex items-center justify-center">
                       {completed ? 'Review Topic' : hasResources ? 'Start Learning' : 'Open Topic'}

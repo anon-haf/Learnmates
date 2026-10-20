@@ -70,7 +70,7 @@ export function useQuestionXP(questionId: string, isMCQ: boolean = false, mcqAns
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [questionId, isMCQ, mcqAnswerSelected]);
+  }, [questionId]);
   
   return {
     markQuestionSeen: () => { sawQuestionRef.current = true; },

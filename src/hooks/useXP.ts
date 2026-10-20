@@ -8,6 +8,8 @@ const TEN_MINUTES_MS = XP_RULES.active_time.checkInterval;
 export function useXP() {
   const activeTimeRef = useRef(0);
   const isMouseMovingRef = useRef(false);
+  const activePingInFlightRef = useRef(false);
+  const pendingActiveAwardRef = useRef<{ refId: string; duration: number } | null>(null);
 
   useEffect(() => {
     let mouseTimeout: ReturnType<typeof setTimeout>;
@@ -47,12 +49,20 @@ export function useXP() {
       if (activeTimeRef.current < TEN_MINUTES_MS) {
         return;
       }
+      if (activePingInFlightRef.current) return;
 
-      const duration = Math.floor(activeTimeRef.current / TEN_MINUTES_MS) * 600;
-        
+      activePingInFlightRef.current = true;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
+
+        if (!pendingActiveAwardRef.current) {
+          pendingActiveAwardRef.current = {
+            refId: crypto.randomUUID(),
+            duration: Math.floor(activeTimeRef.current / TEN_MINUTES_MS) * 600,
+          };
+        }
+        const pendingAward = pendingActiveAwardRef.current;
           
         const res = await fetch('/api/xp/heartbeat', {
           method: 'POST',
@@ -63,21 +73,24 @@ export function useXP() {
           keepalive: true,
           body: JSON.stringify({
             action: 'active_time',
-            duration,
+            refId: pendingAward.refId,
+            duration: pendingAward.duration,
             tabVisible: document.visibilityState === 'visible',
             mouseMoving: true
           })
         });
+        if (!res.ok) throw new Error(`Active-time heartbeat failed (${res.status})`);
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.awarded > 0) {
-            triggerXPNotification(data.awarded, 'active_time');
-          }
-          activeTimeRef.current = Math.max(0, activeTimeRef.current - duration * 1000);
+        const data = await res.json();
+        if (data.awarded > 0) {
+          triggerXPNotification(data.awarded, 'active_time');
         }
+        activeTimeRef.current = Math.max(0, activeTimeRef.current - pendingAward.duration * 1000);
+        pendingActiveAwardRef.current = null;
       } catch (error) {
         console.error('Failed to send active time heartbeat', error);
+      } finally {
+        activePingInFlightRef.current = false;
       }
     }, 30000);
     

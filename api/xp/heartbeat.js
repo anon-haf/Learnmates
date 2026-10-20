@@ -69,6 +69,9 @@ export default async function handler(req, res) {
       dailyCap = XP_RULES.active_time.dailyCap;
     } 
     else if (action === 'question_view') {
+      if (typeof refId !== 'string' || !refId.trim()) {
+        return res.status(400).json({ error: 'Question views require a question reference' });
+      }
       conditionsMet = sawQuestion && sawMS && duration >= XP_RULES.question_view.minViewDuration;
       if (conditionsMet) {
         xpAmount = XP_RULES.question_view.amountPerView;
@@ -99,7 +102,11 @@ export default async function handler(req, res) {
       awarded = await awardCappedXP(supabase, {
         userId: user.id,
         action,
-        refId: refId || null,
+        refId: action === 'streak_visit'
+          ? new Date().toISOString().slice(0, 10)
+          : action === 'question_view'
+            ? `${new Date().toISOString().slice(0, 10)}:${refId}`
+            : refId || null,
         amount: xpAmount,
         dailyCap,
         metadata: {

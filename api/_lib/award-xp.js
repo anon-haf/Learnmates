@@ -2,16 +2,7 @@ import { awardCappedXPFallback } from './award-xp-fallback.js';
 
 function isRpcUnavailable(error) {
   if (!error) return false;
-  const code = error.code || '';
-  const message = (error.message || '').toLowerCase();
-  const details = (error.details || '').toLowerCase();
-  return (
-    code === 'PGRST202' ||
-    code === '42883' ||
-    message.includes('could not find the function') ||
-    message.includes('function fn_award_capped_xp') ||
-    details.includes('fn_award_capped_xp')
-  );
+  return error.code === 'PGRST202' || error.code === '42883';
 }
 
 async function runFallback(supabase, params, reason) {
@@ -33,7 +24,8 @@ async function runFallback(supabase, params, reason) {
 
 /**
  * Awards capped XP via fn_award_capped_xp when available (single DB transaction).
- * Falls back to legacy path if the RPC is missing or errors; never throws to callers.
+ * Falls back only when the RPC is confirmed missing. Other errors may be ambiguous:
+ * the transaction could have committed even if its response was lost.
  */
 export async function awardCappedXP(supabase, params) {
   const { amount } = params;
@@ -82,5 +74,5 @@ export async function awardCappedXP(supabase, params) {
     hint: error.hint,
   });
 
-  return runFallback(supabase, params, 'rpc_runtime_error');
+  return 0;
 }
