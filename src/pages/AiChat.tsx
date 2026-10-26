@@ -29,28 +29,11 @@ import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
+import NibrasAnimatedMark from '../components/NibrasAnimatedMark';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import './AiChat.css';
 import NibrasIcon from '../assets/logos/nibras.svg?react';
-import Nibras1Icon from '../assets/logos/nibras 1.svg?react';
-import Nibras2Icon from '../assets/logos/nibras 2.svg?react';
-
-// Stacked, same-center breathing swap of the two Nibras marks.
-// Both SVGs use `currentColor`, so they inherit the parent's text color.
-// Pure CSS animation (single keyframes + negative half-period delay, see
-// index.css `.nibras-breathe-layer`) runs on the compositor for a smooth,
-// drift-free loop pinned to the shared center. Used for the AI loading state.
-const NibrasAnimatedMark: React.FC<{ className?: string }> = ({ className = 'h-6 w-6' }) => (
-  <span className={`relative grid shrink-0 place-items-center ${className}`} aria-hidden="true">
-    <span className="nibras-breathe-layer h-full w-full">
-      <Nibras1Icon className="block h-full w-full" />
-    </span>
-    <span className="nibras-breathe-layer nibras-breathe-layer--alt h-full w-full">
-      <Nibras2Icon className="block h-full w-full" />
-    </span>
-  </span>
-);
 
 /* ─── Types ───────────────────────────────────────────── */
 interface AskResponse {

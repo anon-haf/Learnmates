@@ -50,6 +50,9 @@ supabase/*
 supabase/migrations/*
 !supabase/migrations/20261018000000_create_ai_chat_daily_quota.sql
 !supabase/migrations/20261020200000_make_streak_xp_idempotent.sql
+!supabase/migrations/20261024000000_create_topical_explanations.sql
+!supabase/migrations/20261024190000_create_topical_guest_explanation_cache.sql
+!supabase/migrations/20261024210000_create_shared_topical_explanations_and_user_quota.sql
 # Optionally exclude documents folder if it's also too large:
 # public/documents/**/*.pdf
 # public/documents/**/*.png

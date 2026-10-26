@@ -5,8 +5,9 @@ import {
   canvasHasContent,
   StoredAnnotationPage,
 } from '../utils/pdfVectorAnnotationStorage';
+import type { VectorAction } from '../utils/pdfVectorAnnotationStorage';
 import {
-  clampOutputDevicePixelRatio,
+  PDF_OUTPUT_DEVICE_PIXEL_RATIO,
   pdfStrokeWidthInCanvasPixels,
 } from '../utils/pdfAnnotationMetrics';
 import {
@@ -41,7 +42,11 @@ interface PdfDrawablePageProps {
   penSize?: number;
   eraserSize?: number;
   onCanvasMount?: (pageNumber: number, canvas: HTMLCanvasElement | null) => void;
-  onActionComplete?: (pageNumber: number, beforeSnapshot: ImageData) => void;
+  onActionComplete?: (
+    pageNumber: number,
+    beforeSnapshot: ImageData,
+    vectorAction: VectorAction
+  ) => void;
   onDrawingActiveChange?: (pageNumber: number, active: boolean) => void;
   allowTouchNavigation?: boolean;
   restoredAnnotation?: StoredAnnotationPage | null;
@@ -169,7 +174,9 @@ function drawDot(
   ctx.fill();
 }
 
-function isShapeTool(tool: DrawTool) {
+function isShapeTool(
+  tool: DrawTool
+): tool is 'line' | 'rectangle' | 'ellipse' {
   return tool === 'line' || tool === 'rectangle' || tool === 'ellipse';
 }
 
@@ -288,9 +295,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const renderZoomPercent = renderScale != null ? renderScale * 100 : renderZoom;
   const renderZoomFactor = Math.max(0.25, renderZoomPercent / 100);
   const displayWidth = Math.max(1, Math.round(pageWidth * renderZoomFactor));
-  const outputDevicePixelRatio = clampOutputDevicePixelRatio(
-    typeof window !== 'undefined' ? window.devicePixelRatio : 1
-  );
+  const outputDevicePixelRatio = PDF_OUTPUT_DEVICE_PIXEL_RATIO;
   const pageRenderCacheKey = pdfCacheKey
     ? pdfRenderCacheKey(
         pdfCacheKey,
@@ -529,9 +534,11 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     return () => onCanvasMount?.(pageNumber, null);
   }, [pageNumber, rendered, onCanvasMount]);
 
-  const commitAction = useCallback(() => {
+  const commitAction = useCallback((vectorAction?: VectorAction) => {
     if (!didModify.current || !beforeAction.current) return;
-    onActionCompleteRef.current?.(pageNumber, beforeAction.current);
+    if (vectorAction) {
+      onActionCompleteRef.current?.(pageNumber, beforeAction.current, vectorAction);
+    }
     beforeAction.current = null;
     didModify.current = false;
   }, [pageNumber]);
@@ -726,6 +733,27 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       finishFreehandStroke(ctx);
     }
 
+    let vectorAction: VectorAction | undefined;
+    if (canvas && didModify.current) {
+      if (isShapeTool(tool) && shapeStart.current && lastPoint.current) {
+        vectorAction = {
+          type: tool,
+          start: shapeStart.current,
+          end: lastPoint.current,
+          color: penColorRef.current,
+          size: penSizeRef.current,
+        };
+      } else if (isFreehandTool(tool) && strokePoints.current.length > 0) {
+        vectorAction = {
+          type: 'freehand',
+          tool,
+          points: strokePoints.current.slice(),
+          color: penColorRef.current,
+          size: tool === 'pen' ? penSizeRef.current : eraserSizeRef.current,
+        };
+      }
+    }
+
     const pointerCanvas = drawCanvasRef.current;
     if (pointerCanvas && activePointerId.current !== null) {
       try {
@@ -743,7 +771,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     shapeStart.current = null;
     canvasMetrics.current = null;
     onDrawingActiveChangeRef.current?.(pageNumber, false);
-    commitAction();
+    commitAction(vectorAction);
   }, [cancelPendingFrame, commitAction, finishFreehandStroke, getDrawContext, pageNumber, renderShapePreview]);
 
   const addFreehandPoint = useCallback((point: Point) => {

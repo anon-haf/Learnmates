@@ -349,6 +349,7 @@ export function useTopicalMatches() {
                 title: entry.file_name,
                 topicMatches: Array.isArray(entry.topic_matches) ? entry.topic_matches : [],
                 unit: unit.unit,
+                isMcq: shouldEnableMcqChecker,
                 mcqAnswer,
               };
 

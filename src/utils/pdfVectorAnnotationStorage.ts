@@ -24,7 +24,7 @@ export type StoredVectorPage = {
   width: number;
   height: number;
   actions: VectorAction[];
-  rasterFallback?: string; // Base64 canvas image for drawings not yet converted to vectors
+  rasterFallback?: string;
 };
 
 export type StoredVectorAnnotations = {
@@ -108,9 +108,7 @@ export function canvasHasContent(canvas: HTMLCanvasElement): boolean {
   return false;
 }
 
-/**
- * Capture canvas content, storing as raster fallback until vector action recording is implemented
- */
+/** Capture legacy canvas-only annotations as a raster fallback. */
 export function exportCanvasAnnotation(
   canvas: HTMLCanvasElement
 ): StoredVectorPage | null {
@@ -148,32 +146,33 @@ export function applyStoredAnnotation(
     const storedWidth = stored.width > 0 ? stored.width : canvas.width;
     const storedHeight = stored.height > 0 ? stored.height : canvas.height;
 
-    // Apply vector actions first
-    for (const action of stored.actions) {
-      if (action.type === 'freehand') {
-        applyStroke(
-          ctx,
-          action,
-          canvas.width,
-          canvas.height,
-          storedWidth,
-          storedHeight,
-          pageWidthScale1
-        );
-      } else {
-        applyShape(
-          ctx,
-          action,
-          canvas.width,
-          canvas.height,
-          storedWidth,
-          storedHeight,
-          pageWidthScale1
-        );
+    const applyVectors = () => {
+      for (const action of stored.actions) {
+        if (action.type === 'freehand') {
+          applyStroke(
+            ctx,
+            action,
+            canvas.width,
+            canvas.height,
+            storedWidth,
+            storedHeight,
+            pageWidthScale1
+          );
+        } else {
+          applyShape(
+            ctx,
+            action,
+            canvas.width,
+            canvas.height,
+            storedWidth,
+            storedHeight,
+            pageWidthScale1
+          );
+        }
       }
-    }
+      ctx.globalCompositeOperation = 'source-over';
+    };
 
-    // Apply raster fallback if present (stores canvas drawing as image)
     if (stored.rasterFallback) {
       const img = new Image();
       let hasResolved = false;
@@ -185,17 +184,21 @@ export function applyStoredAnnotation(
       };
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        applyVectors();
         done();
       };
       img.onerror = () => {
+        applyVectors();
         done();
       };
       img.src = stored.rasterFallback;
       if (img.complete && img.naturalWidth > 0) {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        applyVectors();
         done();
       }
     } else {
+      applyVectors();
       resolve();
     }
   });
@@ -210,7 +213,7 @@ function applyStroke(
   storedHeight: number,
   pageWidthScale1: number
 ) {
-  if (stroke.points.length < 2) return;
+  if (stroke.points.length === 0) return;
 
   const sx = storedWidth > 0 ? canvasWidth / storedWidth : 1;
   const sy = storedHeight > 0 ? canvasHeight / storedHeight : 1;
@@ -235,14 +238,48 @@ function applyStroke(
     );
   }
 
-  ctx.beginPath();
-  ctx.moveTo(stroke.points[0].x * sx, stroke.points[0].y * sy);
+  const points = stroke.points.map((point) => ({
+    x: point.x * sx,
+    y: point.y * sy,
+  }));
 
-  for (let i = 1; i < stroke.points.length; i++) {
-    ctx.lineTo(stroke.points[i].x * sx, stroke.points[i].y * sy);
+  if (points.length === 1) {
+    ctx.beginPath();
+    ctx.arc(
+      points[0].x,
+      points[0].y,
+      ctx.lineWidth / 2,
+      0,
+      2 * Math.PI
+    );
+    ctx.fillStyle = stroke.tool === 'pen' ? stroke.color : '#000';
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    if (points.length === 2) {
+      ctx.moveTo(points[0].x, points[0].y);
+      ctx.lineTo(points[1].x, points[1].y);
+    } else {
+      ctx.moveTo(
+        (points[0].x + points[1].x) / 2,
+        (points[0].y + points[1].y) / 2
+      );
+      for (let i = 2; i < points.length; i++) {
+        const previous = points[i - 1];
+        const current = points[i];
+        ctx.quadraticCurveTo(
+          previous.x,
+          previous.y,
+          (previous.x + current.x) / 2,
+          (previous.y + current.y) / 2
+        );
+      }
+      const last = points[points.length - 1];
+      ctx.lineTo(last.x, last.y);
+    }
+    ctx.stroke();
   }
-
-  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 function applyShape(

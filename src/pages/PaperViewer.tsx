@@ -9,6 +9,7 @@ import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { ReportModal } from '../components/ReportModal';
 import { McqCheckerHeader, McqOptionButton } from '../components/McqChecker';
+import TopicalQuiz, { type Question } from '../components/TopicalQuiz';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
@@ -505,6 +506,23 @@ const PaperViewerPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              <TopicalQuiz
+                explanationOnly
+                title={`${paperDisplayName} Question ${currentPdf.questionNumber || questionIndex + 1}`}
+                questions={[{
+                  id: currentPdf.pdfUrl,
+                  title: currentPdf.fileName,
+                  questionContent: currentPdf.pdfUrl,
+                  questionContentType: 'pdf',
+                  markScheme: currentPdf.msUrl,
+                  markSchemeType: currentPdf.msUrl ? 'pdf' : undefined,
+                  topicMatches: currentPdf.topicMatches,
+                  unit: currentPdf.unit,
+                  isMcq: Boolean(currentPdf.mcqAnswer),
+                  mcqAnswer: currentPdf.mcqAnswer,
+                } satisfies Question]}
+              />
             </div>
           </div>
         </div>

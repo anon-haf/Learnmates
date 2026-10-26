@@ -38,6 +38,7 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { PdfDocumentSkeleton } from './PdfPageSkeleton';
 import { PdfSidebarPageThumb } from './PdfSidebarPageThumb';
 import { DrawTool, PdfDrawablePage } from './PdfDrawablePage';
+import { applyStoredAnnotation, VectorAction } from '../utils/pdfVectorAnnotationStorage';
 import { clearPdfThumbnailCache } from '../utils/pdfThumbnail';
 import { usePdfAnnotationHistory } from '../utils/pdfAnnotationHistory';
 import {
@@ -297,8 +298,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   );
 
   const handleActionComplete = useCallback(
-    (pageNumber: number, beforeSnapshot: ImageData) => {
-      pushAction(pageNumber, beforeSnapshot);
+    (
+      pageNumber: number,
+      beforeSnapshot: ImageData,
+      vectorAction: VectorAction
+    ) => {
+      pushAction(pageNumber, beforeSnapshot, vectorAction);
     },
     [pushAction]
   );
@@ -393,6 +398,9 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const loadStoredAnnotations = async () => {
       if (readOnly) {
         setStoredPages({});
+        resetAnnotationHistory();
+        resetCache({});
+        markSaved();
         return;
       }
 
@@ -400,27 +408,25 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       const stored = await loadAnnotations(pdfUrl, storageMode);
       if (cancelled) return;
 
+      let pages: Record<number, StoredAnnotationPage> = {};
       if (stored && Object.keys(stored.pages).length > 0) {
-        const pages: Record<number, StoredAnnotationPage> = {};
         Object.entries(stored.pages).forEach(([page, data]) => {
           pages[Number(page)] = data;
         });
-        setStoredPages(pages);
       } else if (savedAnnotation) {
-        setStoredPages({
+        pages = {
           1: {
             width: pageWidth,
             height: pageWidth * A4_ASPECT,
             actions: [],
             rasterFallback: savedAnnotation,
           },
-        });
-      } else {
-        setStoredPages({});
+        };
       }
+      setStoredPages(pages);
       pageRestoreGettersRef.current.clear();
       resetAnnotationHistory();
-      resetCache();
+      resetCache(pages);
       markSaved();
     };
 
@@ -805,11 +811,21 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     const pages = exportAll();
     const storageMode = mode === 'inline' ? 'temporary' : 'permanent';
     await saveAnnotations(pdfUrl, pages, storageMode);
-    markSaved();
+    markSaved(pages);
 
     if (onSaveAnnotation) {
-      const page1DataUrl = pages[1]?.rasterFallback || '';
-      onSaveAnnotation(page1DataUrl);
+      const page1 = pages[1];
+      if (!page1) {
+        onSaveAnnotation('');
+      } else {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, page1.width);
+        canvas.height = Math.max(1, page1.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not render saved PDF annotations');
+        await applyStoredAnnotation(ctx, canvas, page1);
+        onSaveAnnotation(canvas.toDataURL('image/png'));
+      }
     }
   }, [exportAll, markSaved, pdfUrl, mode, onSaveAnnotation]);
 

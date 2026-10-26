@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,10 +7,29 @@ import { ReportModal } from './ReportModal';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import { QuestionViewTracker } from './QuestionViewTracker';
 import { McqCheckerHeader, McqOptionButton } from './McqChecker';
+import TopicalExplanationSections from './topical/TopicalExplanationSections';
+import NibrasAnimatedMark from './NibrasAnimatedMark';
+import { useAuth } from '../context/AuthContext';
+import { useUserRole } from '../hooks/useUserRole';
+import NibrasIcon from '../assets/logos/nibras.svg?react';
+import { supabase } from '../lib/supabaseClient';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { commitDownloadAward, downloadFileWithXP, logDownload, normalizePaperOrTopicalUrl } from '../utils/awardDownloadXP';
+import {
+  buildTopicalQuestionImages,
+  createTopicalExplanationCacheKey,
+  extractTopicalMarkSchemeText,
+  getTopicalAiSubject,
+  MCQ_EXPLANATION_PROMPT,
+  NON_MCQ_EXPLANATION_PROMPT,
+  parseMarkedTopicalExplanation,
+  parseTopicalExplanation,
+  type TopicalExplanationSection,
+  TOPICAL_EXPLANATION_MAX_IMAGE_BYTES,
+  TOPICAL_EXPLANATION_PROMPT_VERSION,
+} from '../utils/topicalExplanation';
 
 export interface Question {
   id: string;
@@ -22,6 +41,7 @@ export interface Question {
   downloadOnly?: boolean; // If true, show download buttons instead of viewer
   topicMatches?: string[]; // Topics that match this question
   unit?: string; // Unit this question belongs to
+  isMcq?: boolean; // True when the topical paper uses mcq_ans.json for its answer key
   mcqAnswer?: string; // Optional answer for Cambridge IGCSE MCQ practice papers
 }
 
@@ -29,6 +49,7 @@ interface SingleQuizProps {
   questions: Question[];
   title: string;
   quizId?: string;
+  explanationOnly?: boolean;
   showUnitTags?: boolean; // Show unit tags for each question when true
   isLoading?: boolean; // Indicates if more questions are still loading
 }
@@ -72,6 +93,25 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
   const [pageCount, setPageCount] = useState<number | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [explanation, setExplanation] = useState<{
+    questionId: string;
+    answer: string;
+    warning?: string;
+  } | null>(null);
+  const [explanationError, setExplanationError] = useState<{ questionId: string; message: string } | null>(null);
+  const [explainingQuestionId, setExplainingQuestionId] = useState<string | null>(null);
+  const [followUpInput, setFollowUpInput] = useState('');
+  const [followUpAnswer, setFollowUpAnswer] = useState<string | null>(null);
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
+  const [checkedSections, setCheckedSections] = useState<TopicalExplanationSection[] | null>(null);
+  const [answerCheckError, setAnswerCheckError] = useState<string | null>(null);
+  const [activeExplanationTool, setActiveExplanationTool] = useState<'followup' | 'check' | null>(null);
+  const explanationPanelRef = useRef<HTMLDivElement>(null);
+  const { user: authUser } = useAuth();
+  const { role: userRole, loading: roleLoading } = useUserRole(authUser?.id);
+  const canExplainTopical = Boolean(authUser && !roleLoading && userRole === 'tester');
 
   const handleDownloadMergedPDFs = async (
     quiz: MultiQuiz,
@@ -465,6 +505,483 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     }
   };
 
+  const submitTopicalPrompt = async (
+    question: Question,
+    markSchemeUrl: string | null,
+    prompt: string,
+    action: 'generate' | 'followup' | 'check',
+    cacheKey?: string,
+  ): Promise<string> => {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw new Error(`Could not check your sign-in status: ${sessionError.message}`);
+    if (!session?.access_token) throw new Error('Sign in to use topical explanation tools.');
+
+    const files = await buildTopicalQuestionImages(question);
+    const imageBytes = files.reduce((total, file) => total + file.size, 0);
+    if (imageBytes > TOPICAL_EXPLANATION_MAX_IMAGE_BYTES) {
+      throw new Error('The question images are too large to send. Please use a shorter PDF.');
+    }
+    const markSchemeText = await extractTopicalMarkSchemeText(question, markSchemeUrl);
+    const fullPrompt = markSchemeText
+      ? `${prompt}\n\nMARK-SCHEME TEXT (use as the authority):\n${markSchemeText}`
+      : prompt;
+    const formData = new FormData();
+    formData.append('subject', getTopicalAiSubject(question) || '');
+    formData.append('question', fullPrompt);
+    files.forEach(file => formData.append('files', file, file.name));
+
+    const requestHeaders: Record<string, string> = {
+      Authorization: `Bearer ${session.access_token}`,
+      'X-Learnmates-Feature': 'topical-explanation',
+      'X-Learnmates-Topical-Action': action,
+    };
+    if (cacheKey) requestHeaders['X-Learnmates-Topical-Cache-Key'] = cacheKey;
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
+    let response: Response;
+    try {
+      response = await fetch('/api/ask', {
+        method: 'POST',
+        body: formData,
+        headers: requestHeaders,
+        signal: controller.signal,
+      });
+    } catch (error: unknown) {
+      if (controller.signal.aborted) throw new Error('The explanation request timed out. Please try again.');
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+
+    const responseText = await response.text();
+    let responsePayload: unknown = null;
+    try {
+      responsePayload = JSON.parse(responseText);
+    } catch {
+      responsePayload = null;
+    }
+    const responseObject = typeof responsePayload === 'object' && responsePayload !== null
+      ? responsePayload as { answer?: unknown; detail?: unknown }
+      : null;
+    const detail = typeof responseObject?.detail === 'string' ? responseObject.detail : null;
+    if (!response.ok) {
+      if (response.status === 413) throw new Error('The question images and mark-scheme text are too large to send.');
+      if (response.status === 429) {
+        throw new Error(detail || 'The tutor is receiving too many requests. Please wait a moment and try again.');
+      }
+      throw new Error(detail || 'The AI tutor could not respond. Please try again.');
+    }
+    if (typeof responseObject?.answer !== 'string' || !responseObject.answer.trim()) {
+      throw new Error('The AI tutor returned an empty or unexpected response. Please try again.');
+    }
+    return responseObject.answer;
+  };
+
+  const handleExplain = async (question: Question) => {
+    if (explainingQuestionId) return;
+    setExplanationError(null);
+
+    const questionUrl = question.questionContent;
+    const isMcq = question.isMcq ?? Boolean(question.mcqAnswer);
+    const correctAnswer = question.mcqAnswer?.trim().toUpperCase();
+    const markSchemeUrl = isMcq ? null : question.markScheme || deriveMarkSchemeUrl(question.questionContent);
+    if (!questionUrl || (!isMcq && !markSchemeUrl)) {
+      setExplanationError({ questionId: question.id, message: 'This question is missing its question paper or mark scheme.' });
+      return;
+    }
+    if (isMcq && (!correctAnswer || !/^[A-E]$/.test(correctAnswer))) {
+      setExplanationError({ questionId: question.id, message: 'The MCQ answer key is missing a valid correct option for this question.' });
+      return;
+    }
+
+    const subject = getTopicalAiSubject(question);
+    if (!subject) {
+      setExplanationError({
+        questionId: question.id,
+        message: 'AI explanations are currently available for Physics, Chemistry, and Biology topical questions.',
+      });
+      return;
+    }
+
+    setExplainingQuestionId(question.id);
+    setExplanationError(null);
+    setExplanation(null);
+    setFollowUpAnswer(null);
+    setFollowUpError(null);
+    setFollowUpInput('');
+    setCheckedSections(null);
+    setAnswerCheckError(null);
+    setAnswerDrafts({});
+    setActiveExplanationTool(null);
+    window.requestAnimationFrame(() => {
+      explanationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    try {
+      const cacheKey = await createTopicalExplanationCacheKey(questionUrl, markSchemeUrl, isMcq, correctAnswer);
+      const { data: sharedExplanation, error: sharedCacheError } = await supabase
+        .from('topical_explanation_public_cache')
+        .select('answer')
+        .eq('cache_key', cacheKey)
+        .maybeSingle();
+      if (sharedCacheError) {
+        throw new Error(`Could not check pre-explained answers: ${sharedCacheError.message}`);
+      }
+      if (sharedExplanation?.answer) {
+        setExplanation({ questionId: question.id, answer: sharedExplanation.answer });
+        return;
+      }
+
+      for (const promptVersion of ['2026-10-24-v5', '2026-10-24-v4', '2026-10-24-v3']) {
+        const legacyCacheKey = await createTopicalExplanationCacheKey(
+          questionUrl,
+          markSchemeUrl,
+          isMcq,
+          correctAnswer,
+          promptVersion,
+        );
+        const { data: legacySharedExplanation, error: legacySharedCacheError } = await supabase
+          .from('topical_explanation_public_cache')
+          .select('answer')
+          .eq('cache_key', legacyCacheKey)
+          .maybeSingle();
+        if (legacySharedCacheError) {
+          throw new Error(`Could not check older pre-explained answers: ${legacySharedCacheError.message}`);
+        }
+        if (legacySharedExplanation?.answer) {
+          setExplanation({ questionId: question.id, answer: legacySharedExplanation.answer });
+          return;
+        }
+      }
+
+      if (authUser) {
+        const { data: cachedExplanation, error: cacheReadError } = await supabase
+          .from('topical_explanations')
+          .select('answer')
+          .eq('user_id', authUser.id)
+          .eq('cache_key', cacheKey)
+          .maybeSingle();
+        if (cacheReadError) throw new Error(`Could not check saved explanations: ${cacheReadError.message}`);
+
+        if (cachedExplanation?.answer) {
+          setExplanation({ questionId: question.id, answer: cachedExplanation.answer });
+          return;
+        }
+        for (const promptVersion of ['2026-10-24-v5', '2026-10-24-v4', '2026-10-24-v3']) {
+          const legacyCacheKey = await createTopicalExplanationCacheKey(
+            questionUrl,
+            markSchemeUrl,
+            isMcq,
+            correctAnswer,
+            promptVersion,
+          );
+          const { data: legacyExplanation, error: legacyReadError } = await supabase
+            .from('topical_explanations')
+            .select('answer')
+            .eq('user_id', authUser.id)
+            .eq('cache_key', legacyCacheKey)
+            .maybeSingle();
+          if (legacyReadError) throw new Error(`Could not check older saved explanations: ${legacyReadError.message}`);
+          if (legacyExplanation?.answer) {
+            setExplanation({ questionId: question.id, answer: legacyExplanation.answer });
+            return;
+          }
+        }
+      } else {
+        setExplanationError({
+          questionId: question.id,
+          message: 'This question does not have a pre-explained answer yet. Sign in to generate one.',
+        });
+        return;
+      }
+
+      const prompt = isMcq
+        ? MCQ_EXPLANATION_PROMPT.replace('<correct answer letter>', correctAnswer!)
+        : NON_MCQ_EXPLANATION_PROMPT;
+      const answer = await submitTopicalPrompt(question, markSchemeUrl, prompt, 'generate', cacheKey);
+      if (!authUser) throw new Error('Sign in to generate an explanation.');
+      const { error: cacheWriteError } = await supabase
+        .from('topical_explanations')
+        .upsert({
+          user_id: authUser.id,
+          cache_key: cacheKey,
+          question_url: questionUrl,
+          mark_scheme_url: markSchemeUrl || '',
+          is_mcq: isMcq,
+          prompt_version: TOPICAL_EXPLANATION_PROMPT_VERSION,
+          answer,
+        }, {
+          onConflict: 'user_id,cache_key',
+          ignoreDuplicates: true,
+        });
+      let saveWarning: string | undefined;
+      if (cacheWriteError) {
+        console.error('Could not save the topical explanation cache:', cacheWriteError.message);
+        saveWarning = 'This explanation could not be saved to your account.';
+      }
+      setExplanation({ questionId: question.id, answer, warning: saveWarning });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not generate an explanation. Please try again.';
+      setExplanationError({ questionId: question.id, message });
+    } finally {
+      setExplainingQuestionId(null);
+    }
+  };
+
+  const handleAskFollowUp = async (question: Question, previousExplanation: string) => {
+    const followUp = followUpInput.trim();
+    if (!followUp || isAskingFollowUp) return;
+    if (!authUser) {
+      setFollowUpError('Sign in to ask a follow-up question.');
+      return;
+    }
+    const isMcq = question.isMcq ?? Boolean(question.mcqAnswer);
+    const markSchemeUrl = isMcq ? null : question.markScheme || deriveMarkSchemeUrl(question.questionContent);
+    setIsAskingFollowUp(true);
+    setFollowUpError(null);
+    setFollowUpAnswer(null);
+    try {
+      const answer = await submitTopicalPrompt(
+        question,
+        markSchemeUrl,
+        `You are the same experienced tutor who wrote the prior topical explanation. Answer the student's follow-up directly and clearly. Use the previous explanation as context, and the attached question image plus mark-scheme text for accuracy. Do not repeat the whole explanation unless needed. Preserve LaTeX and wrap math in \\(...\\) or \\[...\\].\n\nPREVIOUS EXPLANATION:\n${previousExplanation}\n\nSTUDENT FOLLOW-UP:\n${followUp}`,
+        'followup',
+      );
+      setFollowUpAnswer(answer);
+      setFollowUpInput('');
+    } catch (error: unknown) {
+      setFollowUpError(error instanceof Error ? error.message : 'Could not send your follow-up. Please try again.');
+    } finally {
+      setIsAskingFollowUp(false);
+    }
+  };
+
+  const handleCheckAnswers = async (
+    question: Question,
+    previousExplanation: string,
+    sections: TopicalExplanationSection[],
+  ) => {
+    if (!authUser || isAskingFollowUp || explainingQuestionId) {
+      if (!authUser) setAnswerCheckError('Sign in to check your answers.');
+      return;
+    }
+    if (question.isMcq ?? Boolean(question.mcqAnswer)) {
+      setAnswerCheckError('Answer checking is available for non-MCQ questions only.');
+      return;
+    }
+    const submittedAnswers = sections
+      .filter(section => section.kind === 'part' || section.kind === 'question' || section.kind === 'answer')
+      .map(section => ({
+        label: section.kind === 'answer' ? 'question' : section.label,
+        answer: answerDrafts[section.label]?.trim() || '',
+      }))
+      .filter(part => part.answer.length > 0);
+    if (submittedAnswers.length === 0) {
+      setAnswerCheckError('Enter an answer for at least one part before checking.');
+      return;
+    }
+
+    const markSchemeUrl = question.markScheme || deriveMarkSchemeUrl(question.questionContent);
+    setExplainingQuestionId(question.id);
+    setAnswerCheckError(null);
+    setCheckedSections(null);
+    window.requestAnimationFrame(() => {
+      explanationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    try {
+      const userAnswers = submittedAnswers
+        .map(part => `${part.label.toLowerCase() === 'question' ? 'Question' : `Part ${part.label}`}: ${part.answer}`)
+        .join('\n');
+      const answer = await submitTopicalPrompt(
+        question,
+        markSchemeUrl,
+        `You are an experienced, supportive examiner and tutor. Mark the student's submitted answers against the attached question image and mark-scheme text. Use the previous explanation as context, but judge the student's own work independently. Give credit for valid equivalent answers and method, and do not award marks for unsupported claims. For each submitted labelled part, output exactly one block in the original part order, with its earned mark in the heading as a fraction (for example, :::part a 2/3). The denominator must be the total marks available for that part based on the mark scheme. Under each heading, explain specifically what is correct, what is missing or incorrect, and how to improve it. If an answer depends on an earlier part, account for that. Preserve LaTeX and wrap math in \\(...\\) or \\[...\\]. Never invent a mark total; if the available marks cannot be determined from the provided mark scheme, say so in the feedback and use :::part <label> ?/? . Do not restate the question or mention the mark scheme. Output only these part blocks.\n\nPREVIOUS EXPLANATION:\n${previousExplanation}\n\nSTUDENT ANSWERS:\n${userAnswers}`,
+        'check',
+      );
+      const parsedSections = parseMarkedTopicalExplanation(answer);
+      if (parsedSections.length === 0) {
+        throw new Error('The tutor response did not include part marks in the expected format. Please try again.');
+      }
+      setCheckedSections(parsedSections);
+    } catch (error: unknown) {
+      setAnswerCheckError(error instanceof Error ? error.message : 'Could not check your answers. Please try again.');
+    } finally {
+      setExplainingQuestionId(null);
+    }
+  };
+
+  const validCurrentQuestion = Math.min(currentQuestion, Math.max(0, questions.length - 1));
+  const currentQ = questionsWithMarkSchemes[validCurrentQuestion];
+  const currentExplanation = currentQ && explanation?.questionId === currentQ.id ? explanation : null;
+  const currentExplanationError = currentQ && explanationError?.questionId === currentQ.id
+    ? explanationError.message
+    : null;
+  const explanationSections = useMemo(
+    () => currentQ && explanation?.questionId === currentQ.id
+      ? parseTopicalExplanation(
+        explanation.answer,
+        (currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)) ? 'option' : 'part'
+      )
+      : null,
+    [explanation, currentQ?.id, currentQ?.isMcq, currentQ?.mcqAnswer]
+  );
+
+  if (!isQuizMenu && 'explanationOnly' in props && props.explanationOnly && currentQ) {
+    const isMcq = currentQ.isMcq ?? Boolean(currentQ.mcqAnswer);
+    return (
+      <div className="w-full">
+        {canExplainTopical && Boolean(
+          currentQ.questionContent &&
+          (isMcq || currentQ.markScheme) &&
+          getTopicalAiSubject(currentQ)
+        ) && (
+          <button
+            type="button"
+            onClick={() => void handleExplain(currentQ)}
+            disabled={explainingQuestionId !== null}
+            className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            title="Explain this question with Nibras"
+          >
+            {explainingQuestionId === currentQ.id
+              ? <NibrasAnimatedMark className="h-4 w-4 text-white" />
+              : <NibrasIcon className="h-4 w-4 text-white" />}
+            <span>{explainingQuestionId === currentQ.id ? 'Explaining…' : 'Explain with Nibras'}</span>
+          </button>
+        )}
+
+        <div ref={explanationPanelRef} className="scroll-mt-6">
+          {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
+            <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+              <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+              <span>
+                {isAskingFollowUp
+                  ? 'Nibras is answering your follow-up…'
+                  : activeExplanationTool === 'check'
+                    ? 'Checking your answers…'
+                    : 'Preparing your explanation…'}
+              </span>
+            </div>
+          )}
+          {currentExplanationError && (
+            <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              {currentExplanationError}
+            </p>
+          )}
+          {currentExplanation && explanationSections && (
+            <div>
+              {currentExplanation.warning && (
+                <p role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                  {currentExplanation.warning}
+                </p>
+              )}
+              <TopicalExplanationSections
+                key={`${currentQ.id}-${currentExplanation.answer}`}
+                sections={explanationSections.sections}
+                isMcq={isMcq}
+                correctOption={currentQ.mcqAnswer}
+                selectedOption={selectedMcqOption}
+              />
+              {canExplainTopical && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveExplanationTool(activeExplanationTool === 'followup' ? null : 'followup')}
+                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
+                  >
+                    Ask follow-up
+                  </button>
+                  {!isMcq && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveExplanationTool(activeExplanationTool === 'check' ? null : 'check')}
+                      className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
+                    >
+                      Check my answers
+                    </button>
+                  )}
+                </div>
+              )}
+              {activeExplanationTool === 'followup' && canExplainTopical && (
+                <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                  <label htmlFor={`topical-follow-up-${currentQ.id}`} className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100">
+                    What would you like to ask?
+                  </label>
+                  <textarea
+                    id={`topical-follow-up-${currentQ.id}`}
+                    value={followUpInput}
+                    onChange={event => setFollowUpInput(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Ask about a step, idea, or alternative method…"
+                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                  />
+                  {followUpError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{followUpError}</p>}
+                  <button
+                    type="button"
+                    disabled={!followUpInput.trim() || isAskingFollowUp || explainingQuestionId !== null}
+                    onClick={() => void handleAskFollowUp(currentQ, currentExplanation.answer)}
+                    className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isAskingFollowUp ? 'Sending…' : 'Send follow-up'}
+                  </button>
+                  {followUpAnswer && (
+                    <div className="mt-3">
+                      <TopicalExplanationSections
+                        sections={[{ kind: 'answer', label: 'Follow-up answer', content: followUpAnswer }]}
+                        isMcq={false}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeExplanationTool === 'check' && canExplainTopical && !isMcq && (
+                <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                  <h4 className="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">Enter your working for each part</h4>
+                  <div className="flex flex-col gap-3">
+                    {explanationSections.sections
+                      .filter(section => section.kind === 'part' || section.kind === 'question' || section.kind === 'answer')
+                      .map(section => (
+                        <label key={section.label} className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                          <span className="mb-1 block">
+                            {section.kind === 'part' ? `Part ${section.label}` : 'Answer'}
+                          </span>
+                          <textarea
+                            value={answerDrafts[section.label] ?? ''}
+                            onChange={event => setAnswerDrafts(previous => ({
+                              ...previous,
+                              [section.label]: event.target.value,
+                            }))}
+                            rows={3}
+                            maxLength={5000}
+                            placeholder={section.kind === 'part' ? `Write your answer for part ${section.label}…` : 'Write your answer…'}
+                            className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                          />
+                        </label>
+                      ))}
+                  </div>
+                  {answerCheckError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{answerCheckError}</p>}
+                  <button
+                    type="button"
+                    disabled={explainingQuestionId !== null || isAskingFollowUp}
+                    onClick={() => void handleCheckAnswers(currentQ, currentExplanation.answer, explanationSections.sections)}
+                    className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {explainingQuestionId === currentQ.id ? 'Checking…' : 'Check answers'}
+                  </button>
+                  {checkedSections && (
+                    <div className="mt-3">
+                      <TopicalExplanationSections sections={checkedSections} isMcq={false} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (isQuizMenu) {
     if (!selectedQuizId) {
       if (quizzes.length === 0) {
@@ -690,9 +1207,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   }
 
   // Safety check: ensure currentQuestion is valid
-  const validCurrentQuestion = Math.min(currentQuestion, questions.length - 1);
-  const currentQ = questionsWithMarkSchemes[validCurrentQuestion];
-
   // Detect if this is a single-file download-only quiz
   // If there's only one question and it has downloadOnly flag set to true, treat as download-only
   const isDownloadOnly = questions.length === 1 && currentQ.downloadOnly === true;
@@ -951,7 +1465,20 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
 
             <div className="flex items-center gap-2">
-
+              {Boolean(canExplainTopical && currentQ.questionContent && (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) && getTopicalAiSubject(currentQ)) && (
+                <button
+                  type="button"
+                  onClick={() => void handleExplain(currentQ)}
+                  disabled={explainingQuestionId !== null}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="Explain this question with Nibras"
+                >
+                  {explainingQuestionId === currentQ.id
+                    ? <NibrasAnimatedMark className="h-4 w-4 text-white" />
+                    : <NibrasIcon className="h-4 w-4 text-white" />}
+                  <span>{explainingQuestionId === currentQ.id ? 'Explaining…' : 'Explain'}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -998,6 +1525,144 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
           </div>
 
           {!showLargeView && mcqBlock}
+          <div ref={explanationPanelRef} className="scroll-mt-6">
+            {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
+              <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-4 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-200">
+                <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+                <span>
+                  {isAskingFollowUp
+                    ? 'Nibras is answering your follow-up…'
+                    : activeExplanationTool === 'check'
+                    ? 'Checking your answers…'
+                    : 'Preparing your explanation…'}
+                </span>
+              </div>
+            )}
+            {currentExplanationError && (
+              <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+                {currentExplanationError}
+              </p>
+            )}
+            {currentExplanation && explanationSections && (
+              <div>
+                {currentExplanation.warning && (
+                  <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                    {currentExplanation.warning}
+                  </p>
+                )}
+                {!explanationSections.isStructured && (
+                  <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                    The tutor response did not use the requested section format, so it is shown as one expandable section.
+                  </p>
+                )}
+                <TopicalExplanationSections
+                  key={`${currentQ.id}-${currentExplanation.answer}`}
+                  sections={explanationSections.sections}
+                  isMcq={currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)}
+                  correctOption={currentQ.mcqAnswer}
+                  selectedOption={selectedMcqOption}
+                />
+                {canExplainTopical && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveExplanationTool(activeExplanationTool === 'followup' ? null : 'followup')}
+                      className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
+                    >
+                      Ask follow-up
+                    </button>
+                    {!(currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)) && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveExplanationTool(activeExplanationTool === 'check' ? null : 'check')}
+                        className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
+                      >
+                        Check my answers
+                      </button>
+                    )}
+                  </div>
+                )}
+                {activeExplanationTool === 'followup' && canExplainTopical && (
+                  <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                    <label htmlFor="topical-follow-up" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100">
+                      What would you like to ask?
+                    </label>
+                    <textarea
+                      id="topical-follow-up"
+                      value={followUpInput}
+                      onChange={event => setFollowUpInput(event.target.value)}
+                      rows={3}
+                      maxLength={2000}
+                      placeholder="Ask about a step, idea, or alternative method…"
+                      className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                    />
+                    {followUpError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{followUpError}</p>}
+                    <button
+                      type="button"
+                      disabled={!followUpInput.trim() || isAskingFollowUp || explainingQuestionId !== null}
+                      onClick={() => void handleAskFollowUp(currentQ, currentExplanation.answer)}
+                      className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isAskingFollowUp ? 'Sending…' : 'Send follow-up'}
+                    </button>
+                    {followUpAnswer && (
+                      <div className="mt-3">
+                        <TopicalExplanationSections
+                          sections={[{ kind: 'answer', label: 'Follow-up answer', content: followUpAnswer }]}
+                          isMcq={false}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+                {activeExplanationTool === 'check' && canExplainTopical && !(currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)) && (
+                  <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                    <h4 className="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">Enter your working for each part</h4>
+                    <div className="flex flex-col gap-3">
+                      {explanationSections.sections
+                        .filter(section => section.kind === 'part' || section.kind === 'question' || section.kind === 'answer')
+                        .map(section => (
+                          <label key={section.label} className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                            <span className="mb-1 block">
+                              {section.kind === 'question'
+                                ? 'Question'
+                                : section.kind === 'answer'
+                                  ? 'Answer'
+                                  : `Part ${section.label}`}
+                            </span>
+                            <textarea
+                              value={answerDrafts[section.label] ?? ''}
+                              onChange={event => setAnswerDrafts(previous => ({
+                                ...previous,
+                                [section.label]: event.target.value,
+                              }))}
+                              rows={3}
+                              maxLength={5000}
+                              placeholder={section.kind === 'part' ? `Write your answer for part ${section.label}…` : 'Write your answer…'}
+                              className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+                            />
+                          </label>
+                        ))}
+                    </div>
+                    {answerCheckError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{answerCheckError}</p>}
+                    <button
+                      type="button"
+                      disabled={explainingQuestionId !== null || isAskingFollowUp}
+                      onClick={() => void handleCheckAnswers(currentQ, currentExplanation.answer, explanationSections.sections)}
+                      className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {explainingQuestionId === currentQ.id ? 'Checking…' : 'Check answers'}
+                    </button>
+                    {checkedSections && (
+                      <div className="mt-3">
+                        <TopicalExplanationSections sections={checkedSections} isMcq={false} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

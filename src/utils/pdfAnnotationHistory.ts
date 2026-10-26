@@ -3,10 +3,13 @@ import {
   exportCanvasAnnotation,
   StoredAnnotationPage,
 } from './pdfIndexedDBStorage';
+import { VectorAction } from './pdfVectorAnnotationStorage';
 
 type HistoryEntry = {
   pageNumber: number;
   imageData: ImageData;
+  vectorActionsBefore: VectorAction[];
+  vectorActionsAfter: VectorAction[];
 };
 
 export function usePdfAnnotationHistory() {
@@ -14,6 +17,7 @@ export function usePdfAnnotationHistory() {
   const futureRef = useRef<HistoryEntry[]>([]);
   const canvasMapRef = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const cachedPagesRef = useRef<Record<number, StoredAnnotationPage>>({});
+  const vectorActionsRef = useRef<Record<number, VectorAction[]>>({});
   const dirtyPagesRef = useRef<Set<number>>(new Set());
   const drawingPagesRef = useRef<Set<number>>(new Set());
   const [canUndo, setCanUndo] = useState(false);
@@ -37,6 +41,23 @@ export function usePdfAnnotationHistory() {
     }
   }, []);
 
+  const buildStoredPage = useCallback((
+    pageNumber: number,
+    width: number,
+    height: number
+  ): StoredAnnotationPage | null => {
+    const base = cachedPagesRef.current[pageNumber];
+    const actions = vectorActionsRef.current[pageNumber] ?? [];
+    if (actions.length === 0 && !base?.rasterFallback) return null;
+
+    return {
+      width: base?.width ?? width,
+      height: base?.height ?? height,
+      actions,
+      ...(base?.rasterFallback ? { rasterFallback: base.rasterFallback } : {}),
+    };
+  }, []);
+
   const registerCanvas = useCallback((pageNumber: number, canvas: HTMLCanvasElement | null) => {
     if (canvas) {
       canvasMapRef.current.set(pageNumber, canvas);
@@ -49,33 +70,82 @@ export function usePdfAnnotationHistory() {
 
     const existing = canvasMapRef.current.get(pageNumber);
     if (existing) {
-      const exported = exportCanvasAnnotation(existing, {
-        skipContentCheck: dirtyPagesRef.current.has(pageNumber),
-      });
-      if (exported) {
-        cachedPagesRef.current[pageNumber] = exported;
+      if (dirtyPagesRef.current.has(pageNumber)) {
+        const exported = buildStoredPage(pageNumber, existing.width, existing.height);
+        if (exported) cachedPagesRef.current[pageNumber] = exported;
+        else delete cachedPagesRef.current[pageNumber];
+      } else if (!cachedPagesRef.current[pageNumber]) {
+        const exported = exportCanvasAnnotation(existing);
+        if (exported) cachedPagesRef.current[pageNumber] = exported;
       }
     }
     canvasMapRef.current.delete(pageNumber);
-  }, []);
+  }, [buildStoredPage]);
 
   const getCachedPage = useCallback((pageNumber: number) => {
-    return cachedPagesRef.current[pageNumber] ?? null;
-  }, []);
+    const base = cachedPagesRef.current[pageNumber];
+    if (!dirtyPagesRef.current.has(pageNumber)) return base ?? null;
+    return buildStoredPage(pageNumber, base?.width ?? 0, base?.height ?? 0);
+  }, [buildStoredPage]);
 
-  const resetCache = useCallback(() => {
-    cachedPagesRef.current = {};
+  const resetCache = useCallback((pages: Record<number, StoredAnnotationPage> = {}) => {
+    cachedPagesRef.current = { ...pages };
+    vectorActionsRef.current = Object.fromEntries(
+      Object.entries(pages).map(([page, data]) => [page, data.actions])
+    );
     dirtyPagesRef.current.clear();
     drawingPagesRef.current.clear();
   }, []);
 
-  const markSaved = useCallback(() => {
+  const markSaved = useCallback((pages?: Record<number, StoredAnnotationPage>) => {
+    if (pages) {
+      cachedPagesRef.current = { ...pages };
+      vectorActionsRef.current = Object.fromEntries(
+        Object.entries(pages).map(([page, data]) => [page, data.actions])
+      );
+    }
     dirtyPagesRef.current.clear();
     setIsDirty(false);
   }, []);
 
-  const pushAction = useCallback((pageNumber: number, beforeSnapshot: ImageData) => {
-    pastRef.current.push({ pageNumber, imageData: beforeSnapshot });
+  const pushAction = useCallback((
+    pageNumber: number,
+    beforeSnapshot: ImageData,
+    vectorAction?: VectorAction
+  ) => {
+    const actionsBefore = vectorActionsRef.current[pageNumber] ?? [];
+    let actionsAfter = actionsBefore;
+    if (vectorAction) {
+      const canvas = canvasMapRef.current.get(pageNumber);
+      let base = cachedPagesRef.current[pageNumber];
+      if (!base && canvas) {
+        base = { width: canvas.width, height: canvas.height, actions: [] };
+        cachedPagesRef.current[pageNumber] = base;
+      }
+      const scaleX = canvas && base?.width ? base.width / canvas.width : 1;
+      const scaleY = canvas && base?.height ? base.height / canvas.height : 1;
+      const scaledAction: VectorAction = vectorAction.type === 'freehand'
+        ? {
+            ...vectorAction,
+            points: vectorAction.points.map((point) => ({
+              x: point.x * scaleX,
+              y: point.y * scaleY,
+            })),
+          }
+        : {
+            ...vectorAction,
+            start: { x: vectorAction.start.x * scaleX, y: vectorAction.start.y * scaleY },
+            end: { x: vectorAction.end.x * scaleX, y: vectorAction.end.y * scaleY },
+          };
+      actionsAfter = [...actionsBefore, scaledAction];
+      vectorActionsRef.current[pageNumber] = actionsAfter;
+    }
+    pastRef.current.push({
+      pageNumber,
+      imageData: beforeSnapshot,
+      vectorActionsBefore: actionsBefore,
+      vectorActionsAfter: actionsAfter,
+    });
     futureRef.current = [];
     dirtyPagesRef.current.add(pageNumber);
     setIsDirty(true);
@@ -117,9 +187,14 @@ export function usePdfAnnotationHistory() {
 
     const current = restoreSnapshot(entry.pageNumber, entry.imageData);
     if (current) {
-      futureRef.current.push({ pageNumber: entry.pageNumber, imageData: current });
+      futureRef.current.push({ ...entry, imageData: current });
     }
     applySnapshot(entry.pageNumber, entry.imageData);
+    if (entry.vectorActionsBefore.length > 0) {
+      vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsBefore;
+    } else {
+      delete vectorActionsRef.current[entry.pageNumber];
+    }
     syncAvailability();
   }, [applySnapshot, restoreSnapshot, syncAvailability]);
 
@@ -129,9 +204,14 @@ export function usePdfAnnotationHistory() {
 
     const current = restoreSnapshot(entry.pageNumber, entry.imageData);
     if (current) {
-      pastRef.current.push({ pageNumber: entry.pageNumber, imageData: current });
+      pastRef.current.push({ ...entry, imageData: current });
     }
     applySnapshot(entry.pageNumber, entry.imageData);
+    if (entry.vectorActionsAfter.length > 0) {
+      vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsAfter;
+    } else {
+      delete vectorActionsRef.current[entry.pageNumber];
+    }
     syncAvailability();
   }, [applySnapshot, restoreSnapshot, syncAvailability]);
 
@@ -141,6 +221,7 @@ export function usePdfAnnotationHistory() {
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
     });
     cachedPagesRef.current = {};
+    vectorActionsRef.current = {};
     dirtyPagesRef.current.clear();
     pastRef.current = [];
     futureRef.current = [];
@@ -164,19 +245,18 @@ export function usePdfAnnotationHistory() {
         return;
       }
 
-      const exported = exportCanvasAnnotation(canvas, {
-        skipContentCheck: isDirtyPage,
-      });
-
-      if (exported) {
-        pages[pageNumber] = exported;
-      } else if (isDirtyPage) {
-        delete pages[pageNumber];
+      if (isDirtyPage) {
+        const vectorPage = buildStoredPage(pageNumber, canvas.width, canvas.height);
+        if (vectorPage) pages[pageNumber] = vectorPage;
+        else delete pages[pageNumber];
+      } else if (!pages[pageNumber]) {
+        const exported = exportCanvasAnnotation(canvas);
+        if (exported) pages[pageNumber] = exported;
       }
     });
 
     return pages;
-  }, []);
+  }, [buildStoredPage]);
 
   return {
     registerCanvas,

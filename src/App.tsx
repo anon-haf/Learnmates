@@ -35,6 +35,7 @@ import { LockInProvider } from './components/lock-in/LockInContext';
 import { GlobalLockInManager } from './components/lock-in/GlobalLockInManager';
 import AiChat from './pages/AiChat';
 import { ReducedMotionProvider } from './context/ReducedMotionContext';
+import NibrasTesterWelcome from './components/NibrasTesterWelcome';
 
 function AppContent() {
   // Global XP tracking
@@ -86,6 +87,7 @@ function AppContent() {
         </Route>
         </Route>
       </Routes>
+      <NibrasTesterWelcome />
     </>
   );
 }

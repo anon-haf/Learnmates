@@ -16,9 +16,5 @@ export function pdfStrokeWidthInCanvasPixels(
   return sizeInPdfUnits * (canvasWidthPx / pdfPageWidthAtScale1);
 }
 
-/** Bound PDF canvas backing stores to 2× to avoid excessive memory use on high-DPI screens. */
-export function clampOutputDevicePixelRatio(dpr?: number): number {
-  const base = typeof dpr === 'number' && dpr > 0 ? dpr : 1;
-  if (base <= 1.25) return 1;
-  return 2;
-}
+/** Keep PDF raster density consistent across standard- and high-DPI displays. */
+export const PDF_OUTPUT_DEVICE_PIXEL_RATIO = 2;
