@@ -1734,7 +1734,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH15': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Ideal gases notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
+    resources: [{ id: 'r3', title: 'Ideal gases notes (HAF)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal Gases (HAF).pdf' },
+      ,{ id: 'r2', title: 'Ideal gases notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
     { id: 'r1', title: 'Ideal gases notes ', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal gases.pdf' }],
     quizzes: []
   },
@@ -1750,7 +1751,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH17': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Oscillations notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/17-Oscillations/17 Oscillations.pdf' },
+    resources: [{ id: 'r3', title: 'Oscillations notes (HAF)', url: '/documents/alevel/cambridge/Physics/17-Oscillations/Oscillations (HAF).pdf' },
+    { id: 'r2', title: 'Oscillations notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/17-Oscillations/17 Oscillations.pdf' },
     { id: 'r1', title: 'Oscillations notes ', url: '/documents/alevel/cambridge/Physics/17-Oscillations/Oscillations.pdf' }],
     quizzes: []
   },
