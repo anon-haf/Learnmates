@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Trophy, Medal, Crown, RefreshCw, Users, TrendingUp, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { getMateLevel } from '../lib/mate-levels';
 import { Card, Badge, Button } from '@/components/ui';
 
 interface LeaderboardEntry {
@@ -26,24 +27,6 @@ interface LeaderboardResponse {
     name?: string | null;
   } | null;
   totalUsers: number;
-}
-
-const MATE_LEVELS = [
-  { name: 'Curious Mate', threshold: 0 },
-  { name: 'Seeking Mate', threshold: 150 },
-  { name: 'Discovering Mate', threshold: 350 },
-  { name: 'Learning Mate', threshold: 650 },
-  { name: 'Applying Mate', threshold: 1000 },
-  { name: 'Mastering Mate', threshold: 1500 },
-  { name: 'Absolute Mate', threshold: 2500 },
-];
-
-function getMateLevel(xp: number) {
-  let idx = 0;
-  MATE_LEVELS.forEach((lvl, i) => {
-    if (xp >= lvl.threshold) idx = i;
-  });
-  return MATE_LEVELS[idx];
 }
 
 function RankBadge({ rank }: { rank: number }) {

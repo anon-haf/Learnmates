@@ -2,9 +2,8 @@ import type { Question } from '../components/TopicalQuiz';
 import { loadPdfDocument } from './pdfThumbnail';
 import { getAssetAuthHeaders, resolveFromR2 } from './r2Utils';
 
-export const TOPICAL_EXPLANATION_PROMPT_VERSION = '2026-10-24-v6';
+export const TOPICAL_EXPLANATION_PROMPT_VERSION = '2026-10-30-v8';
 export const TOPICAL_EXPLANATION_MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const MAX_MARK_SCHEME_TEXT_CHARACTERS = 120_000;
 
 export interface TopicalExplanationSection {
   kind: 'part' | 'question' | 'option' | 'answer';
@@ -13,7 +12,7 @@ export interface TopicalExplanationSection {
   mark?: string;
 }
 
-export const NON_MCQ_EXPLANATION_PROMPT = `You are an experienced, patient tutor. The attached image(s) show the question. The mark-scheme text is provided after this prompt. Use that text privately as the authority for correctness, then teach the student how to reason their way to the answer.
+export const NON_MCQ_EXPLANATION_PROMPT = `You are an experienced, patient tutor. The attached images show the question first, followed by the mark scheme. Use the mark-scheme images privately as the authority for correctness, then teach the student how to reason their way to the answer.
 
 Labels may be letters only, e.g. (a), (b), (c), or a letter with roman numerals, e.g. (a i), (a ii), (b i). A question may mix these styles: part (a) may be split into (a i) and (a ii), while part (b) is not split and remains just (b). Follow the labels exactly as they appear. Do not invent subparts or split a part unless the question or mark scheme labels it as split.
 
@@ -35,6 +34,8 @@ If a question has no labelled parts, use one block labelled question:
 
 Rules:
 - Process all attached images/pages in order.
+- Before writing, identify every question part and subpart shown across the question images. Explain every one, in order, and include a separate block for each; do not skip any part or subpart.
+- Check that the output labels cover the full sequence visible in the question. Do not jump over a label (for example, outputting (a) and then (c) while omitting (b)); if a part is visible but its label or content is unclear, state exactly what is unclear in that part's block instead of omitting it.
 - Do not restate, quote, or paraphrase the question. Start directly with the teaching explanation.
 - Do not mention the mark scheme or mark allocations. Refer to an accepted alternative only when it helps the student understand the concept.
 - Teach the reasoning as an experienced tutor: explain why each step is taken, define needed ideas, and connect the steps to the result.
@@ -85,12 +86,13 @@ export function getTopicalAiSubject(question: Question): string | null {
     if (parts[0] !== 'topicals' || parts.length < 4) return null;
 
     const [, level, board, subject] = parts;
-    if (level.toLowerCase() === 'a-level' && board.toLowerCase() === 'edexcel') return null;
-    const levelPrefix = level.toLowerCase() === 'igcse'
+    const normalizedLevel = level.toLowerCase();
+    const normalizedBoard = board.toLowerCase();
+    const levelPrefix = normalizedLevel === 'igcse'
       ? 'IG'
-      : level.toLowerCase() === 'ial'
+      : normalizedLevel === 'ial' || (normalizedLevel === 'a-level' && normalizedBoard === 'edexcel')
         ? 'IAL'
-        : level.toLowerCase() === 'a-level'
+        : normalizedLevel === 'a-level'
           ? 'A'
           : null;
     const subjectSuffix: Record<string, string> = {
@@ -221,6 +223,7 @@ async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise
 
 async function renderPdfPages(
   question: Question,
+  markSchemeUrl: string | null,
 ): Promise<File[]> {
   const sources = [
     {
@@ -228,6 +231,11 @@ async function renderPdfPages(
       type: question.questionContentType || 'pdf',
       name: 'question',
     },
+    ...(markSchemeUrl ? [{
+      url: markSchemeUrl,
+      type: question.markSchemeType || (/\.(?:png|jpe?g|webp|gif)(?:$|[?#])/i.test(markSchemeUrl) ? 'image' : 'pdf'),
+      name: 'mark-scheme',
+    }] : []),
   ];
   const pdfs: Array<Awaited<ReturnType<typeof loadPdfDocument>> | null> = [];
 
@@ -306,64 +314,7 @@ async function renderPdfPages(
   }
 }
 
-export function buildTopicalQuestionImages(question: Question): Promise<File[]> {
+export function buildTopicalExplanationImages(question: Question, markSchemeUrl: string | null): Promise<File[]> {
   if (!question.questionContent) throw new Error('The question document is missing.');
-  return renderPdfPages(question);
-}
-
-interface PdfTextItem {
-  str: string;
-  transform?: number[];
-}
-
-function isPdfTextItem(item: unknown): item is PdfTextItem {
-  return typeof item === 'object' && item !== null &&
-    'str' in item && typeof item.str === 'string';
-}
-
-export async function extractTopicalMarkSchemeText(
-  question: Question,
-  markSchemeUrl: string | null,
-): Promise<string> {
-  if (!markSchemeUrl) return '';
-  const markSchemeType = question.markSchemeType ??
-    (/\.(?:png|jpe?g|webp|gif)(?:$|[?#])/i.test(markSchemeUrl) ? 'image' : 'pdf');
-  if (markSchemeType !== 'pdf') {
-    throw new Error('The mark scheme must be a text-based PDF to use explanation tools.');
-  }
-
-  const pdf = await loadPdfDocument(markSchemeUrl);
-  try {
-    const pages: string[] = [];
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const lines = new Map<number, string[]>();
-      for (const item of content.items) {
-        if (!isPdfTextItem(item) || !item.str.trim()) continue;
-        const y = item.transform?.[5];
-        const line = Number.isFinite(y) ? Math.round(y!) : 0;
-        const lineItems = lines.get(line) ?? [];
-        lineItems.push(item.str.trim());
-        lines.set(line, lineItems);
-      }
-      const pageText = Array.from(lines.entries())
-        .sort(([leftY], [rightY]) => rightY - leftY)
-        .map(([, lineItems]) => lineItems.join(' '))
-        .join('\n')
-        .trim();
-      if (pageText) pages.push(`Page ${pageNumber}\n${pageText}`);
-      page.cleanup();
-    }
-    const text = pages.join('\n\n').trim();
-    if (!text) {
-      throw new Error('No selectable text was found in the mark-scheme PDF.');
-    }
-    if (text.length > MAX_MARK_SCHEME_TEXT_CHARACTERS) {
-      throw new Error('The mark-scheme text is too long to send. Please use a shorter mark-scheme PDF.');
-    }
-    return text;
-  } finally {
-    await pdf.destroy();
-  }
+  return renderPdfPages(question, markSchemeUrl);
 }

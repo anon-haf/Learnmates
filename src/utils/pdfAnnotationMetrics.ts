@@ -16,5 +16,22 @@ export function pdfStrokeWidthInCanvasPixels(
   return sizeInPdfUnits * (canvasWidthPx / pdfPageWidthAtScale1);
 }
 
-/** Keep PDF raster density consistent across standard- and high-DPI displays. */
+/** Baseline density; narrower pages increase DPR to preserve raster detail. */
 export const PDF_OUTPUT_DEVICE_PIXEL_RATIO = 2;
+
+const PDF_MIN_RENDER_WIDTH_PX = 1280;
+const PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO = 5;
+
+export function getPdfOutputDevicePixelRatio(displayWidth: number): number {
+  if (!Number.isFinite(displayWidth) || displayWidth <= 0) {
+    return PDF_OUTPUT_DEVICE_PIXEL_RATIO;
+  }
+
+  return Math.max(
+    PDF_OUTPUT_DEVICE_PIXEL_RATIO,
+    Math.min(
+      PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO,
+      PDF_MIN_RENDER_WIDTH_PX / displayWidth
+    )
+  );
+}

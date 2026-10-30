@@ -2,8 +2,10 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Check, Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
 import { useRouteBase, withBase } from '../utils/routeBase';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
@@ -13,6 +15,9 @@ import TopicalQuiz, { type Question } from '../components/TopicalQuiz';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
 import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, getPaperKeyFromFileName, isCambridgeScienceMcqSubject } from '../utils/topicalHelpers';
+import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
+import { ShortcutKey } from '../components/ui/ShortcutKey';
+import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 
 interface PaperEntry {
   fileName: string;
@@ -38,7 +43,67 @@ interface PaperViewerProps {
   unit: string;
 }
 
+const PaperQuestionCompletionCheckbox: React.FC<{
+  checked: boolean;
+  onToggle: () => void;
+  shortcutKey: string;
+}> = ({ checked, onToggle, shortcutKey }) => {
+  const [justClicked, setJustClicked] = React.useState(false);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setJustClicked(true);
+    setTimeout(() => setJustClicked(false), 350);
+    onToggle();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-pressed={checked}
+      aria-keyshortcuts={shortcutKey}
+      aria-label={checked ? 'Unmark question' : 'Mark question'}
+      title={`${checked ? 'Unmark question' : 'Mark question'} (${shortcutKey})`}
+      className={`group relative flex items-center justify-center w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-[5px] transition-all duration-200 shrink-0 border select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+        justClicked ? 'animate-check-pop' : ''
+      } ${
+        checked
+          ? 'border-blue-500 dark:border-blue-400 bg-blue-50/60 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 shadow-sm'
+          : 'bg-gray-800/80 border-gray-600/80 hover:border-blue-400/80 hover:bg-gray-700/80 text-gray-400'
+      }`}
+    >
+      <svg viewBox="0 0 18 18" className="w-3.5 h-3.5 sm:w-4 sm:h-4 overflow-visible" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M 3.8 9.2 L 7.2 12.6 L 14.2 5.4"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            strokeDasharray: 20,
+            strokeDashoffset: checked ? 0 : 20,
+            transition: 'stroke-dashoffset 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease',
+            opacity: checked ? 1 : 0,
+          }}
+        />
+        {checked && justClicked && (
+          <path
+            d="M 2 2 L 0.5 0.5 M 16 2 L 17.5 0.5 M 2 16 L 0.5 17.5 M 16 16 L 17.5 17.5"
+            stroke="#60a5fa"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            className="animate-check-spark pointer-events-none"
+            style={{ strokeDasharray: 4.5 }}
+          />
+        )}
+      </svg>
+    </button>
+  );
+};
+
 const PaperViewerPage: React.FC = () => {
+  const shortcutPreferences = useShortcutPreferences();
   const base = useRouteBase();
   const { level, board, subject, year, paperKey, unit } = useParams<PaperViewerProps>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,10 +115,20 @@ const PaperViewerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [currentPdf, setCurrentPdf] = useState<PaperEntry | null>(null);
-  const [viewMode, setViewMode] = useState<'single' | 'full'>('single');
+  const [viewMode, setViewMode] = useState<'single' | 'full'>('full');
   const [markSchemeOpen, setMarkSchemeOpen] = useState(false);
   const [markSchemeOpenFull, setMarkSchemeOpenFull] = useState(false);
   const [mcqPanelOpenFull, setMcqPanelOpenFull] = useState(true);
+  const [completedQuestionPaths, setCompletedQuestionPaths] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('topical_jump_checked_questions');
+      const paths: unknown = saved ? JSON.parse(saved) : [];
+      return new Set(Array.isArray(paths) ? paths.filter((path): path is string => typeof path === 'string') : []);
+    } catch (error) {
+      console.error('Failed to load completed questions:', error);
+      return new Set();
+    }
+  });
 
   const [isMerging, setIsMerging] = useState(false);
   const [fullPaperPdfUrl, setFullPaperPdfUrl] = useState<string | null>(null);
@@ -75,6 +150,9 @@ const PaperViewerPage: React.FC = () => {
   const [showLargeView, setShowLargeView] = useState(false);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
+  const [explainButtonTarget, setExplainButtonTarget] = useState<HTMLDivElement | null>(null);
+
+  useBodyScrollLock(showLargeView);
 
   useEffect(() => {
     return () => {
@@ -291,31 +369,113 @@ const PaperViewerPage: React.FC = () => {
     setIsAnswerChecked(false);
   };
 
-  const goToNext = () => {
+  const toggleQuestionCompleted = useCallback((pdfUrl: string) => {
+    if (!pdfUrl) return;
+    setCompletedQuestionPaths(previous => {
+      const next = new Set(previous);
+      if (next.has(pdfUrl)) next.delete(pdfUrl);
+      else next.add(pdfUrl);
+
+      try {
+        localStorage.setItem('topical_jump_checked_questions', JSON.stringify(Array.from(next)));
+      } catch (error) {
+        console.error('Failed to save completed questions:', error);
+      }
+
+      return next;
+    });
+  }, []);
+
+  const toggleCurrentQuestionCompleted = useCallback(() => {
+    if (currentPdf?.pdfUrl) toggleQuestionCompleted(currentPdf.pdfUrl);
+  }, [currentPdf?.pdfUrl, toggleQuestionCompleted]);
+
+  const toggleCurrentMarkScheme = useCallback(() => {
+    const opening = !markSchemeOpen;
+    setMarkSchemeOpen(opening);
+    if (opening) setNonMcqSidebarOpen(false);
+  }, [markSchemeOpen]);
+
+  const toggleFullMarkScheme = useCallback(() => {
+    setMarkSchemeOpenFull(open => !open);
+  }, []);
+
+  const goToNext = useCallback(() => {
     if (questionIndex < papers.length - 1) {
       setQuestionIndex(i => i + 1);
       setCurrentPdf(papers[questionIndex + 1]);
-      setMarkSchemeOpen(false);
       setSelectedOption(null);
       setIsAnswerChecked(false);
     }
-  };
+  }, [papers, questionIndex]);
 
-  const goToPrev = () => {
+  const goToPrev = useCallback(() => {
     if (questionIndex > 0) {
       setQuestionIndex(i => i - 1);
       setCurrentPdf(papers[questionIndex - 1]);
-      setMarkSchemeOpen(false);
       setSelectedOption(null);
       setIsAnswerChecked(false);
     }
-  };
+  }, [papers, questionIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutPreferences.toggleMarkScheme) && viewMode === 'single' && currentPdf?.msUrl) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toggleCurrentMarkScheme();
+      } else if (
+        showLargeView &&
+        viewMode === 'single' &&
+        currentPdf &&
+        !currentPdf.mcqAnswer &&
+        matchesShortcut(event, shortcutPreferences.toggleNonMcqSidebar)
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setNonMcqSidebarOpen(open => !open);
+      } else if (matchesShortcut(event, shortcutPreferences.toggleMarkScheme) && viewMode === 'full' && papers.some(paper => paper.msUrl || paper.mcqAnswer)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toggleFullMarkScheme();
+      } else if (matchesShortcut(event, shortcutPreferences.markComplete) && viewMode === 'single' && currentPdf) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        toggleCurrentQuestionCompleted();
+      } else if (viewMode === 'single' && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        if (event.key === 'ArrowRight') goToNext();
+        else goToPrev();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [viewMode, currentPdf, papers, goToNext, goToPrev, toggleCurrentMarkScheme, toggleFullMarkScheme, toggleCurrentQuestionCompleted, showLargeView, shortcutPreferences]);
 
   // Reconstruct display name from loaded papers
   const firstPaper = papers[0];
   const paperDisplayName = firstPaper ? `${firstPaper.month} ${firstPaper.year} ${firstPaper.paperNumber ? `P${firstPaper.paperNumber}${firstPaper.variant !== null ? firstPaper.variant : ''}` : ''}`.trim() : paperKey.replace(/_/g, ' ');
 
-  const hasRealMs = papers.some(p => p.msUrl);
+  const hasFullMarkScheme = papers.some(p => p.msUrl || p.mcqAnswer);
+  const isCurrentQuestionCompleted = Boolean(currentPdf && completedQuestionPaths.has(currentPdf.pdfUrl));
+  const singlePaperViewerUrl = currentPdf && markSchemeOpen && currentPdf.msUrl
+    ? currentPdf.msUrl
+    : currentPdf?.pdfUrl || '';
+  const fullPaperViewerUrl = markSchemeOpenFull && fullPaperMsUrl
+    ? fullPaperMsUrl
+    : fullPaperPdfUrl || '';
 
   if (!level || !board || !subject) {
     return (
@@ -337,6 +497,8 @@ const PaperViewerPage: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
+      {!showLargeView && (
+        <>
       <div className="mb-6">
         <button
           onClick={() => navigate(backUrl, { state: location.state })}
@@ -358,15 +520,6 @@ const PaperViewerPage: React.FC = () => {
           </div>
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
             <button
-              onClick={() => setViewMode('single')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'single'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-            >
-              Single Question
-            </button>
-            <button
               onClick={() => setViewMode('full')}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'full'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
@@ -374,6 +527,15 @@ const PaperViewerPage: React.FC = () => {
                 }`}
             >
               Full Paper
+            </button>
+            <button
+              onClick={() => setViewMode('single')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'single'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+            >
+              Individual Question
             </button>
           </div>
         </div>
@@ -416,28 +578,56 @@ const PaperViewerPage: React.FC = () => {
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Question {currentPdf.questionNumber || '?'}
                 </h3>
+                <button
+                  type="button"
+                  onClick={toggleCurrentQuestionCompleted}
+                  aria-pressed={isCurrentQuestionCompleted}
+                  aria-keyshortcuts={getAriaShortcut(shortcutPreferences.markComplete)}
+                  aria-label={isCurrentQuestionCompleted ? 'Mark question incomplete' : 'Mark question complete'}
+                  title={`${isCurrentQuestionCompleted ? 'Mark incomplete' : 'Mark complete'} (${formatShortcut(shortcutPreferences.markComplete)})`}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-medium transition-colors ${
+                    isCurrentQuestionCompleted
+                      ? 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border ${
+                    isCurrentQuestionCompleted
+                      ? 'border-blue-500 bg-blue-500 text-white'
+                      : 'border-gray-400 dark:border-gray-500'
+                  }`}>
+                    {isCurrentQuestionCompleted && <Check className="h-3 w-3" />}
+                  </span>
+                  Complete
+                  <ShortcutKey className="ml-0.5">{formatShortcut(shortcutPreferences.markComplete)}</ShortcutKey>
+                </button>
               </div>
               <div className="flex items-center gap-2">
                 {currentPdf.msUrl && (
                   <button
-                    onClick={() => setMarkSchemeOpen(!markSchemeOpen)}
+                    onClick={toggleCurrentMarkScheme}
+                    aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
+                    title={`${markSchemeOpen ? 'Hide' : 'Show'} Mark Scheme (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
                     className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors border ${markSchemeOpen
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                   >
-                    {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
+                    {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setShowLargeView(true)}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
-                  title="Open large view"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Zoom</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <div ref={setExplainButtonTarget} className="contents" />
+                  <button
+                    type="button"
+                    onClick={() => setShowLargeView(true)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50"
+                    title="Open large view"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Zoom</span>
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsReportModalOpen(true)}
@@ -453,11 +643,13 @@ const PaperViewerPage: React.FC = () => {
               <div className="w-full relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
                 {!showLargeView ? (
                   <UniversalDocumentViewer
-                    key={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
+                    key={singlePaperViewerUrl}
                     mode="inline"
-                    pdfUrl={markSchemeOpen && currentPdf.msUrl ? currentPdf.msUrl : currentPdf.pdfUrl}
+                    pdfUrl={singlePaperViewerUrl}
                     type="pdf"
-                    savedAnnotation={markSchemeOpen && currentPdf.msUrl ? msAnnotations[currentPdf.msUrl] : annotations[currentPdf.pdfUrl]}
+                    savedAnnotation={markSchemeOpen && currentPdf.msUrl
+                      ? msAnnotations[currentPdf.msUrl]
+                      : annotations[currentPdf.pdfUrl]}
                     onSaveAnnotation={(data) => {
                       if (markSchemeOpen && currentPdf.msUrl) {
                         setMsAnnotations(prev => ({ ...prev, [currentPdf.msUrl!]: data }));
@@ -522,6 +714,7 @@ const PaperViewerPage: React.FC = () => {
                   isMcq: Boolean(currentPdf.mcqAnswer),
                   mcqAnswer: currentPdf.mcqAnswer,
                 } satisfies Question]}
+                explainButtonTarget={explainButtonTarget}
               />
             </div>
           </div>
@@ -599,10 +792,12 @@ const PaperViewerPage: React.FC = () => {
                   <span>All Mark Schemes PDF</span>
                 </button>
               )}
-              {hasRealMs && (
+              {hasFullMarkScheme && (
                 <button
-                  onClick={() => setMarkSchemeOpenFull(!markSchemeOpenFull)}
+                  onClick={toggleFullMarkScheme}
                   disabled={isMerging || isMergingMs}
+                  aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
+                  title={`${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Schemes (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
                   className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${markSchemeOpenFull
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -611,7 +806,7 @@ const PaperViewerPage: React.FC = () => {
                   {isMergingMs ? (
                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                   ) : null}
-                  {markSchemeOpenFull ? 'Hide Mark Schemes' : 'Show Mark Schemes'}
+                  {markSchemeOpenFull ? 'Hide Mark Schemes' : 'Show Mark Schemes'} <ShortcutKey>{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
               {papers.some(p => p.mcqAnswer) && (
@@ -642,11 +837,13 @@ const PaperViewerPage: React.FC = () => {
                   <div className="w-full min-w-0 relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
                     {!showLargeView ? (
                       <UniversalDocumentViewer
-                        key={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
+                        key={fullPaperViewerUrl}
                         mode="inline"
-                        pdfUrl={markSchemeOpenFull && fullPaperMsUrl ? fullPaperMsUrl : fullPaperPdfUrl}
+                        pdfUrl={fullPaperViewerUrl}
                         type="pdf"
-                        savedAnnotation={markSchemeOpenFull && fullPaperMsUrl ? msAnnotations[fullPaperMsUrl] : annotations[fullPaperPdfUrl]}
+                        savedAnnotation={markSchemeOpenFull && fullPaperMsUrl
+                          ? msAnnotations[fullPaperMsUrl]
+                          : annotations[fullPaperPdfUrl]}
                         onSaveAnnotation={(data) => {
                           if (markSchemeOpenFull && fullPaperMsUrl) {
                             setMsAnnotations(prev => ({ ...prev, [fullPaperMsUrl]: data }));
@@ -711,9 +908,11 @@ const PaperViewerPage: React.FC = () => {
           </div>
         </div>
       )}
+        </>
+      )}
 
-      {showLargeView && (
-        <div className="fixed inset-0 z-[100] bg-[#0d1520] flex flex-col">
+      {showLargeView && createPortal(
+        <div className="fixed inset-0 z-[100] h-[100dvh] overflow-hidden overscroll-none bg-[#0d1520] flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <button
@@ -732,25 +931,29 @@ const PaperViewerPage: React.FC = () => {
               {viewMode === 'single' && currentPdf?.msUrl && !currentPdf?.mcqAnswer && (
                 <button
                   type="button"
-                  onClick={() => setMarkSchemeOpen(!markSchemeOpen)}
+                  onClick={toggleCurrentMarkScheme}
+                  aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
+                  title={`${markSchemeOpen ? 'Hide' : 'Show'} Mark Scheme (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
                   className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border ${markSchemeOpen
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
+                  {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
-              {viewMode === 'full' && hasRealMs && !papers.some(p => p.mcqAnswer) && (
+              {viewMode === 'full' && hasFullMarkScheme && (
                 <button
                   type="button"
-                  onClick={() => setMarkSchemeOpenFull(!markSchemeOpenFull)}
+                  onClick={toggleFullMarkScheme}
+                  aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
+                  title={`${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Scheme (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
                   className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border ${markSchemeOpenFull
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {markSchemeOpenFull ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
+                  {markSchemeOpenFull ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
               {viewMode === 'full' && papers.some(p => p.mcqAnswer) && (
@@ -773,7 +976,9 @@ const PaperViewerPage: React.FC = () => {
                       ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                       : 'text-gray-400 hover:text-white hover:bg-gray-700 border-transparent'
                   }`}
-                  title={nonMcqSidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                  title={`${nonMcqSidebarOpen ? 'Hide sidebar' : 'Show sidebar'} (${formatShortcut(shortcutPreferences.toggleNonMcqSidebar)})`}
+                  aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleNonMcqSidebar)}
+                  aria-pressed={nonMcqSidebarOpen}
                 >
                   <PanelRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
@@ -810,11 +1015,17 @@ const PaperViewerPage: React.FC = () => {
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative flex flex-col lg:flex-row">
             <div className="flex-1 relative bg-[#0d1520] flex flex-col min-h-0 min-w-0">
               <UniversalDocumentViewer
-                key={viewMode === 'single' ? (currentPdf?.pdfUrl || 'empty') : (fullPaperPdfUrl || 'empty')}
+                key={viewMode === 'single'
+                  ? (currentPdf?.pdfUrl || 'empty')
+                  : (fullPaperPdfUrl || 'empty')}
                 mode="inline"
-                pdfUrl={(viewMode === 'single' ? currentPdf?.pdfUrl : fullPaperPdfUrl) || ''}
+                pdfUrl={viewMode === 'single'
+                  ? (currentPdf?.pdfUrl || '')
+                  : (fullPaperPdfUrl || '')}
                 type="pdf"
-                savedAnnotation={viewMode === 'single' ? (currentPdf ? annotations[currentPdf.pdfUrl] : undefined) : (fullPaperPdfUrl ? annotations[fullPaperPdfUrl] : undefined)}
+                savedAnnotation={viewMode === 'single'
+                  ? (currentPdf ? annotations[currentPdf.pdfUrl] : undefined)
+                  : (fullPaperPdfUrl ? annotations[fullPaperPdfUrl] : undefined)}
                 onSaveAnnotation={(data) => {
                   if (viewMode === 'single' && currentPdf) {
                     setAnnotations(prev => ({ ...prev, [currentPdf.pdfUrl]: data }));
@@ -824,6 +1035,36 @@ const PaperViewerPage: React.FC = () => {
                 }}
               />
             </div>
+
+            {viewMode === 'single' && markSchemeOpen && currentPdf?.msUrl && (
+              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]">
+                <div className="flex-1 relative min-h-0">
+                  <UniversalDocumentViewer
+                    key={currentPdf.msUrl}
+                    mode="inline"
+                    pdfUrl={currentPdf.msUrl}
+                    type="pdf"
+                    savedAnnotation={msAnnotations[currentPdf.msUrl]}
+                    onSaveAnnotation={(data) => setMsAnnotations(prev => ({ ...prev, [currentPdf.msUrl!]: data }))}
+                  />
+                </div>
+              </div>
+            )}
+
+            {viewMode === 'full' && markSchemeOpenFull && fullPaperMsUrl && (
+              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]">
+                <div className="flex-1 relative min-h-0">
+                  <UniversalDocumentViewer
+                    key={fullPaperMsUrl}
+                    mode="inline"
+                    pdfUrl={fullPaperMsUrl}
+                    type="pdf"
+                    savedAnnotation={msAnnotations[fullPaperMsUrl]}
+                    onSaveAnnotation={(data) => setMsAnnotations(prev => ({ ...prev, [fullPaperMsUrl]: data }))}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Non-MCQ overlay sidebar (single view only) */}
             {viewMode === 'single' && currentPdf && !currentPdf.mcqAnswer && (
@@ -866,20 +1107,27 @@ const PaperViewerPage: React.FC = () => {
                   <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                     {papers.map((p, idx) => (
                       <button
-                        key={idx}
+                        key={p.pdfUrl}
                         onClick={() => {
                           setQuestionIndex(idx);
                           setCurrentPdf(papers[idx]);
                           setMarkSchemeOpen(false);
                           setSelectedOption(null);
                         }}
-                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between gap-2 font-medium ${
                           questionIndex === idx
-                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            ? 'bg-blue-900 dark:bg-blue-950 border-blue-400 text-white font-semibold shadow-md'
                             : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
                         }`}
                       >
-                        <span>Q{p.questionNumber || idx + 1}</span>
+                        <div className="flex items-center gap-2.5 min-w-0 flex-grow">
+                          <PaperQuestionCompletionCheckbox
+                            checked={completedQuestionPaths.has(p.pdfUrl)}
+                            onToggle={() => toggleQuestionCompleted(p.pdfUrl)}
+                            shortcutKey={formatShortcut(shortcutPreferences.markComplete)}
+                          />
+                          <span className="truncate min-w-0 flex-grow">Q{p.questionNumber || idx + 1}</span>
+                        </div>
                         {questionIndex === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
                       </button>
                     ))}
@@ -887,25 +1135,6 @@ const PaperViewerPage: React.FC = () => {
                 </div>
               </div>
             )}
-            {((viewMode === 'single' && markSchemeOpen && currentPdf?.msUrl) || (viewMode === 'full' && markSchemeOpenFull && fullPaperMsUrl)) && (
-              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t md:border-t-0 md:border-l border-[#1a2d47]">
-                <UniversalDocumentViewer
-                  key={viewMode === 'single' ? currentPdf!.msUrl! : fullPaperMsUrl!}
-                  mode="inline"
-                  pdfUrl={viewMode === 'single' ? currentPdf!.msUrl! : fullPaperMsUrl!}
-                  type="pdf"
-                  savedAnnotation={viewMode === 'single' ? msAnnotations[currentPdf!.msUrl!] : msAnnotations[fullPaperMsUrl!]}
-                  onSaveAnnotation={(data) => {
-                    if (viewMode === 'single' && currentPdf?.msUrl) {
-                      setMsAnnotations(prev => ({ ...prev, [currentPdf!.msUrl!]: data }));
-                    } else if (fullPaperMsUrl) {
-                      setMsAnnotations(prev => ({ ...prev, [fullPaperMsUrl]: data }));
-                    }
-                  }}
-                />
-              </div>
-            )}
-
             {viewMode === 'single' && currentPdf?.mcqAnswer && (
               <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
                 {/* Topics and Report - hidden on small screens, shown on large */}
@@ -975,20 +1204,27 @@ const PaperViewerPage: React.FC = () => {
                   <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                     {papers.map((p, idx) => (
                       <button
-                        key={idx}
+                        key={p.pdfUrl}
                         onClick={() => {
                           setQuestionIndex(idx);
                           setCurrentPdf(papers[idx]);
                           setMarkSchemeOpen(false);
                           setSelectedOption(null);
                         }}
-                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between font-medium ${
+                        className={`w-full text-left px-4 py-3 text-sm rounded-full border-2 transition-all duration-200 flex items-center justify-between gap-2 font-medium ${
                           questionIndex === idx
-                            ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                            ? 'bg-blue-900 dark:bg-blue-950 border-blue-400 text-white font-semibold shadow-md'
                             : 'border-gray-600/60 bg-gray-800/50 text-gray-300 hover:border-gray-500 hover:bg-gray-700/50'
                         }`}
                       >
-                        <span>Q{p.questionNumber || idx + 1}</span>
+                        <div className="flex items-center gap-2.5 min-w-0 flex-grow">
+                          <PaperQuestionCompletionCheckbox
+                            checked={completedQuestionPaths.has(p.pdfUrl)}
+                            onToggle={() => toggleQuestionCompleted(p.pdfUrl)}
+                            shortcutKey={formatShortcut(shortcutPreferences.markComplete)}
+                          />
+                          <span className="truncate min-w-0 flex-grow">Q{p.questionNumber || idx + 1}</span>
+                        </div>
                         {questionIndex === idx && <span className="text-[10px] text-blue-400 font-semibold">Viewing</span>}
                       </button>
                     ))}
@@ -1043,7 +1279,8 @@ const PaperViewerPage: React.FC = () => {
             )}
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
 

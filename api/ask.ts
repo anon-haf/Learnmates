@@ -158,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const { error: cacheError } = await auth.supabase
             .from('topical_explanation_public_cache')
             .upsert(
-              { cache_key: topicalCacheKey, answer: responseAnswer },
+              { cache_key: topicalCacheKey, answer: responseAnswer, user_id: auth.user.id },
               { onConflict: 'cache_key', ignoreDuplicates: true },
             );
           if (cacheError) {

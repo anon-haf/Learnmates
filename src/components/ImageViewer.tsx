@@ -20,7 +20,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ src, alt = '', className = ''
   const [annotationMode, setAnnotationMode] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState('#ff0000');
-  const [penSize, setPenSize] = useState(3);
+  const [penSize, setPenSize] = useState(2);
   const [drawMode, setDrawMode] = useState<'pen' | 'eraser'>('pen');
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
 

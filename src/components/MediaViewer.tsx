@@ -107,9 +107,9 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
   const [penSize, setPenSize] = useState<number>(() => {
     try {
       const v = localStorage.getItem(STORAGE_PEN_KEY);
-      return v ? Number(v) : 3;
+      return v ? Number(v) : 2;
     } catch {
-      return 3;
+      return 2;
     }
   });
   const [eraserSize, setEraserSize] = useState<number>(() => {

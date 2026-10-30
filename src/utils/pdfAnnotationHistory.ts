@@ -1,13 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
+import { exportCanvasAnnotation } from './pdfIndexedDBStorage';
+import type { StoredAnnotationPage } from './pdfIndexedDBStorage';
 import {
-  exportCanvasAnnotation,
-  StoredAnnotationPage,
-} from './pdfIndexedDBStorage';
-import { VectorAction } from './pdfVectorAnnotationStorage';
+  applyStoredAnnotation,
+  eraseIntersectingVectorActions,
+} from './pdfVectorAnnotationStorage';
+import type { VectorAction } from './pdfVectorAnnotationStorage';
 
 type HistoryEntry = {
   pageNumber: number;
-  imageData: ImageData;
+  imageData?: ImageData;
   vectorActionsBefore: VectorAction[];
   vectorActionsAfter: VectorAction[];
 };
@@ -18,6 +20,7 @@ export function usePdfAnnotationHistory() {
   const canvasMapRef = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const cachedPagesRef = useRef<Record<number, StoredAnnotationPage>>({});
   const vectorActionsRef = useRef<Record<number, VectorAction[]>>({});
+  const pdfPageWidthsRef = useRef<Record<number, number>>({});
   const dirtyPagesRef = useRef<Set<number>>(new Set());
   const drawingPagesRef = useRef<Set<number>>(new Set());
   const [canUndo, setCanUndo] = useState(false);
@@ -54,6 +57,9 @@ export function usePdfAnnotationHistory() {
       width: base?.width ?? width,
       height: base?.height ?? height,
       actions,
+      ...(base?.pdfPageWidthAtScale1
+        ? { pdfPageWidthAtScale1: base.pdfPageWidthAtScale1 }
+        : {}),
       ...(base?.rasterFallback ? { rasterFallback: base.rasterFallback } : {}),
     };
   }, []);
@@ -90,6 +96,15 @@ export function usePdfAnnotationHistory() {
 
   const resetCache = useCallback((pages: Record<number, StoredAnnotationPage> = {}) => {
     cachedPagesRef.current = { ...pages };
+    pdfPageWidthsRef.current = Object.entries(pages).reduce<Record<number, number>>(
+      (widths, [page, data]) => {
+        if (data.pdfPageWidthAtScale1) {
+          widths[Number(page)] = data.pdfPageWidthAtScale1;
+        }
+        return widths;
+      },
+      {}
+    );
     vectorActionsRef.current = Object.fromEntries(
       Object.entries(pages).map(([page, data]) => [page, data.actions])
     );
@@ -100,6 +115,15 @@ export function usePdfAnnotationHistory() {
   const markSaved = useCallback((pages?: Record<number, StoredAnnotationPage>) => {
     if (pages) {
       cachedPagesRef.current = { ...pages };
+      pdfPageWidthsRef.current = Object.entries(pages).reduce<Record<number, number>>(
+        (widths, [page, data]) => {
+          if (data.pdfPageWidthAtScale1) {
+            widths[Number(page)] = data.pdfPageWidthAtScale1;
+          }
+          return widths;
+        },
+        {}
+      );
       vectorActionsRef.current = Object.fromEntries(
         Object.entries(pages).map(([page, data]) => [page, data.actions])
       );
@@ -110,39 +134,78 @@ export function usePdfAnnotationHistory() {
 
   const pushAction = useCallback((
     pageNumber: number,
-    beforeSnapshot: ImageData,
-    vectorAction?: VectorAction
+    beforeSnapshot: ImageData | null,
+    vectorAction?: VectorAction,
+    pdfPageWidthAtScale1?: number
   ) => {
+    if (pdfPageWidthAtScale1 && pdfPageWidthAtScale1 > 0) {
+      pdfPageWidthsRef.current[pageNumber] = pdfPageWidthAtScale1;
+    }
     const actionsBefore = vectorActionsRef.current[pageNumber] ?? [];
     let actionsAfter = actionsBefore;
     if (vectorAction) {
       const canvas = canvasMapRef.current.get(pageNumber);
       let base = cachedPagesRef.current[pageNumber];
       if (!base && canvas) {
-        base = { width: canvas.width, height: canvas.height, actions: [] };
+        base = {
+          width: canvas.width,
+          height: canvas.height,
+          actions: [],
+          pdfPageWidthAtScale1,
+        };
         cachedPagesRef.current[pageNumber] = base;
+      }
+      if (base && pdfPageWidthAtScale1 && pdfPageWidthAtScale1 > 0) {
+        base.pdfPageWidthAtScale1 = pdfPageWidthAtScale1;
       }
       const scaleX = canvas && base?.width ? base.width / canvas.width : 1;
       const scaleY = canvas && base?.height ? base.height / canvas.height : 1;
-      const scaledAction: VectorAction = vectorAction.type === 'freehand'
-        ? {
-            ...vectorAction,
-            points: vectorAction.points.map((point) => ({
-              x: point.x * scaleX,
-              y: point.y * scaleY,
-            })),
+      const scaledAction: VectorAction =
+        vectorAction.type === 'freehand'
+          ? {
+              ...vectorAction,
+              points: vectorAction.points.map((point) => ({
+                x: point.x * scaleX,
+                y: point.y * scaleY,
+              })),
+            }
+          : vectorAction.type === 'text'
+            ? {
+                ...vectorAction,
+                position: {
+                  x: vectorAction.position.x * scaleX,
+                  y: vectorAction.position.y * scaleY,
+                },
+              }
+            : {
+                ...vectorAction,
+                start: { x: vectorAction.start.x * scaleX, y: vectorAction.start.y * scaleY },
+                end: { x: vectorAction.end.x * scaleX, y: vectorAction.end.y * scaleY },
+              };
+      if (scaledAction.type === 'freehand' && scaledAction.tool === 'eraser') {
+        const remainingActions = eraseIntersectingVectorActions(
+          actionsBefore,
+          scaledAction,
+          base?.width ?? canvas?.width ?? 0,
+          pdfPageWidthAtScale1 ?? base?.width ?? canvas?.width ?? 0
+        );
+        if (base?.rasterFallback) {
+          actionsAfter = [...remainingActions, scaledAction];
+        } else {
+          actionsAfter = remainingActions;
+          if (actionsAfter.length === actionsBefore.length && !beforeSnapshot) {
+            return;
           }
-        : {
-            ...vectorAction,
-            start: { x: vectorAction.start.x * scaleX, y: vectorAction.start.y * scaleY },
-            end: { x: vectorAction.end.x * scaleX, y: vectorAction.end.y * scaleY },
-          };
-      actionsAfter = [...actionsBefore, scaledAction];
+        }
+      } else {
+        actionsAfter = [...actionsBefore, scaledAction];
+      }
       vectorActionsRef.current[pageNumber] = actionsAfter;
     }
+    if (!beforeSnapshot && !vectorAction) return;
     pastRef.current.push({
       pageNumber,
-      imageData: beforeSnapshot,
+      ...(beforeSnapshot ? { imageData: beforeSnapshot } : {}),
       vectorActionsBefore: actionsBefore,
       vectorActionsAfter: actionsAfter,
     });
@@ -151,6 +214,142 @@ export function usePdfAnnotationHistory() {
     setIsDirty(true);
     syncAvailability();
   }, [syncAvailability]);
+
+  const updateVectorAction = useCallback((
+    pageNumber: number,
+    actionIndex: number,
+    vectorAction: VectorAction,
+    pdfPageWidthAtScale1?: number,
+    keepActionHidden?: boolean
+  ) => {
+    if (vectorAction.type !== 'text') return;
+    if (pdfPageWidthAtScale1 && pdfPageWidthAtScale1 > 0) {
+      pdfPageWidthsRef.current[pageNumber] = pdfPageWidthAtScale1;
+    }
+    const actionsBefore = vectorActionsRef.current[pageNumber] ?? [];
+    if (
+      actionIndex < 0 ||
+      actionIndex >= actionsBefore.length ||
+      actionsBefore[actionIndex]?.type !== 'text'
+    ) {
+      return;
+    }
+    const canvas = canvasMapRef.current.get(pageNumber);
+    const base = cachedPagesRef.current[pageNumber];
+    const scaleX = canvas && base?.width ? base.width / canvas.width : 1;
+    const scaleY = canvas && base?.height ? base.height / canvas.height : 1;
+    const scaledAction: VectorAction = {
+      ...vectorAction,
+      position: {
+        x: vectorAction.position.x * scaleX,
+        y: vectorAction.position.y * scaleY,
+      },
+    };
+    const actionsAfter = actionsBefore.map((action, index) =>
+      index === actionIndex ? scaledAction : action
+    );
+    pastRef.current.push({
+      pageNumber,
+      vectorActionsBefore: actionsBefore,
+      vectorActionsAfter: actionsAfter,
+    });
+    futureRef.current = [];
+    vectorActionsRef.current[pageNumber] = actionsAfter;
+    dirtyPagesRef.current.add(pageNumber);
+    if (base && pdfPageWidthAtScale1 && pdfPageWidthAtScale1 > 0) {
+      base.pdfPageWidthAtScale1 = pdfPageWidthAtScale1;
+    }
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) {
+      void applyStoredAnnotation(
+        ctx,
+        canvas,
+        {
+          width: base?.width ?? canvas.width,
+          height: base?.height ?? canvas.height,
+          actions: keepActionHidden
+            ? actionsAfter.filter((_, index) => index !== actionIndex)
+            : actionsAfter,
+          ...(base?.pdfPageWidthAtScale1
+            ? { pdfPageWidthAtScale1: base.pdfPageWidthAtScale1 }
+            : {}),
+          ...(base?.rasterFallback ? { rasterFallback: base.rasterFallback } : {}),
+        },
+        pdfPageWidthsRef.current[pageNumber]
+      );
+    }
+    setIsDirty(true);
+    syncAvailability();
+  }, [syncAvailability]);
+
+  const removeVectorAction = useCallback((
+    pageNumber: number,
+    actionIndex: number,
+    pdfPageWidthAtScale1?: number
+  ) => {
+    const actionsBefore = vectorActionsRef.current[pageNumber] ?? [];
+    if (
+      actionIndex < 0 ||
+      actionIndex >= actionsBefore.length ||
+      actionsBefore[actionIndex]?.type !== 'text'
+    ) {
+      return;
+    }
+    const actionsAfter = actionsBefore.filter((_, index) => index !== actionIndex);
+    pastRef.current.push({
+      pageNumber,
+      vectorActionsBefore: actionsBefore,
+      vectorActionsAfter: actionsAfter,
+    });
+    futureRef.current = [];
+    vectorActionsRef.current[pageNumber] = actionsAfter;
+    dirtyPagesRef.current.add(pageNumber);
+
+    const canvas = canvasMapRef.current.get(pageNumber);
+    const ctx = canvas?.getContext('2d');
+    const base = cachedPagesRef.current[pageNumber];
+    if (canvas && ctx) {
+      void applyStoredAnnotation(
+        ctx,
+        canvas,
+        {
+          width: base?.width ?? canvas.width,
+          height: base?.height ?? canvas.height,
+          actions: actionsAfter,
+          ...(base?.pdfPageWidthAtScale1
+            ? { pdfPageWidthAtScale1: base.pdfPageWidthAtScale1 }
+            : {}),
+          ...(base?.rasterFallback ? { rasterFallback: base.rasterFallback } : {}),
+        },
+        pdfPageWidthAtScale1 ?? pdfPageWidthsRef.current[pageNumber]
+      );
+    }
+
+    setIsDirty(true);
+    syncAvailability();
+  }, [syncAvailability]);
+
+  const redrawFromVectors = useCallback((pageNumber: number, actions: VectorAction[]) => {
+    const canvas = canvasMapRef.current.get(pageNumber);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const base = cachedPagesRef.current[pageNumber];
+    void applyStoredAnnotation(
+      ctx,
+      canvas,
+      {
+        width: base?.width ?? canvas.width,
+        height: base?.height ?? canvas.height,
+        actions,
+        ...(base?.pdfPageWidthAtScale1
+          ? { pdfPageWidthAtScale1: base.pdfPageWidthAtScale1 }
+          : {}),
+        ...(base?.rasterFallback ? { rasterFallback: base.rasterFallback } : {}),
+      },
+      pdfPageWidthsRef.current[pageNumber]
+    );
+  }, []);
 
   const restoreSnapshot = useCallback((pageNumber: number, snapshot: ImageData) => {
     const canvas = canvasMapRef.current.get(pageNumber);
@@ -185,35 +384,45 @@ export function usePdfAnnotationHistory() {
     const entry = pastRef.current.pop();
     if (!entry) return;
 
-    const current = restoreSnapshot(entry.pageNumber, entry.imageData);
-    if (current) {
-      futureRef.current.push({ ...entry, imageData: current });
+    if (entry.imageData) {
+      const current = restoreSnapshot(entry.pageNumber, entry.imageData);
+      if (current) {
+        futureRef.current.push({ ...entry, imageData: current });
+      }
+      applySnapshot(entry.pageNumber, entry.imageData);
+    } else {
+      futureRef.current.push(entry);
+      redrawFromVectors(entry.pageNumber, entry.vectorActionsBefore);
     }
-    applySnapshot(entry.pageNumber, entry.imageData);
     if (entry.vectorActionsBefore.length > 0) {
       vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsBefore;
     } else {
       delete vectorActionsRef.current[entry.pageNumber];
     }
     syncAvailability();
-  }, [applySnapshot, restoreSnapshot, syncAvailability]);
+  }, [applySnapshot, redrawFromVectors, restoreSnapshot, syncAvailability]);
 
   const redo = useCallback(() => {
     const entry = futureRef.current.pop();
     if (!entry) return;
 
-    const current = restoreSnapshot(entry.pageNumber, entry.imageData);
-    if (current) {
-      pastRef.current.push({ ...entry, imageData: current });
+    if (entry.imageData) {
+      const current = restoreSnapshot(entry.pageNumber, entry.imageData);
+      if (current) {
+        pastRef.current.push({ ...entry, imageData: current });
+      }
+      applySnapshot(entry.pageNumber, entry.imageData);
+    } else {
+      pastRef.current.push(entry);
+      redrawFromVectors(entry.pageNumber, entry.vectorActionsAfter);
     }
-    applySnapshot(entry.pageNumber, entry.imageData);
     if (entry.vectorActionsAfter.length > 0) {
       vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsAfter;
     } else {
       delete vectorActionsRef.current[entry.pageNumber];
     }
     syncAvailability();
-  }, [applySnapshot, restoreSnapshot, syncAvailability]);
+  }, [applySnapshot, redrawFromVectors, restoreSnapshot, syncAvailability]);
 
   const clearAll = useCallback(() => {
     canvasMapRef.current.forEach((canvas) => {
@@ -261,6 +470,8 @@ export function usePdfAnnotationHistory() {
   return {
     registerCanvas,
     pushAction,
+    updateVectorAction,
+    removeVectorAction,
     undo,
     redo,
     clearAll,

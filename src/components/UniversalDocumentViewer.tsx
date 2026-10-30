@@ -32,13 +32,14 @@ import {
   Trash2,
   Shapes,
   PenTool,
+  Type,
   Moon,
 } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { PdfDocumentSkeleton } from './PdfPageSkeleton';
 import { PdfSidebarPageThumb } from './PdfSidebarPageThumb';
 import { DrawTool, PdfDrawablePage } from './PdfDrawablePage';
-import { applyStoredAnnotation, VectorAction } from '../utils/pdfVectorAnnotationStorage';
+import { applyStoredAnnotation, VectorAction, VectorText } from '../utils/pdfVectorAnnotationStorage';
 import { clearPdfThumbnailCache } from '../utils/pdfThumbnail';
 import { usePdfAnnotationHistory } from '../utils/pdfAnnotationHistory';
 import {
@@ -49,6 +50,8 @@ import {
 import { useMeaningfulReadTracker } from '../hooks/useMeaningfulReadTracker';
 import { useEngagement } from '../context/EngagementContext';
 import { downloadFileWithXP, logDownload, formatResourceUrl } from '../utils/awardDownloadXP';
+import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
+import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -101,13 +104,18 @@ const MemoizedPdfDrawablePage = React.memo(
       prevProps.drawingEnabled === nextProps.drawingEnabled &&
       prevProps.drawTool === nextProps.drawTool &&
       prevProps.penColor === nextProps.penColor &&
+      prevProps.textColor === nextProps.textColor &&
       prevProps.penSize === nextProps.penSize &&
       prevProps.eraserSize === nextProps.eraserSize &&
+      prevProps.annotationTextSize === nextProps.annotationTextSize &&
       prevProps.allowTouchNavigation === nextProps.allowTouchNavigation &&
       prevProps.renderScale === nextProps.renderScale &&
       prevProps.renderZoom === nextProps.renderZoom &&
       prevProps.pdfCacheKey === nextProps.pdfCacheKey &&
-      prevProps.restoredAnnotation === nextProps.restoredAnnotation
+      prevProps.restoredAnnotation === nextProps.restoredAnnotation &&
+      prevProps.onTextActionSelect === nextProps.onTextActionSelect &&
+      prevProps.onTextActionUpdate === nextProps.onTextActionUpdate &&
+      prevProps.onTextActionDelete === nextProps.onTextActionDelete
     );
   }
 );
@@ -180,13 +188,35 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   );
   const [drawTool, setDrawTool] = useState<DrawTool>('pen');
   const [penColor, setPenColor] = useState('#000000');
-  const [penSize, setPenSize] = useState(3);
+  const [penSize, setPenSize] = useState(2);
   const [eraserSize, setEraserSize] = useState(20);
+  const [textColor, setTextColor] = useState('#000000');
+  const [annotationTextSize, setAnnotationTextSize] = useState(12);
+  const [selectedText, setSelectedText] = useState<{
+    pageNumber: number;
+    actionIndex: number;
+    action: VectorText;
+    isEditing: boolean;
+  } | null>(null);
+  const selectedTextRef = useRef(selectedText);
+  selectedTextRef.current = selectedText;
   const [pageWidth, setPageWidth] = useState(640);
   const [storedPages, setStoredPages] = useState<Record<number, StoredAnnotationPage>>({});
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState<'pen' | 'shapes' | 'eraser' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'pen' | 'shapes' | 'eraser' | 'text' | null>(null);
+  const shortcutPreferences = useShortcutPreferences();
+
+  const toggleAnnotationMode = useCallback(() => {
+    setDrawingEnabled(prev => {
+      if (!prev) setDrawTool('pen');
+      return !prev;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (drawTool !== 'text') setSelectedText(null);
+  }, [drawTool]);
 
   useEffect(() => {
     if (!activeDropdown) return;
@@ -207,6 +237,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const {
     registerCanvas,
     pushAction,
+    updateVectorAction,
+    removeVectorAction,
     undo,
     redo,
     clearAll,
@@ -288,8 +320,6 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   });
 
   const documentOptions = useMemo(() => pdfDocumentOptions, []);
-
-
   const handleCanvasMount = useCallback(
     (pageNumber: number, canvas: HTMLCanvasElement | null) => {
       registerCanvas(pageNumber, canvas);
@@ -300,12 +330,94 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const handleActionComplete = useCallback(
     (
       pageNumber: number,
-      beforeSnapshot: ImageData,
-      vectorAction: VectorAction
+      beforeSnapshot: ImageData | null,
+      vectorAction: VectorAction,
+      pdfPageWidthAtScale1: number
     ) => {
-      pushAction(pageNumber, beforeSnapshot, vectorAction);
+      pushAction(pageNumber, beforeSnapshot, vectorAction, pdfPageWidthAtScale1);
     },
     [pushAction]
+  );
+
+  const handleTextActionSelect = useCallback(
+    (
+      pageNumber: number,
+      actionIndex: number | null,
+      action: VectorAction | null,
+      isEditing = false
+    ) => {
+      if (!action || action.type !== 'text') {
+        setSelectedText(null);
+        return;
+      }
+      const resolvedIndex =
+        actionIndex ?? (getCachedPage(pageNumber)?.actions.length ?? 1) - 1;
+      setSelectedText({
+        pageNumber,
+        actionIndex: Math.max(0, resolvedIndex),
+        action,
+        isEditing,
+      });
+      setTextColor(action.color);
+      setAnnotationTextSize(action.size);
+    },
+    [getCachedPage]
+  );
+
+  const handleTextActionUpdate = useCallback(
+    (
+      pageNumber: number,
+      actionIndex: number,
+      action: VectorAction,
+      pdfPageWidthAtScale1: number
+    ) => {
+      updateVectorAction(pageNumber, actionIndex, action, pdfPageWidthAtScale1);
+      if (action.type === 'text') {
+        setSelectedText({ pageNumber, actionIndex, action, isEditing: false });
+      }
+    },
+    [updateVectorAction]
+  );
+
+  const handleTextActionDelete = useCallback(
+    (pageNumber: number, actionIndex: number, pdfPageWidthAtScale1: number) => {
+      removeVectorAction(pageNumber, actionIndex, pdfPageWidthAtScale1);
+      setSelectedText(null);
+    },
+    [removeVectorAction]
+  );
+
+  const updateSelectedText = useCallback(
+    (changes: Partial<Pick<VectorText, 'color' | 'size'>>) => {
+      const selected = selectedTextRef.current;
+      if (!selected) return;
+      const action = { ...selected.action, ...changes };
+      setSelectedText({ ...selected, action });
+      updateVectorAction(
+        selected.pageNumber,
+        selected.actionIndex,
+        action,
+        getCachedPage(selected.pageNumber)?.pdfPageWidthAtScale1,
+        selected.isEditing
+      );
+    },
+    [getCachedPage, updateVectorAction]
+  );
+
+  const handleTextColorChange = useCallback(
+    (color: string) => {
+      setTextColor(color);
+      updateSelectedText({ color });
+    },
+    [updateSelectedText]
+  );
+
+  const handleTextSizeChange = useCallback(
+    (size: number) => {
+      setAnnotationTextSize(size);
+      updateSelectedText({ size });
+    },
+    [updateSelectedText]
   );
 
   const handleDrawingActiveChange = useCallback(
@@ -447,6 +559,29 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
+
+  useEffect(() => {
+    if (readOnly) return;
+
+    const handleAnnotationShortcut = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable) ||
+        !matchesShortcut(event, shortcutPreferences.toggleAnnotation)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toggleAnnotationMode();
+    };
+
+    window.addEventListener('keydown', handleAnnotationShortcut);
+    return () => window.removeEventListener('keydown', handleAnnotationShortcut);
+  }, [readOnly, shortcutPreferences.toggleAnnotation, toggleAnnotationMode]);
 
   useEffect(() => {
     if (!drawingEnabled) return;
@@ -1033,14 +1168,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      setDrawingEnabled(prev => {
-                        if (!prev) setDrawTool('pen');
-                        return !prev;
-                      });
-                    }}
+                    onClick={toggleAnnotationMode}
                     className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle}`}
-                    title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
+                    title={`${drawingEnabled ? 'Exit annotation mode' : 'Annotate'} (${formatShortcut(shortcutPreferences.toggleAnnotation)})`}
+                    aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleAnnotation)}
                   >
                     <PenTool className={toolbarIconSize} />
                   </button>
@@ -1086,6 +1217,51 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                                 <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
                               </label>
                             </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative tool-dropdown-container">
+                        <button
+                          onClick={() => {
+                            setDrawTool('text');
+                            setActiveDropdown(activeDropdown === 'text' ? null : 'text');
+                          }}
+                          className={`${iconBtn} ${drawTool === 'text' ? iconBtnActive : iconBtnIdle}`}
+                          title="Text annotation"
+                          aria-label="Text annotation settings"
+                          aria-pressed={drawTool === 'text'}
+                          aria-expanded={activeDropdown === 'text'}
+                        >
+                          <Type className={toolbarIconSize} />
+                        </button>
+                        {activeDropdown === 'text' && (
+                          <div data-text-annotation-controls className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
+                            <div className="flex items-center justify-between gap-4">
+                              <label className="flex items-center gap-2 text-xs text-gray-400">
+                                Color
+                                <input
+                                  type="color"
+                                  value={textColor}
+                                  onChange={event => handleTextColorChange(event.target.value)}
+                                  className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                                  aria-label="Text color"
+                                />
+                              </label>
+                              <label className="flex items-center gap-2 text-xs text-gray-400">
+                                Size
+                                <input
+                                  type="range"
+                                  min={8}
+                                  max={48}
+                                  value={annotationTextSize}
+                                  onChange={event => handleTextSizeChange(Number(event.target.value))}
+                                  className="w-20"
+                                />
+                                <span className="w-4 tabular-nums text-gray-300">{annotationTextSize}</span>
+                              </label>
+                            </div>
+                            <p className="text-[11px] text-gray-500">Click text to edit or a blank area to add. Drag the right edge to resize; height adjusts automatically. Ctrl+Enter adds a line.</p>
                           </div>
                         )}
                       </div>
@@ -1234,16 +1410,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
             {!readOnly && (
               <button
-                onClick={() => {
-                  setDrawingEnabled(prev => {
-                    if (!prev) setDrawTool('pen');
-                    return !prev;
-                  });
-                }}
+                onClick={toggleAnnotationMode}
                 className={`${iconBtn} ${drawingEnabled ? 'bg-purple-600 text-white hover:bg-purple-500' : iconBtnIdle
                   }`}
-                title={drawingEnabled ? 'Exit annotation mode' : 'Annotate'}
+                title={`${drawingEnabled ? 'Exit annotation mode' : 'Annotate'} (${formatShortcut(shortcutPreferences.toggleAnnotation)})`}
                 aria-pressed={drawingEnabled}
+                aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleAnnotation)}
               >
                 <PenTool className={toolbarIconSize} />
               </button>
@@ -1352,7 +1524,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             <div className="relative tool-dropdown-container">
               <button onClick={() => { setDrawTool(isShapeTool(drawTool) ? drawTool : 'line'); setActiveDropdown(activeDropdown === 'shapes' ? null : 'shapes'); }} className={`${iconBtn} ${isShapeTool(drawTool) ? iconBtnActive : iconBtnIdle}`} title="Shapes"><Shapes className={toolbarIconSize} /></button>
               {activeDropdown === 'shapes' && (
-                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
+                <div data-text-annotation-controls className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
                   <div className="flex items-center gap-1 rounded-md overflow-hidden border border-gray-600 w-full mb-1">
                     <button onClick={() => setDrawTool('line')} className={`flex-1 p-2 transition flex justify-center ${drawTool === 'line' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Line"><Minus className={toolbarIconSize} /></button>
                     <button onClick={() => setDrawTool('rectangle')} className={`flex-1 p-2 transition border-x border-gray-600 flex justify-center ${drawTool === 'rectangle' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`} title="Rectangle"><Square className={toolbarIconSize} /></button>
@@ -1366,6 +1538,51 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                       <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
                     </label>
                   </div>
+                </div>
+              )}
+            </div>
+
+            <div className="relative tool-dropdown-container">
+              <button
+                onClick={() => {
+                  setDrawTool('text');
+                  setActiveDropdown(activeDropdown === 'text' ? null : 'text');
+                }}
+                className={`${iconBtn} ${drawTool === 'text' ? iconBtnActive : iconBtnIdle}`}
+                title="Text annotation"
+                aria-label="Text annotation settings"
+                aria-pressed={drawTool === 'text'}
+                aria-expanded={activeDropdown === 'text'}
+              >
+                <Type className={toolbarIconSize} />
+              </button>
+              {activeDropdown === 'text' && (
+                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl z-50 flex flex-col gap-3 min-w-[240px]">
+                  <div className="flex items-center justify-between gap-4">
+                    <label className="flex items-center gap-2 text-xs text-gray-400">
+                      Color
+                      <input
+                        type="color"
+                        value={textColor}
+                        onChange={event => handleTextColorChange(event.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                        aria-label="Text color"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-gray-400">
+                      Size
+                      <input
+                        type="range"
+                        min={8}
+                        max={48}
+                        value={annotationTextSize}
+                        onChange={event => handleTextSizeChange(Number(event.target.value))}
+                        className="w-20"
+                      />
+                      <span className="w-4 tabular-nums text-gray-300">{annotationTextSize}</span>
+                    </label>
+                  </div>
+                  <p className="text-[11px] text-gray-500">Click text to edit or a blank area to add. Drag the right edge to resize; height adjusts automatically. Ctrl+Enter adds a line.</p>
                 </div>
               )}
             </div>
@@ -1491,8 +1708,13 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               drawingEnabled={drawingEnabled}
                               drawTool={drawTool}
                               penColor={penColor}
+                              textColor={textColor}
                               penSize={penSize}
                               eraserSize={eraserSize}
+                              annotationTextSize={annotationTextSize}
+                              onTextActionSelect={handleTextActionSelect}
+                              onTextActionUpdate={handleTextActionUpdate}
+                              onTextActionDelete={handleTextActionDelete}
                               onCanvasMount={handleCanvasMount}
                               onActionComplete={handleActionComplete}
                               onDrawingActiveChange={handleDrawingActiveChange}

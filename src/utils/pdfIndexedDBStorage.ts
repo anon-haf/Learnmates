@@ -1,11 +1,10 @@
 import type {
-  Point,
   VectorStroke,
   VectorShape,
-  VectorAction,
   StoredVectorPage,
   StoredVectorAnnotations,
 } from './pdfVectorAnnotationStorage';
+import { pdfStrokeWidthInCanvasPixels } from './pdfAnnotationMetrics';
 
 const DB_NAME = 'pdf-annotations';
 const STORE_NAME = 'annotations';
@@ -207,43 +206,55 @@ export function exportCanvasAnnotation(
 export function applyStoredAnnotation(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  stored: StoredVectorPage
+  stored: StoredVectorPage,
+  pdfPageWidthAtScale1?: number
 ): Promise<void> {
   return new Promise((resolve) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Apply vector actions first
-    for (const action of stored.actions) {
-      if (action.type === 'freehand') {
-        applyStroke(ctx, action);
-      } else {
-        applyShape(ctx, action);
+    const applyVectors = () => {
+      for (const action of stored.actions) {
+        if (action.type === 'freehand') {
+          applyStroke(ctx, action);
+        } else if (action.type === 'text') {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.fillStyle = action.color;
+          ctx.font = `${pdfStrokeWidthInCanvasPixels(
+            action.size,
+            canvas.width,
+            pdfPageWidthAtScale1 ??
+              stored.pdfPageWidthAtScale1 ??
+              stored.width
+          )}px sans-serif`;
+          ctx.textBaseline = 'top';
+          ctx.fillText(action.text, action.position.x, action.position.y);
+        } else {
+          applyShape(ctx, action);
+        }
       }
-    }
+      ctx.globalCompositeOperation = 'source-over';
+    };
 
-    // Apply raster fallback if present (stores canvas drawing as image)
     if (stored.rasterFallback) {
       const img = new Image();
-      let hasResolved = false;
-      const done = () => {
-        if (!hasResolved) {
-          hasResolved = true;
-          resolve();
+      let completed = false;
+      const finish = (loaded: boolean) => {
+        if (completed) return;
+        completed = true;
+        if (loaded) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         }
+        applyVectors();
+        resolve();
       };
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        done();
-      };
-      img.onerror = () => {
-        done(); // Resolve even if image fails to load
-      };
+      img.onload = () => finish(true);
+      img.onerror = () => finish(false);
       img.src = stored.rasterFallback;
       if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        done();
+        finish(true);
       }
     } else {
+      applyVectors();
       resolve();
     }
   });

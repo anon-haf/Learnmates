@@ -40,7 +40,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   const [drawMode, setDrawMode] = useState<'pen' | 'eraser'>('pen');
   // For smoothing pen
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const [penSize, setPenSize] = useState(3);
+  const [penSize, setPenSize] = useState(2);
   const [eraserSize, setEraserSize] = useState(20);
   const [currentDrawingPageNum, setCurrentDrawingPageNum] = useState<number | null>(null);
   const [showMarkScheme, setShowMarkScheme] = useState(false);
@@ -89,7 +89,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   // Reset pen/eraser size and draw mode when PDF or mark scheme changes
   useEffect(() => {
-    setPenSize(3);
+    setPenSize(2);
     setEraserSize(20);
     setDrawMode('pen');
   }, [pdfUrl, markSchemePdfUrl, showMarkScheme]);

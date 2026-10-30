@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   Settings,
+  Keyboard,
 } from "lucide-react";
 import { useReducedMotion } from "../context/ReducedMotionContext";
 import { type BoardKey } from "../utils/curriculumData";
@@ -39,16 +40,16 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import type { FavoriteSubject } from "../utils/favoriteSubjects";
 import { Link, useNavigate } from "react-router-dom";
-
-const MATE_LEVELS = [
-  { name: "Curious Mate", threshold: 0 },
-  { name: "Seeking Mate", threshold: 150 },
-  { name: "Discovering Mate", threshold: 350 },
-  { name: "Learning Mate", threshold: 650 },
-  { name: "Applying Mate", threshold: 1000 },
-  { name: "Mastering Mate", threshold: 1500 },
-  { name: "Absolute Mate", threshold: 2500 },
-];
+import { useShortcutPreferences } from "../hooks/useShortcutPreferences";
+import {
+  DEFAULT_SHORTCUT_PREFERENCES,
+  formatShortcut,
+  saveShortcutPreferences,
+  type ShortcutModifier,
+  type ShortcutPreferences,
+} from "../utils/shortcutPreferences";
+import { ShortcutKey } from "../components/ui/ShortcutKey";
+import { getMateLevel, MATE_LEVELS } from "../lib/mate-levels";
 
 const ALL_BOARDS: BoardKey[] = ["cambridge", "edexcel"];
 
@@ -116,6 +117,7 @@ const ProfilePage = () => {
   const { user } = useUser();
   const navigate = useNavigate();
   const { isReducedMotion, setIsReducedMotion } = useReducedMotion();
+  const shortcutPreferences = useShortcutPreferences();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [favoriteSubjects, setFavoriteSubjects] = useState<FavoriteSubject[]>(
     [],
@@ -126,6 +128,12 @@ const ProfilePage = () => {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [showAllSubjects, setShowAllSubjects] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [showShortcutSettings, setShowShortcutSettings] = useState(false);
+  const [shortcutDraft, setShortcutDraft] = useState<ShortcutPreferences>(shortcutPreferences);
+  const completeShortcutDraft = { ...shortcutPreferences, ...shortcutDraft };
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
+  const [recordingShortcutField, setRecordingShortcutField] =
+    useState<keyof ShortcutPreferences | null>(null);
 
   // Edit view state
   const [isEditing, setIsEditing] = useState(false);
@@ -198,12 +206,8 @@ const ProfilePage = () => {
       fetchXP();
     }
   }, [authUser]);
-  const currentMateLevelIndex = MATE_LEVELS.reduce(
-    (acc, lvl, i) => (matePoints >= lvl.threshold ? i : acc),
-    0,
-  );
-  const currentMateLevel = MATE_LEVELS[currentMateLevelIndex];
-  const nextMateLevel = MATE_LEVELS[currentMateLevelIndex + 1];
+  const currentMateLevel = getMateLevel(matePoints);
+  const nextMateLevel = MATE_LEVELS[MATE_LEVELS.indexOf(currentMateLevel) + 1];
   const mateProgressPercent = nextMateLevel
     ? Math.min(
       100,
@@ -318,6 +322,76 @@ const ProfilePage = () => {
       setIsSaving(false);
     }
   };
+
+  const handleSaveShortcuts = () => {
+    try {
+      saveShortcutPreferences(completeShortcutDraft);
+      setShortcutError(null);
+      setRecordingShortcutField(null);
+      setShowShortcutSettings(false);
+    } catch (error) {
+      console.error("Failed to save shortcut preferences:", error);
+      setShortcutError(error instanceof Error ? error.message : "Failed to save shortcuts.");
+    }
+  };
+
+  const handleResetShortcuts = () => {
+    try {
+      saveShortcutPreferences(DEFAULT_SHORTCUT_PREFERENCES);
+      setShortcutDraft(DEFAULT_SHORTCUT_PREFERENCES);
+      setShortcutError(null);
+      setRecordingShortcutField(null);
+      setShowShortcutSettings(false);
+    } catch (error) {
+      console.error("Failed to reset shortcut preferences:", error);
+      setShortcutError(error instanceof Error ? error.message : "Failed to reset shortcuts.");
+    }
+  };
+
+  useEffect(() => {
+    if (!recordingShortcutField) return;
+
+    const handleShortcutCapture = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setRecordingShortcutField(null);
+        setShortcutError(null);
+        return;
+      }
+
+      if (["Control", "Shift", "Alt", "Meta"].includes(event.key)) return;
+
+      if (event.key.length !== 1 || !/^[a-z]$/i.test(event.key)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setShortcutError("Choose an A-Z key, optionally with Ctrl and/or Shift. Press Escape to cancel.");
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      if (event.altKey || event.metaKey) {
+        setShortcutError("Shortcuts support Ctrl and Shift modifiers only.");
+        return;
+      }
+
+      const modifier: ShortcutModifier = event.ctrlKey
+        ? event.shiftKey ? "ctrlShift" : "ctrl"
+        : event.shiftKey ? "shift" : "none";
+      const field = recordingShortcutField;
+      setShortcutDraft(current => ({
+        ...current,
+        [field]: { key: event.key.toUpperCase(), modifier },
+      }));
+      setShortcutError(null);
+      setRecordingShortcutField(null);
+    };
+
+    window.addEventListener("keydown", handleShortcutCapture, true);
+    return () => window.removeEventListener("keydown", handleShortcutCapture, true);
+  }, [recordingShortcutField]);
 
   const boardDisplayName = (b: BoardKey) => {
     const map: Record<BoardKey, string> = {
@@ -1040,6 +1114,103 @@ const ProfilePage = () => {
             </h3>
           </div>
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  Keyboard shortcuts
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Customize the keys used to complete questions and show mark schemes.
+                  You can also toggle annotation mode in document viewers.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-expanded={showShortcutSettings}
+                onClick={() => {
+                  setShortcutDraft(shortcutPreferences);
+                  setShortcutError(null);
+                  setRecordingShortcutField(null);
+                  setShowShortcutSettings(open => !open);
+                }}
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                <Keyboard className="h-4 w-4" />
+                Shortcut
+              </button>
+            </div>
+            {showShortcutSettings && (
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
+                  Replace a shortcut by pressing its button, then pressing an A-Z key with optional Ctrl or Shift. Your shortcuts are saved on this device.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {([
+                    ['markComplete', 'Complete question'],
+                    ['toggleMarkScheme', 'Show or hide mark scheme'],
+                    ['toggleAnnotation', 'Toggle annotation mode'],
+                    ['toggleNonMcqSidebar', 'Toggle sidebar'],
+                  ] as const).map(([field, label]) => (
+                    <div key={field} className="flex flex-col gap-2 text-sm font-medium text-gray-800 dark:text-gray-100">
+                      <span>{label}</span>
+                      <div className="flex items-center gap-2">
+                        <ShortcutKey className="!inline-flex">{formatShortcut(completeShortcutDraft[field])}</ShortcutKey>
+                        <button
+                          type="button"
+                          aria-label={`${recordingShortcutField === field ? "Listening for" : "Replace"} ${label} shortcut`}
+                          aria-pressed={recordingShortcutField === field}
+                          onClick={() => {
+                            setShortcutError(null);
+                            setRecordingShortcutField(field);
+                          }}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors hover:bg-slate-100 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 dark:focus:ring-blue-900"
+                        >
+                          {recordingShortcutField === field ? "Press a key combination… (Esc to cancel)" : "Replace shortcut"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    Current bindings:
+                    <span className="inline-flex items-center gap-1">
+                      Complete <ShortcutKey>{formatShortcut(shortcutPreferences.markComplete)}</ShortcutKey>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      Mark scheme <ShortcutKey>{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      Annotation <ShortcutKey>{formatShortcut(shortcutPreferences.toggleAnnotation)}</ShortcutKey>
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      Sidebar <ShortcutKey>{formatShortcut(shortcutPreferences.toggleNonMcqSidebar)}</ShortcutKey>
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResetShortcuts}
+                      className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-white dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveShortcuts}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                    >
+                      Save shortcuts
+                    </button>
+                  </div>
+                </div>
+                {shortcutError && (
+                  <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+                    {shortcutError}
+                  </p>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
               <div className="flex-1 min-w-0 pr-4">
                 <p className="font-medium text-gray-900 dark:text-white">

@@ -67,8 +67,7 @@ function AppContent() {
 
         {/* Public routes using DashboardShell */}
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/nibras" element={<AiChat />} />
-        <Route path="/nibras/:chatId" element={<AiChat />} />
+        <Route path="/nibras/:chatId?" element={<AiChat />} />
         <Route path="/ai" element={<Navigate to="/s" replace />} />
 
         {/* Conditional layout routes - DashboardShell if logged in, PublicLayout if not */}

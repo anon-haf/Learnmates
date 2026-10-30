@@ -2,12 +2,16 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Page } from 'react-pdf';
 import {
   applyStoredAnnotation,
-  canvasHasContent,
+  drawVectorText,
+  eraseIntersectingVectorActions,
+  getVectorTextBounds,
+  isPointOnVectorText,
+  redrawAfterVectorErase,
   StoredAnnotationPage,
 } from '../utils/pdfVectorAnnotationStorage';
 import type { VectorAction } from '../utils/pdfVectorAnnotationStorage';
 import {
-  PDF_OUTPUT_DEVICE_PIXEL_RATIO,
+  getPdfOutputDevicePixelRatio,
   pdfStrokeWidthInCanvasPixels,
 } from '../utils/pdfAnnotationMetrics';
 import {
@@ -25,7 +29,7 @@ declare global {
 
 const A4_ASPECT = 297 / 210;
 
-export type DrawTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'ellipse';
+export type DrawTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'ellipse' | 'text';
 
 interface PdfDrawablePageProps {
   mode?: 'inline' | 'modal';
@@ -39,13 +43,19 @@ interface PdfDrawablePageProps {
   drawingEnabled?: boolean;
   drawTool?: DrawTool;
   penColor?: string;
+  textColor?: string;
   penSize?: number;
   eraserSize?: number;
+  annotationTextSize?: number;
+  onTextActionSelect?: (pageNumber: number, actionIndex: number | null, action: VectorAction | null, isEditing?: boolean) => void;
+  onTextActionUpdate?: (pageNumber: number, actionIndex: number, action: VectorAction, pdfPageWidthAtScale1: number) => void;
+  onTextActionDelete?: (pageNumber: number, actionIndex: number, pdfPageWidthAtScale1: number) => void;
   onCanvasMount?: (pageNumber: number, canvas: HTMLCanvasElement | null) => void;
   onActionComplete?: (
     pageNumber: number,
-    beforeSnapshot: ImageData,
-    vectorAction: VectorAction
+    beforeSnapshot: ImageData | null,
+    vectorAction: VectorAction,
+    pdfPageWidthAtScale1: number
   ) => void;
   onDrawingActiveChange?: (pageNumber: number, active: boolean) => void;
   allowTouchNavigation?: boolean;
@@ -69,6 +79,25 @@ type CanvasMetrics = {
   top: number;
   scaleX: number;
   scaleY: number;
+};
+
+type TextEditorState = {
+  position: Point;
+  left: number;
+  top: number;
+  text: string;
+  actionIndex: number | null;
+  width: number;
+  editable: boolean;
+};
+
+type TextDragState = {
+  pointerId: number;
+  startClientX: number;
+  startClientY: number;
+  startLeft: number;
+  startTop: number;
+  startPosition: Point;
 };
 
 function getCanvasCoordsFromClient(
@@ -253,8 +282,13 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   drawingEnabled = false,
   drawTool = 'pen',
   penColor = '#000000',
-  penSize = 3,
+  textColor = '#000000',
+  penSize = 2,
   eraserSize = 20,
+  annotationTextSize = 12,
+  onTextActionSelect,
+  onTextActionUpdate,
+  onTextActionDelete,
   onCanvasMount,
   onActionComplete,
   onDrawingActiveChange,
@@ -277,13 +311,19 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const beforeAction = useRef<ImageData | null>(null);
   const canvasMetrics = useRef<CanvasMetrics | null>(null);
   const pendingFrame = useRef<number | null>(null);
+  const eraserPreviewFrame = useRef<number | null>(null);
   const shapePreviewFrame = useRef<number | null>(null);
   const pendingShapePoint = useRef<Point | null>(null);
 
   const drawToolRef = useRef(drawTool);
   const penColorRef = useRef(penColor);
+  const textColorRef = useRef(textColor);
   const penSizeRef = useRef(penSize);
   const eraserSizeRef = useRef(eraserSize);
+  const annotationTextSizeRef = useRef(annotationTextSize);
+  const onTextActionSelectRef = useRef(onTextActionSelect);
+  const onTextActionUpdateRef = useRef(onTextActionUpdate);
+  const onTextActionDeleteRef = useRef(onTextActionDelete);
   const onActionCompleteRef = useRef(onActionComplete);
   const onDrawingActiveChangeRef = useRef(onDrawingActiveChange);
   const allowTouchNavigationRef = useRef(allowTouchNavigation);
@@ -295,7 +335,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const renderZoomPercent = renderScale != null ? renderScale * 100 : renderZoom;
   const renderZoomFactor = Math.max(0.25, renderZoomPercent / 100);
   const displayWidth = Math.max(1, Math.round(pageWidth * renderZoomFactor));
-  const outputDevicePixelRatio = PDF_OUTPUT_DEVICE_PIXEL_RATIO;
+  const outputDevicePixelRatio = getPdfOutputDevicePixelRatio(displayWidth);
   const pageRenderCacheKey = pdfCacheKey
     ? pdfRenderCacheKey(
         pdfCacheKey,
@@ -329,6 +369,23 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       ? { pdfKey: pdfCacheKey, renderKey: pageRenderCacheKey, src: cached.dataUrl }
       : null;
   });
+  const [textEditor, setTextEditor] = useState<TextEditorState | null>(null);
+  const textEditorStateRef = useRef(textEditor);
+  textEditorStateRef.current = textEditor;
+  const textEditorRef = useRef<HTMLTextAreaElement>(null);
+  const textEditorPositionRef = useRef<Point | null>(null);
+  const textDragRef = useRef<TextDragState | null>(null);
+  const updateTextEditor = useCallback(
+    (update: React.SetStateAction<TextEditorState | null>) => {
+      const next =
+        typeof update === 'function'
+          ? update(textEditorStateRef.current)
+          : update;
+      textEditorStateRef.current = next;
+      setTextEditor(next);
+    },
+    []
+  );
   const [invertActive, setInvertActive] = useState(() => {
     try {
       return localStorage.getItem('universal-pdf-invert-colors') === 'true';
@@ -353,16 +410,26 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   useEffect(() => {
     drawToolRef.current = drawTool;
     penColorRef.current = penColor;
+    textColorRef.current = textColor;
     penSizeRef.current = penSize;
     eraserSizeRef.current = eraserSize;
+    annotationTextSizeRef.current = annotationTextSize;
+    onTextActionSelectRef.current = onTextActionSelect;
+    onTextActionUpdateRef.current = onTextActionUpdate;
+    onTextActionDeleteRef.current = onTextActionDelete;
     onActionCompleteRef.current = onActionComplete;
     onDrawingActiveChangeRef.current = onDrawingActiveChange;
     allowTouchNavigationRef.current = allowTouchNavigation;
   }, [
     drawTool,
     penColor,
+    textColor,
     penSize,
     eraserSize,
+    annotationTextSize,
+    onTextActionSelect,
+    onTextActionUpdate,
+    onTextActionDelete,
     onActionComplete,
     onDrawingActiveChange,
     allowTouchNavigation,
@@ -535,18 +602,165 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   }, [pageNumber, rendered, onCanvasMount]);
 
   const commitAction = useCallback((vectorAction?: VectorAction) => {
-    if (!didModify.current || !beforeAction.current) return;
+    if (!didModify.current || !vectorAction) return;
     if (vectorAction) {
-      onActionCompleteRef.current?.(pageNumber, beforeAction.current, vectorAction);
+      onActionCompleteRef.current?.(
+        pageNumber,
+        beforeAction.current,
+        vectorAction,
+        pdfPageWidthAtScale1()
+      );
     }
     beforeAction.current = null;
     didModify.current = false;
-  }, [pageNumber]);
+  }, [pageNumber, pdfPageWidthAtScale1]);
+
+  const finishTextEditor = useCallback((save: boolean) => {
+    const editor = textEditorRef.current;
+    const text = editor?.value ?? '';
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas ? getDrawContext(canvas) : null;
+    const currentEditor = textEditorStateRef.current;
+    const position = currentEditor?.position ?? textEditorPositionRef.current;
+    if (!currentEditor) return;
+    textEditorStateRef.current = null;
+    let movedAction: VectorAction | null = null;
+    if (
+      save &&
+      !currentEditor.editable &&
+      currentEditor.actionIndex !== null &&
+      canvas &&
+      position
+    ) {
+      const stored =
+        getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+      const selectedAction = stored?.actions[currentEditor.actionIndex];
+      if (selectedAction?.type === 'text' && stored) {
+        const originalPosition = {
+          x: selectedAction.position.x * (canvas.width / stored.width),
+          y: selectedAction.position.y * (canvas.height / stored.height),
+        };
+        if (
+          Math.abs(position.x - originalPosition.x) > 0.5 ||
+          Math.abs(position.y - originalPosition.y) > 0.5
+        ) {
+          movedAction = { ...selectedAction, position };
+          onTextActionUpdateRef.current?.(
+            pageNumber,
+            currentEditor.actionIndex,
+            movedAction,
+            pdfPageWidthAtScale1()
+          );
+        }
+      }
+    }
+    if (
+      save &&
+      currentEditor.editable &&
+      text.trim() &&
+      canvas &&
+      ctx &&
+      position
+    ) {
+      const action: VectorAction = {
+        type: 'text',
+        position,
+        text,
+        color: textColorRef.current,
+        size: annotationTextSizeRef.current,
+        width: currentEditor.width,
+      };
+      if (currentEditor.actionIndex === null) {
+        drawVectorText(ctx, action, action.position, canvas.width, pdfPageWidthAtScale1());
+        onActionCompleteRef.current?.(pageNumber, null, action, pdfPageWidthAtScale1());
+      } else {
+        onTextActionUpdateRef.current?.(
+          pageNumber,
+          currentEditor.actionIndex,
+          action,
+          pdfPageWidthAtScale1()
+        );
+      }
+    }
+    if (
+      save &&
+      currentEditor.editable &&
+      !text.trim() &&
+      canvas &&
+      currentEditor.actionIndex !== null
+    ) {
+      onTextActionDeleteRef.current?.(
+        pageNumber,
+        currentEditor.actionIndex,
+        pdfPageWidthAtScale1()
+      );
+      onTextActionSelectRef.current?.(pageNumber, null, null, false);
+      textEditorPositionRef.current = null;
+      updateTextEditor(null);
+      return;
+    }
+    if (canvas && ctx && currentEditor.actionIndex !== null) {
+      if (
+        !movedAction &&
+        (!save || !currentEditor.editable || !text.trim())
+      ) {
+        const stored =
+          getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+        if (stored) {
+          void applyStoredAnnotation(
+            ctx,
+            canvas,
+            stored,
+            pdfPageWidthAtScale1()
+          );
+        }
+      }
+      const currentAction =
+        movedAction ??
+        (save && currentEditor.editable && text.trim() && position
+          ? {
+              type: 'text' as const,
+              position,
+              text,
+              color: textColorRef.current,
+              size: annotationTextSizeRef.current,
+              width: currentEditor.width,
+            }
+          : (
+              getRestoredAnnotationRef.current?.() ??
+              restoredAnnotationRef.current
+            )?.actions[currentEditor.actionIndex] ?? null);
+      onTextActionSelectRef.current?.(
+        pageNumber,
+        currentEditor.actionIndex,
+        currentAction,
+        false
+      );
+    } else if (currentEditor.actionIndex === null) {
+      onTextActionSelectRef.current?.(pageNumber, null, null, false);
+    }
+    textEditorPositionRef.current = null;
+    updateTextEditor(null);
+  }, [getDrawContext, pageNumber, pdfPageWidthAtScale1, updateTextEditor]);
+
+  const isTextEditorOpen = textEditor !== null;
+  useEffect(() => {
+    if (isTextEditorOpen && textEditor?.editable) {
+      textEditorRef.current?.focus();
+    }
+  }, [isTextEditorOpen, textEditor?.editable]);
 
   const cancelPendingFrame = useCallback(() => {
     if (pendingFrame.current !== null) {
       cancelAnimationFrame(pendingFrame.current);
       pendingFrame.current = null;
+    }
+  }, []);
+
+  const cancelEraserPreview = useCallback(() => {
+    if (eraserPreviewFrame.current !== null) {
+      cancelAnimationFrame(eraserPreviewFrame.current);
+      eraserPreviewFrame.current = null;
     }
   }, []);
 
@@ -557,6 +771,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     const ctx = canvas ? getDrawContext(canvas) : null;
     const tool = drawToolRef.current;
     if (!canvas || !ctx || !isDrawing.current || !isFreehandTool(tool)) return;
+    if (tool === 'eraser') return;
 
     const points = strokePoints.current;
     if (points.length < 3) return;
@@ -627,6 +842,10 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
     const tool = drawToolRef.current;
     if (!isFreehandTool(tool)) return;
+    if (tool === 'eraser') {
+      didModify.current = true;
+      return;
+    }
 
     applyFreehandStyle(
       ctx,
@@ -698,6 +917,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     if (!isDrawing.current) return;
 
     cancelPendingFrame();
+    cancelEraserPreview();
 
     if (shapePreviewFrame.current !== null) {
       cancelAnimationFrame(shapePreviewFrame.current);
@@ -754,6 +974,58 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       }
     }
 
+    if (
+      canvas &&
+      ctx &&
+      vectorAction?.type === 'freehand' &&
+      vectorAction.tool === 'eraser'
+    ) {
+      const stored =
+        getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+      const storedWidth = stored?.width ?? canvas.width;
+      const storedHeight = stored?.height ?? canvas.height;
+      const scaleX = storedWidth / canvas.width;
+      const scaleY = storedHeight / canvas.height;
+      const storedEraser = {
+        ...vectorAction,
+        points: vectorAction.points.map((point) => ({
+          x: point.x * scaleX,
+          y: point.y * scaleY,
+        })),
+      };
+      const actions = eraseIntersectingVectorActions(
+        stored?.actions ?? [],
+        storedEraser,
+        storedWidth,
+        pdfPageWidthAtScale1()
+      );
+      if (stored?.rasterFallback) {
+        actions.push(storedEraser);
+        void applyStoredAnnotation(
+          ctx,
+          canvas,
+          {
+            width: storedWidth,
+            height: storedHeight,
+            actions,
+            pdfPageWidthAtScale1: pdfPageWidthAtScale1(),
+            rasterFallback: stored.rasterFallback,
+          },
+          pdfPageWidthAtScale1()
+        );
+      } else {
+        redrawAfterVectorErase(
+          ctx,
+          canvas,
+          stored?.actions ?? [],
+          actions,
+          storedWidth,
+          storedHeight,
+          pdfPageWidthAtScale1()
+        );
+      }
+    }
+
     const pointerCanvas = drawCanvasRef.current;
     if (pointerCanvas && activePointerId.current !== null) {
       try {
@@ -772,7 +1044,61 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     canvasMetrics.current = null;
     onDrawingActiveChangeRef.current?.(pageNumber, false);
     commitAction(vectorAction);
-  }, [cancelPendingFrame, commitAction, finishFreehandStroke, getDrawContext, pageNumber, renderShapePreview]);
+  }, [cancelEraserPreview, cancelPendingFrame, commitAction, finishFreehandStroke, getDrawContext, pageNumber, pdfPageWidthAtScale1, renderShapePreview]);
+
+  const renderLiveVectorErase = useCallback(() => {
+    const canvas = drawCanvasRef.current;
+    const ctx = canvas ? getDrawContext(canvas) : null;
+    const stored =
+      getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+    if (
+      !canvas ||
+      !ctx ||
+      !stored ||
+      stored.rasterFallback ||
+      strokePoints.current.length === 0
+    ) {
+      return;
+    }
+
+    const scaleX = stored.width ? stored.width / canvas.width : 1;
+    const scaleY = stored.height ? stored.height / canvas.height : 1;
+    const eraser = {
+      type: 'freehand' as const,
+      tool: 'eraser' as const,
+      points: strokePoints.current.map((point) => ({
+        x: point.x * scaleX,
+        y: point.y * scaleY,
+      })),
+      color: penColorRef.current,
+      size: eraserSizeRef.current,
+    };
+    const remainingActions = eraseIntersectingVectorActions(
+      stored.actions,
+      eraser,
+      stored.width,
+      pdfPageWidthAtScale1()
+    );
+    redrawAfterVectorErase(
+      ctx,
+      canvas,
+      stored.actions,
+      remainingActions,
+      stored.width,
+      stored.height,
+      pdfPageWidthAtScale1()
+    );
+  }, [getDrawContext, pdfPageWidthAtScale1]);
+
+  const scheduleEraserPreview = useCallback(() => {
+    if (eraserPreviewFrame.current !== null) return;
+    eraserPreviewFrame.current = requestAnimationFrame(() => {
+      eraserPreviewFrame.current = null;
+      if (isDrawing.current && drawToolRef.current === 'eraser') {
+        renderLiveVectorErase();
+      }
+    });
+  }, [renderLiveVectorErase]);
 
   const addFreehandPoint = useCallback((point: Point) => {
     const points = strokePoints.current;
@@ -781,17 +1107,147 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
     points.push(point);
     lastPoint.current = point;
+    const tool = drawToolRef.current;
+    if (tool === 'eraser') {
+      const canvas = drawCanvasRef.current;
+      const ctx = canvas ? getDrawContext(canvas) : null;
+      const stored =
+        getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+      if (canvas && ctx && last && stored?.rasterFallback) {
+        applyFreehandStyle(
+          ctx,
+          'eraser',
+          penColorRef.current,
+          penSizeRef.current,
+          eraserSizeRef.current,
+          canvas,
+          pdfPageWidthAtScale1()
+        );
+        ctx.beginPath();
+        ctx.moveTo(last.x, last.y);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      if (stored && !stored.rasterFallback && stored.actions.length > 0) {
+        scheduleEraserPreview();
+      }
+    }
 
     if (points.length >= 3) {
-      scheduleFreehandFlush();
+      if (tool !== 'eraser') {
+        scheduleFreehandFlush();
+      }
     } else {
       didModify.current = points.length > 0;
     }
-  }, [scheduleFreehandFlush]);
+  }, [getDrawContext, pdfPageWidthAtScale1, scheduleEraserPreview, scheduleFreehandFlush]);
 
   useEffect(() => {
     const canvas = drawCanvasRef.current;
     if (!canvas || !rendered || !drawingEnabled) return;
+
+    const openTextEditorAtPoint = (clientX: number, clientY: number) => {
+      finishTextEditor(true);
+      const metrics = readCanvasMetrics(canvas);
+      const point = getCanvasCoordsFromClient(clientX, clientY, metrics);
+      const ctx = getDrawContext(canvas);
+      const stored = getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+      const scaleX = stored?.width ? canvas.width / stored.width : 1;
+      const scaleY = stored?.height ? canvas.height / stored.height : 1;
+      let selectedTextIndex = -1;
+      if (ctx && stored) {
+        for (let index = stored.actions.length - 1; index >= 0; index -= 1) {
+          const action = stored.actions[index];
+          if (action.type !== 'text') continue;
+          const scaledPosition = {
+            x: action.position.x * scaleX,
+            y: action.position.y * scaleY,
+          };
+          if (
+            isPointOnVectorText(
+              ctx,
+              action,
+              scaledPosition,
+              point,
+              canvas.width,
+              pdfPageWidthAtScale1()
+            )
+          ) {
+            selectedTextIndex = index;
+            break;
+          }
+        }
+      }
+      if (selectedTextIndex >= 0 && stored) {
+        const action = stored.actions[selectedTextIndex];
+        if (action.type !== 'text') return;
+        const scaledPosition = {
+          x: action.position.x * scaleX,
+          y: action.position.y * scaleY,
+        };
+        const bounds = ctx
+          ? getVectorTextBounds(
+              ctx,
+              action,
+              scaledPosition,
+              canvas.width,
+              pdfPageWidthAtScale1()
+            )
+          : null;
+        const pdfUnitsPerCanvasPixel =
+          pdfPageWidthAtScale1() / canvas.width;
+        const editorWidth =
+          action.width ??
+          Math.max(32, (bounds?.width ?? 180) * pdfUnitsPerCanvasPixel);
+        const editorActionIndex = selectedTextIndex;
+        const pageWithSelectedTextRemoved: StoredAnnotationPage = {
+          width: stored.width,
+          height: stored.height,
+          actions: stored.actions.filter((_, index) => index !== editorActionIndex),
+          ...(stored.pdfPageWidthAtScale1
+            ? { pdfPageWidthAtScale1: stored.pdfPageWidthAtScale1 }
+            : {}),
+          ...(stored.rasterFallback
+            ? { rasterFallback: stored.rasterFallback }
+            : {}),
+        };
+        if (ctx) {
+          void applyStoredAnnotation(
+            ctx,
+            canvas,
+            pageWithSelectedTextRemoved,
+            pdfPageWidthAtScale1()
+          );
+        }
+        textEditorPositionRef.current = scaledPosition;
+        onTextActionSelectRef.current?.(pageNumber, selectedTextIndex, {
+          ...action,
+          position: scaledPosition,
+        }, true);
+        updateTextEditor({
+          position: scaledPosition,
+          left: canvas.offsetLeft + scaledPosition.x * (canvas.clientWidth / canvas.width),
+          top: canvas.offsetTop + scaledPosition.y * (canvas.clientHeight / canvas.height),
+          text: action.text,
+          actionIndex: selectedTextIndex,
+          width: editorWidth,
+          editable: false,
+        });
+        return;
+      }
+      textEditorPositionRef.current = point;
+      onTextActionSelectRef.current?.(pageNumber, null, null, true);
+      updateTextEditor({
+        position: point,
+        left: canvas.offsetLeft + point.x * (canvas.clientWidth / canvas.width),
+        top: canvas.offsetTop + point.y * (canvas.clientHeight / canvas.height),
+        text: '',
+        actionIndex: null,
+        width: 180,
+        editable: true,
+      });
+    };
 
     const startStrokeAtPoint = (clientX: number, clientY: number) => {
       canvasMetrics.current = readCanvasMetrics(canvas);
@@ -802,7 +1258,10 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       onDrawingActiveChangeRef.current?.(pageNumber, true);
 
       const ctx = getDrawContext(canvas);
-      if (ctx) {
+      const stored =
+        getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+      const tool = drawToolRef.current;
+      if (ctx && (stored?.rasterFallback || isShapeTool(tool))) {
         beforeAction.current = captureSnapshot(ctx, canvas);
       } else {
         beforeAction.current = null;
@@ -812,9 +1271,34 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       lastPoint.current = point;
       strokePoints.current = [point];
 
-      const tool = drawToolRef.current;
       if (isShapeTool(tool)) {
         shapeStart.current = point;
+      } else if (tool === 'eraser') {
+        const stored =
+          getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
+        const eraserContext = getDrawContext(canvas);
+        if (stored?.rasterFallback && eraserContext) {
+          applyFreehandStyle(
+            eraserContext,
+            'eraser',
+            penColorRef.current,
+            penSizeRef.current,
+            eraserSizeRef.current,
+            canvas,
+            pdfPageWidthAtScale1()
+          );
+          eraserContext.beginPath();
+          eraserContext.arc(
+            point.x,
+            point.y,
+            eraserContext.lineWidth / 2,
+            0,
+            2 * Math.PI
+          );
+          eraserContext.fill();
+          eraserContext.globalCompositeOperation = 'source-over';
+        }
+        renderLiveVectorErase();
       }
     };
 
@@ -823,6 +1307,10 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       if (!shouldAnnotateWithPointer(e, allowTouchNavigationRef.current)) return;
 
       e.preventDefault();
+      if (drawToolRef.current === 'text') {
+        openTextEditorAtPoint(e.clientX, e.clientY);
+        return;
+      }
       try {
         canvas.setPointerCapture(e.pointerId);
       } catch {
@@ -875,6 +1363,10 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       if (e.button !== 0) return;
 
       e.preventDefault();
+      if (drawToolRef.current === 'text') {
+        openTextEditorAtPoint(e.clientX, e.clientY);
+        return;
+      }
       startStrokeAtPoint(e.clientX, e.clientY);
     };
 
@@ -923,6 +1415,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
       }
+      cancelEraserPreview();
       cancelPendingFrame();
       if (shapePreviewFrame.current !== null) {
         cancelAnimationFrame(shapePreviewFrame.current);
@@ -931,16 +1424,22 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     };
   }, [
     addFreehandPoint,
+    cancelEraserPreview,
     cancelPendingFrame,
     drawingEnabled,
     finishDrawing,
     getDrawContext,
+    renderLiveVectorErase,
     scheduleShapePreview,
     rendered,
+    finishTextEditor,
+    pdfPageWidthAtScale1,
+    updateTextEditor,
   ]);
 
   useEffect(() => {
     if (!drawingEnabled) {
+      cancelEraserPreview();
       cancelPendingFrame();
       if (shapePreviewFrame.current !== null) {
         cancelAnimationFrame(shapePreviewFrame.current);
@@ -960,13 +1459,22 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       canvasMetrics.current = null;
       didModify.current = false;
     }
-  }, [cancelPendingFrame, drawingEnabled, pageNumber]);
+  }, [cancelEraserPreview, cancelPendingFrame, drawingEnabled, pageNumber]);
+
+  useEffect(() => {
+    if (!drawingEnabled || drawTool !== 'text') {
+      textEditorPositionRef.current = null;
+      updateTextEditor(null);
+    }
+  }, [drawTool, drawingEnabled, updateTextEditor]);
 
   const cursorClass = !drawingEnabled
     ? 'pointer-events-none'
     : drawTool === 'eraser'
       ? 'cursor-cell'
-      : 'cursor-crosshair';
+      : drawTool === 'text'
+        ? 'cursor-text'
+        : 'cursor-crosshair';
 
   return (
     <div
@@ -1024,6 +1532,172 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
               draggable={false}
             />
           )}
+          {textEditor && drawingEnabled && drawTool === 'text' && (
+                <textarea
+              ref={textEditorRef}
+              rows={1}
+              readOnly={!textEditor.editable}
+              value={textEditor.text}
+              onChange={(event) =>
+                updateTextEditor((current) =>
+                  current ? { ...current, text: event.target.value } : current
+                )
+              }
+              onDoubleClick={() => {
+                if (!textEditor.editable) {
+                  updateTextEditor((current) =>
+                    current ? { ...current, editable: true } : current
+                  );
+                }
+              }}
+              onPointerDown={(event) => {
+                if (textEditor.editable || event.button !== 0) return;
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                textDragRef.current = {
+                  pointerId: event.pointerId,
+                  startClientX: event.clientX,
+                  startClientY: event.clientY,
+                  startLeft: textEditor.left,
+                  startTop: textEditor.top,
+                  startPosition: textEditor.position,
+                };
+              }}
+              onPointerMove={(event) => {
+                const drag = textDragRef.current;
+                const canvas = drawCanvasRef.current;
+                if (!drag || drag.pointerId !== event.pointerId || !canvas) return;
+                const metrics = readCanvasMetrics(canvas);
+                const dx = event.clientX - drag.startClientX;
+                const dy = event.clientY - drag.startClientY;
+                const position = {
+                  x: drag.startPosition.x + dx * metrics.scaleX,
+                  y: drag.startPosition.y + dy * metrics.scaleY,
+                };
+                textEditorPositionRef.current = position;
+                updateTextEditor((current) =>
+                  current
+                    ? {
+                        ...current,
+                        position,
+                        left: drag.startLeft + dx,
+                        top: drag.startTop + dy,
+                      }
+                    : current
+                );
+              }}
+              onPointerUp={(event) => {
+                textDragRef.current = null;
+                if (!textEditor.editable) return;
+                const canvas = drawCanvasRef.current;
+                if (!canvas) return;
+                const displayedWidth =
+                  canvas.clientWidth || canvas.width;
+                const resizedWidth =
+                  event.currentTarget.getBoundingClientRect().width;
+                const width = Math.max(
+                  32,
+                  ((resizedWidth - 10) / displayedWidth) *
+                    pdfPageWidthScale1Ref.current
+                );
+                updateTextEditor((current) =>
+                  current ? { ...current, width } : current
+                );
+              }}
+              onPointerCancel={() => {
+                textDragRef.current = null;
+              }}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (
+                  nextTarget instanceof Element &&
+                  nextTarget.closest('[data-text-annotation-controls]')
+                ) {
+                  return;
+                }
+                window.setTimeout(() => {
+                  if (textEditorStateRef.current === textEditor) {
+                    finishTextEditor(true);
+                  }
+                }, 0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && event.ctrlKey) {
+                  event.preventDefault();
+                  const textarea = event.currentTarget;
+                  const start = textarea.selectionStart;
+                  const end = textarea.selectionEnd;
+                  textarea.setRangeText('\n', start, end, 'end');
+                  updateTextEditor((current) =>
+                    current
+                      ? { ...current, text: textarea.value }
+                      : current
+                  );
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  finishTextEditor(false);
+                }
+              }}
+              aria-label="Text annotation"
+              placeholder="Type here..."
+              title={textEditor.editable ? 'Edit text annotation' : 'Drag to move; double-click to edit'}
+              className={`absolute z-30 min-w-32 rounded-md border px-1.5 py-0.5 text-gray-900 shadow-lg ring-1 ring-black/15 outline-none ${
+                textEditor.editable
+                  ? 'border-black bg-white/95 focus:border-black focus:ring-black/25'
+                  : 'cursor-move select-none border-black/30 bg-white/75'
+              }`}
+              style={{
+                left: textEditor.left,
+                top: Math.max(0, textEditor.top - 2),
+                width: pdfStrokeWidthInCanvasPixels(
+                  textEditor.width,
+                  drawCanvasRef.current?.width ?? displayWidth,
+                  pdfPageWidthScale1Ref.current
+                ) *
+                  ((drawCanvasRef.current?.clientWidth ?? displayWidth) /
+                  (drawCanvasRef.current?.width ?? displayWidth)) + 10,
+                fontSize: `${
+                  pdfStrokeWidthInCanvasPixels(
+                    annotationTextSize,
+                    drawCanvasRef.current?.width ?? displayWidth,
+                    pdfPageWidthScale1Ref.current
+                  ) *
+                  ((drawCanvasRef.current?.clientWidth ?? displayWidth) /
+                    (drawCanvasRef.current?.width ?? displayWidth))
+                }px`,
+                lineHeight: 1.25,
+                height: (() => {
+                  const canvas = drawCanvasRef.current;
+                  const ctx = canvas?.getContext('2d');
+                  if (!canvas || !ctx) return '1.5em';
+                  const bounds = getVectorTextBounds(
+                    ctx,
+                    {
+                      type: 'text',
+                      position: textEditor.position,
+                      text: textEditor.text || ' ',
+                      color: textColor,
+                      size: annotationTextSize,
+                      width: textEditor.width,
+                    },
+                    textEditor.position,
+                    canvas.width,
+                    pdfPageWidthScale1Ref.current
+                  );
+                  const scale =
+                    (canvas.clientWidth || displayWidth) / canvas.width;
+                  return `${Math.max(1, bounds.height * scale + 8)}px`;
+                })(),
+                color: textColor,
+                resize: 'horizontal',
+                overflow: 'hidden',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+                boxSizing: 'border-box',
+                touchAction: textEditor.editable ? 'auto' : 'none',
+              }}
+            />
+          )}
 
         {hasRenderedPdf && (
           <canvas
@@ -1055,14 +1729,19 @@ function pdfDrawablePagePropsAreEqual(
   if (prev.allowTouchNavigation !== next.allowTouchNavigation) return false;
   if (prev.drawTool !== next.drawTool) return false;
   if (prev.penColor !== next.penColor) return false;
+  if (prev.textColor !== next.textColor) return false;
   if (prev.penSize !== next.penSize) return false;
   if (prev.eraserSize !== next.eraserSize) return false;
+  if (prev.annotationTextSize !== next.annotationTextSize) return false;
   const prevRenderZoom = prev.renderScale != null ? prev.renderScale * 100 : (prev.renderZoom ?? 100);
   const nextRenderZoom = next.renderScale != null ? next.renderScale * 100 : (next.renderZoom ?? 100);
   if (Math.round(prevRenderZoom) !== Math.round(nextRenderZoom)) return false;
   if (prev.getRestoredAnnotation !== next.getRestoredAnnotation) return false;
   if (prev.onCanvasMount !== next.onCanvasMount) return false;
   if (prev.onActionComplete !== next.onActionComplete) return false;
+  if (prev.onTextActionSelect !== next.onTextActionSelect) return false;
+  if (prev.onTextActionUpdate !== next.onTextActionUpdate) return false;
+  if (prev.onTextActionDelete !== next.onTextActionDelete) return false;
   if (prev.onDrawingActiveChange !== next.onDrawingActiveChange) return false;
 
   const prevRestore = prev.restoredAnnotation;

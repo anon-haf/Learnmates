@@ -14,18 +14,14 @@ export interface DayData {
   month: string;
 }
 
+const STREAK_XP_DELAY_MS = 60_000;
+const scheduledStreakAwards = new Set<string>();
+
 export const getStreakData = async (): Promise<StreakData> => {
   const { data, error } = await supabase.rpc('get_user_streak');
   
-  if (error || !data?.[0]) {
-    const today = new Date().toISOString().split('T')[0];
-    return {
-      currentStreak: 1,
-      lastVisitDate: today,
-      longestStreak: 1,
-      visitedDates: [today]
-    };
-  }
+  if (error) throw error;
+  if (!data?.[0]) throw new Error('No streak data returned for the current user');
   
   return {
     currentStreak: data[0].current_streak,
@@ -35,10 +31,10 @@ export const getStreakData = async (): Promise<StreakData> => {
   };
 };
 
-const awardStreakXP = async (streak: number) => {
+const awardStreakXP = async (streak: number): Promise<boolean> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) return false;
     
     const res = await fetch('/api/xp/heartbeat', {
       method: 'POST',
@@ -52,22 +48,35 @@ const awardStreakXP = async (streak: number) => {
       })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.awarded > 0) {
-        const { triggerXPNotification } = await import('../components/XPRewardNotification');
-        triggerXPNotification(data.awarded, 'streak_visit');
-      }
+    if (!res.ok) throw new Error(`Streak XP request failed (${res.status})`);
+
+    const data = await res.json();
+    if (data.awarded > 0) {
+      const { triggerXPNotification } = await import('../components/XPRewardNotification');
+      triggerXPNotification(data.awarded, 'streak_visit');
     }
+    return true;
   } catch (error) {
     console.error('Failed to award streak XP:', error);
+    return false;
   }
 };
 
 export const updateStreak = async (): Promise<StreakData> => {
-  await supabase.rpc('add_user_visit');
+  const { error } = await supabase.rpc('add_user_visit');
+  if (error) throw error;
+
   const streak = await getStreakData();
-  await awardStreakXP(streak.currentStreak);
+  const today = new Date().toISOString().slice(0, 10);
+  if (!scheduledStreakAwards.has(today)) {
+    scheduledStreakAwards.add(today);
+    window.setTimeout(() => {
+      void awardStreakXP(streak.currentStreak).then((awarded) => {
+        if (!awarded) scheduledStreakAwards.delete(today);
+      });
+    }, STREAK_XP_DELAY_MS);
+  }
+
   return streak;
 };
 

@@ -1128,22 +1128,27 @@ const AiChat: React.FC = () => {
         }
 
         if (!(import.meta.env.DEV && localStorage.getItem('DEV_MOCK_LOGIN') === 'true')) {
-          const { error: messageError } = await supabase.from('chat_messages').insert([
-            {
-              session_id: resolvedSessionId,
-              role: 'user',
-              content: storedQuestion,
-              metadata: filesToSend.length ? {
-                attachmentStorageKey: resolvedAttachmentStorageKey,
-                attachments: filesToSend.map(file => ({
-                  name: file.name,
-                  isImage: isImageAttachment(file),
-                })),
-              } : null,
-            },
-            { session_id: resolvedSessionId, role: 'assistant', content: answer, metadata: data },
-          ]);
-          if (messageError) throw messageError;
+          const { error: userMessageError } = await supabase.from('chat_messages').insert({
+            session_id: resolvedSessionId,
+            role: 'user',
+            content: storedQuestion,
+            metadata: filesToSend.length ? {
+              attachmentStorageKey: resolvedAttachmentStorageKey,
+              attachments: filesToSend.map(file => ({
+                name: file.name,
+                isImage: isImageAttachment(file),
+              })),
+            } : null,
+          });
+          if (userMessageError) throw userMessageError;
+
+          const { error: assistantMessageError } = await supabase.from('chat_messages').insert({
+            session_id: resolvedSessionId,
+            role: 'assistant',
+            content: answer,
+            metadata: data,
+          });
+          if (assistantMessageError) throw assistantMessageError;
         }
       } catch (error: unknown) {
         console.error('AI tutor replied, but chat history could not be saved:', error);

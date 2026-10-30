@@ -1,5 +1,6 @@
 import { createServerClient } from '../_lib/supabase-server.js';
 import { awardCappedXP } from '../_lib/award-xp.js';
+import { hasStreakEventOnUtcDay } from '../_lib/streak-event.js';
 
 // Constants for XP rules
 const XP_RULES = {
@@ -97,13 +98,30 @@ export default async function handler(req, res) {
       });
     }
 
+    const streakAwardDate = new Date();
+    const streakAwardDay = streakAwardDate.toISOString().slice(0, 10);
+    if (action === 'streak_visit') {
+      const alreadyAwardedToday = await hasStreakEventOnUtcDay(
+        supabase,
+        user.id,
+        streakAwardDate
+      );
+      if (alreadyAwardedToday) {
+        return res.status(200).json({
+          awarded: 0,
+          message: 'Streak XP already awarded today',
+          conditionsMet: { action, duration },
+        });
+      }
+    }
+
     let awarded = 0;
     try {
       awarded = await awardCappedXP(supabase, {
         userId: user.id,
         action,
         refId: action === 'streak_visit'
-          ? new Date().toISOString().slice(0, 10)
+          ? streakAwardDay
           : action === 'question_view'
             ? `${new Date().toISOString().slice(0, 10)}:${refId}`
             : refId || null,

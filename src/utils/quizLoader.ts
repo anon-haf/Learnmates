@@ -30,7 +30,7 @@ const quizCache = new Map<string, Promise<Quiz>>();
 
 // Timeouts (ms) — configurable defaults for file checks and progressive loader
 export const DEFAULT_FILE_CHECK_TIMEOUT_MS = 2000; // increased from 300ms for flaky servers
-export const DEFAULT_PROGRESSIVE_TIMEOUT_MS = 5000; // default timeout before returning partial results
+export const DEFAULT_PROGRESSIVE_TIMEOUT_MS = 1; // keep the UI responsive; no artificial wait before returning partial results
 
 // Simple in-memory cache for file existence checks to avoid duplicate network requests
 const fileExistsCache = new Map<string, boolean>();
