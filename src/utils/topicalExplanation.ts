@@ -1,5 +1,6 @@
 import type { Question } from '../components/TopicalQuiz';
 import { loadPdfDocument } from './pdfThumbnail';
+import { getCachedPdfPageCount, getCachedPdfPageRenders } from './pdfPageRenderCache';
 import { getAssetAuthHeaders, resolveFromR2 } from './r2Utils';
 
 export const TOPICAL_EXPLANATION_PROMPT_VERSION = '2026-10-30-v8';
@@ -221,11 +222,39 @@ async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise
   });
 }
 
+async function imageToJpegFile(
+  imageSource: Blob | string,
+  filename: string,
+  maxWidth: number,
+  quality: number,
+): Promise<File> {
+  const image = typeof imageSource === 'string'
+    ? await createImageBitmap(await fetch(imageSource).then(response => response.blob()))
+    : await createImageBitmap(imageSource);
+  const scale = Math.min(1, maxWidth / image.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.floor(image.width * scale));
+  canvas.height = Math.max(1, Math.floor(image.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) {
+    image.close();
+    throw new Error('Your browser could not prepare document images.');
+  }
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  image.close();
+  const blob = await canvasToJpeg(canvas, quality);
+  canvas.width = 0;
+  canvas.height = 0;
+  return blobToFile(blob, filename);
+}
+
 async function renderPdfPages(
   question: Question,
   markSchemeUrl: string | null,
 ): Promise<File[]> {
-  const sources = [
+  const sourceInputs = [
     {
       url: question.questionContent!,
       type: question.questionContentType || 'pdf',
@@ -237,25 +266,61 @@ async function renderPdfPages(
       name: 'mark-scheme',
     }] : []),
   ];
-  const pdfs: Array<Awaited<ReturnType<typeof loadPdfDocument>> | null> = [];
+  const sources: Array<{
+    url: string;
+    type: 'pdf' | 'image';
+    name: string;
+    pdf: Awaited<ReturnType<typeof loadPdfDocument>> | null;
+    cachedPages: Map<number, string>;
+    pageCount: number;
+  }> = [];
 
   try {
-    for (const source of sources) {
-      pdfs.push(source.type === 'pdf' ? await loadPdfDocument(source.url) : null);
+    for (const source of sourceInputs) {
+      const cachedRenders = source.type === 'pdf' ? getCachedPdfPageRenders(source.url) : [];
+      const cachedPages = new Map<number, string>(
+        cachedRenders.map((page): [number, string] => [page.pageNumber, page.dataUrl]),
+      );
+      const cachedPageCount = source.type === 'pdf' ? getCachedPdfPageCount(source.url) : undefined;
+      const hasAllCachedPages = Boolean(cachedPageCount)
+        && cachedPages.size >= cachedPageCount!
+        && Array.from({ length: cachedPageCount! }, (_, index) => cachedPages.has(index + 1)).every(Boolean);
+      const pdf = source.type === 'pdf' && !hasAllCachedPages
+        ? await loadPdfDocument(source.url)
+        : null;
+      sources.push({
+        ...source,
+        pdf,
+        cachedPages,
+        pageCount: source.type === 'pdf'
+          ? pdf?.numPages || cachedPageCount || 0
+          : 1,
+      });
     }
 
-    const totalPages = sources.reduce((total, source, index) =>
-      total + (source.type === 'pdf' ? (pdfs[index]?.numPages || 0) : 1), 0);
+    const totalPages = sources.reduce((total, source) => total + source.pageCount, 0);
     let maxWidth = Math.min(1400, Math.max(620, Math.floor(2200 / Math.sqrt(totalPages))));
     let quality = 0.65;
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const files: File[] = [];
-      for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex += 1) {
-        const source = sources[sourceIndex];
-        const pdf = pdfs[sourceIndex];
-        if (source.type === 'pdf' && pdf) {
-          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      for (const source of sources) {
+        if (source.type === 'pdf') {
+          for (let pageNumber = 1; pageNumber <= source.pageCount; pageNumber += 1) {
+            const cachedPage = source.cachedPages.get(pageNumber);
+            if (cachedPage) {
+              files.push(await imageToJpegFile(
+                cachedPage,
+                `${source.name}-page-${String(pageNumber).padStart(3, '0')}.jpg`,
+                maxWidth,
+                quality,
+              ));
+              continue;
+            }
+            const pdf = source.pdf;
+            if (!pdf) {
+              throw new Error(`Could not load the ${source.name} PDF page ${pageNumber}.`);
+            }
             const page = await pdf.getPage(pageNumber);
             const unscaledViewport = page.getViewport({ scale: 1 });
             const scale = Math.min(1.5, maxWidth / unscaledViewport.width);
@@ -284,21 +349,12 @@ async function renderPdfPages(
             : new URL(resolvedUrl, window.location.origin).href;
           const response = await fetch(absoluteUrl, { headers: getAssetAuthHeaders() });
           if (!response.ok) throw new Error(`Could not load the ${source.name} image (${response.status}).`);
-          const image = await createImageBitmap(await response.blob());
-          const scale = Math.min(1, maxWidth / image.width);
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.max(1, Math.floor(image.width * scale));
-          canvas.height = Math.max(1, Math.floor(image.height * scale));
-          const context = canvas.getContext('2d');
-          if (!context) throw new Error('Your browser could not prepare document images.');
-          context.fillStyle = '#fff';
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(image, 0, 0, canvas.width, canvas.height);
-          image.close();
-          const blob = await canvasToJpeg(canvas, quality);
-          canvas.width = 0;
-          canvas.height = 0;
-          files.push(blobToFile(blob, `${source.name}-page-001.jpg`));
+          files.push(await imageToJpegFile(
+            await response.blob(),
+            `${source.name}-page-001.jpg`,
+            maxWidth,
+            quality,
+          ));
         }
       }
 
@@ -310,7 +366,7 @@ async function renderPdfPages(
 
     throw new Error('These documents are too large to send together. Please use shorter PDFs or smaller image files.');
   } finally {
-    await Promise.all(pdfs.map(pdf => pdf?.destroy()));
+    await Promise.all(sources.map(source => source.pdf?.destroy()));
   }
 }
 

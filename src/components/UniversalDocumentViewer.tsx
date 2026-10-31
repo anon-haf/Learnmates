@@ -41,6 +41,7 @@ import { PdfSidebarPageThumb } from './PdfSidebarPageThumb';
 import { DrawTool, PdfDrawablePage } from './PdfDrawablePage';
 import { applyStoredAnnotation, VectorAction, VectorText } from '../utils/pdfVectorAnnotationStorage';
 import { clearPdfThumbnailCache } from '../utils/pdfThumbnail';
+import { setCachedPdfPageCount } from '../utils/pdfPageRenderCache';
 import { usePdfAnnotationHistory } from '../utils/pdfAnnotationHistory';
 import {
   loadAnnotations,
@@ -603,6 +604,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   const onDocumentLoadSuccess = (doc: PDFDocumentProxy) => {
     const total = doc.numPages;
+    setCachedPdfPageCount(pdfUrl, total);
     setPdfDoc(doc);
     setNumPages(total);
     setCurrentPage(1);

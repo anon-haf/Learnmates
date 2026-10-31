@@ -127,7 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       new Uint8Array(requestBodyBuffer).set(requestBody);
 
       failureStage = 'upstream';
-      const upstream = await fetch(`${apiBaseUrl}/ask`, {
+      const upstreamPath = isTopicalExplanation ? '/ask/topical-explanation' : '/ask';
+      const upstream = await fetch(`${apiBaseUrl}${upstreamPath}`, {
         method: 'POST',
         headers,
         body: requestBodyBuffer,

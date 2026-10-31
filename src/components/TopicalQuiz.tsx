@@ -30,7 +30,6 @@ import {
   NON_MCQ_EXPLANATION_PROMPT,
   parseTopicalExplanation,
   TOPICAL_EXPLANATION_MAX_IMAGE_BYTES,
-  TOPICAL_EXPLANATION_PROMPT_VERSION,
 } from '../utils/topicalExplanation';
 
 export interface Question {
@@ -111,6 +110,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
   const [activeExplanationTool, setActiveExplanationTool] = useState<'followup' | null>(null);
   const explanationPanelRef = useRef<HTMLDivElement>(null);
+  const preparedExplanationImagesRef = useRef<Map<string, Promise<File[]>>>(new Map());
   const { user: authUser } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole(authUser?.id);
   const canExplainTopical = Boolean(authUser && !roleLoading && userRole === 'tester');
@@ -541,7 +541,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     if (sessionError) throw new Error(`Could not check your sign-in status: ${sessionError.message}`);
     if (!session?.access_token) throw new Error('Sign in to use topical explanation tools.');
 
-    const files = await buildTopicalExplanationImages(question, markSchemeUrl);
+    const files = await getPreparedExplanationImages(question, markSchemeUrl);
     const imageBytes = files.reduce((total, file) => total + file.size, 0);
     if (imageBytes > TOPICAL_EXPLANATION_MAX_IMAGE_BYTES) {
       throw new Error('The question and mark-scheme images are too large to send. Please use shorter PDFs.');
@@ -599,6 +599,35 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     return responseObject.answer;
   };
 
+  const getPreparedExplanationImages = useCallback((
+    question: Question,
+    markSchemeUrl: string | null,
+  ): Promise<File[]> => {
+    const questionUrl = question.questionContent;
+    if (!questionUrl) return Promise.reject(new Error('The question document is missing.'));
+
+    const cacheKey = [
+      questionUrl,
+      question.questionContentType || 'pdf',
+      markSchemeUrl || '',
+      question.markSchemeType || '',
+    ].join('\n');
+    const cached = preparedExplanationImagesRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const preparation = buildTopicalExplanationImages(question, markSchemeUrl).catch((error: unknown) => {
+      preparedExplanationImagesRef.current.delete(cacheKey);
+      throw error;
+    });
+    preparedExplanationImagesRef.current.set(cacheKey, preparation);
+    while (preparedExplanationImagesRef.current.size > 2) {
+      const oldestKey = preparedExplanationImagesRef.current.keys().next().value;
+      if (oldestKey === undefined) break;
+      preparedExplanationImagesRef.current.delete(oldestKey);
+    }
+    return preparation;
+  }, []);
+
   const handleExplain = async (question: Question) => {
     if (explainingQuestionId) return;
     setExplanationError(null);
@@ -650,94 +679,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         return;
       }
 
-      for (const promptVersion of ['2026-10-24-v6', '2026-10-24-v5', '2026-10-24-v4', '2026-10-24-v3']) {
-        const legacyCacheKey = await createTopicalExplanationCacheKey(
-          questionUrl,
-          markSchemeUrl,
-          isMcq,
-          correctAnswer,
-          promptVersion,
-        );
-        const { data: legacySharedExplanation, error: legacySharedCacheError } = await supabase
-          .from('topical_explanation_public_cache')
-          .select('answer')
-          .eq('cache_key', legacyCacheKey)
-          .maybeSingle();
-        if (legacySharedCacheError) {
-          throw new Error(`Could not check older pre-explained answers: ${legacySharedCacheError.message}`);
-        }
-        if (legacySharedExplanation?.answer) {
-          setExplanation({ questionId: question.id, answer: legacySharedExplanation.answer });
-          return;
-        }
-      }
-
-      if (authUser) {
-        const { data: cachedExplanation, error: cacheReadError } = await supabase
-          .from('topical_explanations')
-          .select('answer')
-          .eq('user_id', authUser.id)
-          .eq('cache_key', cacheKey)
-          .maybeSingle();
-        if (cacheReadError) throw new Error(`Could not check saved explanations: ${cacheReadError.message}`);
-
-        if (cachedExplanation?.answer) {
-          setExplanation({ questionId: question.id, answer: cachedExplanation.answer });
-          return;
-        }
-        for (const promptVersion of ['2026-10-24-v6', '2026-10-24-v5', '2026-10-24-v4', '2026-10-24-v3']) {
-          const legacyCacheKey = await createTopicalExplanationCacheKey(
-            questionUrl,
-            markSchemeUrl,
-            isMcq,
-            correctAnswer,
-            promptVersion,
-          );
-          const { data: legacyExplanation, error: legacyReadError } = await supabase
-            .from('topical_explanations')
-            .select('answer')
-            .eq('user_id', authUser.id)
-            .eq('cache_key', legacyCacheKey)
-            .maybeSingle();
-          if (legacyReadError) throw new Error(`Could not check older saved explanations: ${legacyReadError.message}`);
-          if (legacyExplanation?.answer) {
-            setExplanation({ questionId: question.id, answer: legacyExplanation.answer });
-            return;
-          }
-        }
-      } else {
-        setExplanationError({
-          questionId: question.id,
-          message: 'This question does not have a pre-explained answer yet. Sign in to generate one.',
-        });
-        return;
-      }
-
       const prompt = isMcq
         ? MCQ_EXPLANATION_PROMPT.replace('<correct answer letter>', correctAnswer!)
         : NON_MCQ_EXPLANATION_PROMPT;
       const answer = await submitTopicalPrompt(question, markSchemeUrl, prompt, 'generate', cacheKey);
-      if (!authUser) throw new Error('Sign in to generate an explanation.');
-      const { error: cacheWriteError } = await supabase
-        .from('topical_explanations')
-        .upsert({
-          user_id: authUser.id,
-          cache_key: cacheKey,
-          question_url: questionUrl,
-          mark_scheme_url: markSchemeUrl || '',
-          is_mcq: isMcq,
-          prompt_version: TOPICAL_EXPLANATION_PROMPT_VERSION,
-          answer,
-        }, {
-          onConflict: 'user_id,cache_key',
-          ignoreDuplicates: true,
-        });
-      let saveWarning: string | undefined;
-      if (cacheWriteError) {
-        console.error('Could not save the topical explanation cache:', cacheWriteError.message);
-        saveWarning = 'This explanation could not be saved to your account.';
-      }
-      setExplanation({ questionId: question.id, answer, warning: saveWarning });
+      setExplanation({ questionId: question.id, answer });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Could not generate an explanation. Please try again.';
       setExplanationError({ questionId: question.id, message });
@@ -776,6 +722,33 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
   const validCurrentQuestion = Math.min(currentQuestion, Math.max(0, questions.length - 1));
   const currentQ = questionsWithMarkSchemes[validCurrentQuestion];
+  const currentQuestionIsMcq = currentQ && (currentQ.isMcq ?? Boolean(currentQ.mcqAnswer));
+  const currentQuestionMarkSchemeUrl = currentQ && !currentQuestionIsMcq
+    ? currentQ.markScheme || deriveMarkSchemeUrl(currentQ.questionContent)
+    : null;
+  useEffect(() => {
+    if (
+      !canExplainTopical
+      || !currentQ?.questionContent
+      || !getTopicalAiSubject(currentQ)
+      || (!currentQuestionIsMcq && !currentQuestionMarkSchemeUrl)
+    ) return;
+
+    const markSchemeUrl = currentQuestionMarkSchemeUrl || null;
+    let cancelled = false;
+    void getPreparedExplanationImages(currentQ, markSchemeUrl).catch((error: unknown) => {
+      if (!cancelled) console.warn('Could not pre-prepare topical explanation images:', error);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    canExplainTopical,
+    currentQ,
+    currentQuestionIsMcq,
+    currentQuestionMarkSchemeUrl,
+    getPreparedExplanationImages,
+  ]);
   const currentExplanation = currentQ && explanation?.questionId === currentQ.id ? explanation : null;
   const currentExplanationError = currentQ && explanationError?.questionId === currentQ.id
     ? explanationError.message
