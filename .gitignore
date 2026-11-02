@@ -54,6 +54,7 @@ supabase/migrations/*
 !supabase/migrations/20261024190000_create_topical_guest_explanation_cache.sql
 !supabase/migrations/20261024210000_create_shared_topical_explanations_and_user_quota.sql
 !supabase/migrations/20261026140000_add_user_to_topical_public_cache.sql
+!supabase/migrations/20261102173000_use_topical_explanations_as_shared_cache.sql
 # Optionally exclude documents folder if it's also too large:
 # public/documents/**/*.pdf
 # public/documents/**/*.png

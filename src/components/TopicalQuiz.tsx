@@ -667,7 +667,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     try {
       const cacheKey = await createTopicalExplanationCacheKey(questionUrl, markSchemeUrl, isMcq, correctAnswer);
       const { data: sharedExplanation, error: sharedCacheError } = await supabase
-        .from('topical_explanation_public_cache')
+        .from('topical_explanations')
         .select('answer')
         .eq('cache_key', cacheKey)
         .maybeSingle();

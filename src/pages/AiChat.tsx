@@ -979,7 +979,11 @@ const AiChat: React.FC = () => {
       if (response.status === 502) {
         throw new Error(detail || 'The tutor is temporarily unavailable. Please try again.');
       }
-      throw new Error(detail || 'The tutor request failed. Please try again.');
+      console.error('AI tutor request returned an unexpected HTTP response.', {
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+      });
+      throw new Error(detail || `The tutor request failed (HTTP ${response.status}). Please try again.`);
     }
 
     if (!responseObject || typeof responseObject.answer !== 'string') {
