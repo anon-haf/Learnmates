@@ -29,6 +29,8 @@ import { Button } from '@/components/ui';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import NibrasAnimatedMark from '../components/NibrasAnimatedMark';
+import NibrasUsageIndicator from '../components/NibrasUsageIndicator';
+import { useNibrasUsage } from '../hooks/useNibrasUsage';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import './AiChat.css';
@@ -523,6 +525,7 @@ const AiChat: React.FC = () => {
   const [selectedBoard, setSelectedBoard] = useState<'cambridge' | 'edexcel'>('cambridge');
   const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { user: authUser, loading: authLoading } = useAuth();
+  const nibrasUsage = useNibrasUsage(Boolean(authUser));
   const [consentStatus, setConsentStatus] = useState<'loading' | 'required' | 'accepted' | 'error'>('loading');
   const [consentUserId, setConsentUserId] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
@@ -936,6 +939,7 @@ const AiChat: React.FC = () => {
         headers: { Authorization: `Bearer ${session.access_token}` },
         signal: controller.signal,
       });
+      void nibrasUsage.refresh();
       responseText = await response.text();
     } catch (error: unknown) {
       if (error instanceof Error && /Please sign in again/.test(error.message)) throw error;
@@ -2026,6 +2030,14 @@ const AiChat: React.FC = () => {
             )}
           </div>
           <div className="max-w-4xl mx-auto mt-1.5 text-center">
+            {authUser && (
+              <NibrasUsageIndicator
+                usage={nibrasUsage.usage}
+                loading={nibrasUsage.loading}
+                error={nibrasUsage.error}
+                onRetry={() => void nibrasUsage.refresh()}
+              />
+            )}
             <p className="text-[10px] text-gray-400 dark:text-gray-500">
               AI Tutor can make mistakes. Check important information.
             </p>

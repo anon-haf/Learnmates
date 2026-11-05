@@ -14,8 +14,10 @@ import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { ShortcutKey } from './ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import NibrasAnimatedMark from './NibrasAnimatedMark';
+import NibrasUsageIndicator from './NibrasUsageIndicator';
 import { PeriodicTablePopup } from './PeriodicTablePopup';
 import { useAuth } from '../context/AuthContext';
+import { useNibrasUsage } from '../hooks/useNibrasUsage';
 import NibrasIcon from '../assets/logos/nibras.svg?react';
 import { supabase } from '../lib/supabaseClient';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -118,6 +120,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const preparedExplanationImagesRef = useRef<Map<string, Promise<File[]>>>(new Map());
   const { user: authUser } = useAuth();
   const canExplainTopical = Boolean(authUser);
+  const nibrasUsage = useNibrasUsage(canExplainTopical);
 
   const handleDownloadMergedPDFs = async (
     quiz: MultiQuiz,
@@ -584,6 +587,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       window.clearTimeout(timeoutId);
     }
 
+    void nibrasUsage.refresh();
     const responseText = await response.text();
     let responsePayload: unknown = null;
     try {
@@ -809,6 +813,15 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
           createPortal(renderExplainButton(), explainButtonTarget)}
 
         <div ref={explanationPanelRef} className="scroll-mt-6">
+          {canExplainTopical && (
+            <NibrasUsageIndicator
+              usage={nibrasUsage.usage}
+              loading={nibrasUsage.loading}
+              error={nibrasUsage.error}
+              onRetry={() => void nibrasUsage.refresh()}
+              compact
+            />
+          )}
           {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
             <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
               <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
@@ -1484,6 +1497,15 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
           )}
           <div ref={explanationPanelRef} className="scroll-mt-6">
+            {canExplainTopical && (
+              <NibrasUsageIndicator
+                usage={nibrasUsage.usage}
+                loading={nibrasUsage.loading}
+                error={nibrasUsage.error}
+                onRetry={() => void nibrasUsage.refresh()}
+                compact
+              />
+            )}
             {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
               <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-4 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-200">
                 <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />

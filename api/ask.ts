@@ -59,8 +59,39 @@ function isTopicalExplanationRequest(req: VercelRequest): boolean {
  * Buffers the multipart request before forwarding it to the RAG API.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      const auth = await authenticateAiChatRequest(req);
+      if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
+      if (!auth.user || !auth.supabase) {
+        return res.status(401).json({ detail: 'Please sign in to view your AI usage.' });
+      }
+
+      if (auth.role === 'tester') {
+        return res.status(200).json({ exempt: true });
+      }
+
+      const usageDate = new Date().toISOString().slice(0, 10);
+      const { data: usage, error: usageError } = await auth.supabase
+        .from('nibras_daily_usage')
+        .select('usage_count')
+        .eq('user_id', auth.user.id)
+        .eq('usage_date', usageDate)
+        .maybeSingle();
+      if (usageError) throw usageError;
+
+      const limit = 7;
+      const used = usage?.usage_count ?? 0;
+      return res.status(200).json({ exempt: false, used, limit, remaining: Math.max(0, limit - used) });
+    } catch (err: unknown) {
+      console.error('Could not load Nibras usage:', err);
+      return res.status(500).json({ detail: 'Could not load your AI usage. Please try again.' });
+    }
+  }
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ detail: 'Method not allowed' });
   }
 
@@ -135,7 +166,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           detail: `You have reached your daily Nibras limit of ${limitValue} requests. Your allowance resets at midnight UTC.`,
         });
       }
-      if (typeof reservationRow.usage_date === 'string') reservedUsageDate = reservationRow.usage_date;
+      if (typeof reservationRow.reservation_date === 'string') {
+        reservedUsageDate = reservationRow.reservation_date;
+      }
     }
 
     const controller = new AbortController();
