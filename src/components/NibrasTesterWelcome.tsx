@@ -59,11 +59,11 @@ export default function NibrasTesterWelcome() {
   const firstActionRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
 
-  const isTester = Boolean(user && !loading && role === 'tester');
+  const isVisible = Boolean(user && !loading);
   const preferenceKey = user ? `${PREFERENCE_KEY_PREFIX}${user.id}` : '';
 
   useEffect(() => {
-    if (!isTester || !user) {
+    if (!isVisible || !user) {
       setIsOpen(false);
       return;
     }
@@ -81,7 +81,7 @@ export default function NibrasTesterWelcome() {
     if (preference.dismissed) return;
     if (preference.snoozedUntil && preference.snoozedUntil > Date.now()) return;
     setIsOpen(true);
-  }, [isTester, location.search, preferenceKey, user]);
+  }, [isVisible, location.search, preferenceKey, user]);
 
   const snooze = useCallback(() => {
     if (!preferenceKey) return;
@@ -152,7 +152,7 @@ export default function NibrasTesterWelcome() {
 
   return (
     <AnimatePresence>
-      {isOpen && isTester && (
+      {isOpen && isVisible && (
         <motion.div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-6"
           initial={{ opacity: 0 }}

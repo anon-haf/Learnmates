@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { btnSecondary, dropdownPanel, dropdownItem } from './ui';
 import TopicalCheckbox from './Checkbox';
 
@@ -125,12 +126,9 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (
-        ref.current &&
-        !ref.current.contains(target) &&
-        advancedRef.current &&
-        !advancedRef.current.contains(target)
-      ) {
+      const insideTrigger = ref.current?.contains(target) ?? false;
+      const insideAdvanced = advancedRef.current?.contains(target) ?? false;
+      if (!insideTrigger && !insideAdvanced) {
         setOpen(false);
         setAdvancedOpen(false);
         setDefaultInfoOpen(false);
@@ -200,8 +198,9 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
   return (
     <div className="relative" ref={ref}>
       {/* Export trigger button */}
-      <button
+      <motion.button
         onClick={() => setOpen(prev => !prev)}
+        whileTap={{ scale: 0.95 }}
         className={`${btnSecondary} relative`}
         title="Export topical questions or mark schemes"
       >
@@ -218,11 +217,18 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
         <svg className="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </motion.button>
 
       {/* Main Export dropdown */}
+      <AnimatePresence>
       {open && (
-        <div className={`${dropdownPanel} right-0 w-72 sm:w-80 p-2 shadow-2xl`}>
+        <motion.div
+          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className={`${dropdownPanel} right-0 w-72 sm:w-80 p-2 shadow-2xl`}
+        >
           {/* Quick export actions */}
           <div className="space-y-1">
             <button
@@ -370,14 +376,20 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Advanced Settings Menu (Attached Popover Menu on desktop, modal on mobile) */}
+      <AnimatePresence>
       {open && advancedOpen && !isDefaultActive && (
-        <div
+        <motion.div
           ref={advancedRef}
-          className="fixed inset-x-4 top-24 max-h-[85vh] overflow-y-auto sm:static sm:absolute sm:inset-auto sm:right-full sm:mr-2 sm:top-0 w-auto sm:w-80 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3.5 shadow-2xl z-50 animate-in fade-in slide-in-from-right-2 duration-150"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -8 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="fixed inset-x-4 top-24 max-h-[85vh] overflow-y-auto sm:static sm:absolute sm:inset-auto sm:right-full sm:mr-2 sm:top-0 w-auto sm:w-80 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3.5 shadow-2xl z-50"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700/80 mb-2.5">
@@ -676,8 +688,9 @@ const ExportMenu: React.FC<ExportMenuProps> = ({
               Done
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen,
   Calendar,
@@ -1124,9 +1124,10 @@ const ProfilePage = () => {
                   You can also toggle annotation mode in document viewers.
                 </p>
               </div>
-              <button
+              <motion.button
                 type="button"
                 aria-expanded={showShortcutSettings}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setShortcutDraft(shortcutPreferences);
                   setShortcutError(null);
@@ -1137,9 +1138,18 @@ const ProfilePage = () => {
               >
                 <Keyboard className="h-4 w-4" />
                 Shortcut
-              </button>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showShortcutSettings ? 'rotate-180' : ''}`} />
+              </motion.button>
             </div>
+            <AnimatePresence>
             {showShortcutSettings && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
               <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
                 <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
                   Replace a shortcut by pressing its button, then pressing an A-Z key with optional Ctrl or Shift. Your shortcuts are saved on this device.
@@ -1210,7 +1220,9 @@ const ProfilePage = () => {
                   </p>
                 )}
               </div>
+              </motion.div>
             )}
+            </AnimatePresence>
             <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700">
               <div className="flex-1 min-w-0 pr-4">
                 <p className="font-medium text-gray-900 dark:text-white">

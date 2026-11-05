@@ -86,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : await authenticateAiChatRequest(req);
     if (auth.error) return res.status(auth.error.status).json({ detail: auth.error.detail });
     if (isTopicalExplanation && (!auth.user || !auth.supabase)) {
-      return res.status(401).json({ detail: 'Sign in with a tester account to use topical AI explanations.' });
+      return res.status(401).json({ detail: 'Sign in to use topical AI explanations.' });
     }
 
     failureStage = 'proxy';
@@ -94,13 +94,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.info('Ask proxy received request body', { bytes: requestBody.length });
 
     let topicalCacheKey: string | null = null;
-    let topicalAction: 'generate' | 'followup' | 'check' | null = null;
+    let topicalQuestionUrl: string | null = null;
+    let topicalAction: 'generate' | 'followup' | null = null;
     if (isTopicalExplanation) {
       if (!auth.user || !auth.supabase) {
-        return res.status(401).json({ detail: 'Sign in with a tester account to use topical AI explanations.' });
+        return res.status(401).json({ detail: 'Sign in to use topical AI explanations.' });
       }
       const requestedAction = req.headers['x-learnmates-topical-action'];
-      if (requestedAction !== 'generate' && requestedAction !== 'followup' && requestedAction !== 'check') {
+      if (requestedAction !== 'generate' && requestedAction !== 'followup') {
         return res.status(400).json({ detail: 'A valid topical explanation action is required.' });
       }
       topicalAction = requestedAction;
@@ -109,12 +110,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (typeof suppliedCacheKey !== 'string' || !/^[0-9a-f]{64}$/.test(suppliedCacheKey)) {
           return res.status(400).json({ detail: 'A valid topical explanation cache key is required.' });
         }
+        const suppliedQuestionUrl = req.headers['x-learnmates-topical-question-url'];
+        if (typeof suppliedQuestionUrl !== 'string' || !suppliedQuestionUrl.trim() || suppliedQuestionUrl.length > 2048) {
+          return res.status(400).json({ detail: 'A valid topical explanation question URL is required.' });
+        }
         topicalCacheKey = suppliedCacheKey;
+        topicalQuestionUrl = suppliedQuestionUrl;
       }
+    }
+
+    // Reserve one unit from the shared daily quota before doing any work. Testers are
+    // exempt, and cached explanations never reach this handler so they are never counted.
+    let reservedUsageDate: string | null = null;
+    if (auth.user && auth.supabase && auth.role !== 'tester') {
+      const { data: reservation, error: reserveError } = await auth.supabase.rpc('reserve_nibras_usage', {
+        p_user_id: auth.user.id,
+      });
+      if (reserveError) throw reserveError;
+
+      const reservationRow = Array.isArray(reservation) ? reservation[0] : reservation;
+      if (!reservationRow || reservationRow.allowed !== true) {
+        const limitValue = reservationRow?.limit_value ?? 7;
+        return res.status(429).json({
+          detail: `You have reached your daily Nibras limit of ${limitValue} requests. Your allowance resets at midnight UTC.`,
+        });
+      }
+      if (typeof reservationRow.usage_date === 'string') reservedUsageDate = reservationRow.usage_date;
     }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    let reservationConsumed = false;
     try {
       const visitorIp = getVisitorIp(req);
       const headers: Record<string, string> = {
@@ -154,12 +180,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (upstream.ok && !responseAnswer) {
         return res.status(502).json({ detail: 'The tutor returned an unexpected response. Please try again.' });
       }
-      if (upstream.ok && topicalAction === 'generate' && topicalCacheKey && responseAnswer) {
+      if (upstream.ok) reservationConsumed = true;
+      if (upstream.ok && topicalAction === 'generate' && topicalCacheKey && topicalQuestionUrl && responseAnswer && auth.supabase && auth.user) {
         try {
           const { error: cacheError } = await auth.supabase
             .from('topical_explanations')
             .upsert(
-              { cache_key: topicalCacheKey, answer: responseAnswer, user_id: auth.user.id },
+              {
+                cache_key: topicalCacheKey,
+                question_url: topicalQuestionUrl,
+                answer: responseAnswer,
+                user_id: auth.user.id,
+              },
               { onConflict: 'cache_key', ignoreDuplicates: true },
             );
           if (cacheError) {
@@ -173,6 +205,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(upstream.status).send(body);
     } finally {
       clearTimeout(timeoutId);
+      // Refund the reservation if the request never produced a usable answer, so a
+      // failed attempt does not consume part of the daily allowance.
+      if (reservedUsageDate && !reservationConsumed && auth.user && auth.supabase) {
+        const { error: releaseError } = await auth.supabase.rpc('release_nibras_usage', {
+          p_user_id: auth.user.id,
+          p_usage_date: reservedUsageDate,
+        });
+        if (releaseError) {
+          console.error('Could not refund the unused Nibras quota reservation:', releaseError.message);
+        }
+      }
     }
   } catch (err: unknown) {
     if (err instanceof RequestBodyTooLargeError) {

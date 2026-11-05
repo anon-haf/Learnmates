@@ -23,7 +23,6 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useUserRole } from '../hooks/useUserRole';
 import { fetchProfile } from '../utils/profileSync';
 import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui';
@@ -524,13 +523,13 @@ const AiChat: React.FC = () => {
   const [selectedBoard, setSelectedBoard] = useState<'cambridge' | 'edexcel'>('cambridge');
   const loadingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { user: authUser, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading } = useUserRole(authUser?.id);
   const [consentStatus, setConsentStatus] = useState<'loading' | 'required' | 'accepted' | 'error'>('loading');
   const [consentUserId, setConsentUserId] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
   const [consentSaving, setConsentSaving] = useState(false);
   const [consentRetry, setConsentRetry] = useState(0);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [consentStep, setConsentStep] = useState<1 | 2>(1);
   const location = useLocation();
   const navigate = useNavigate();
   const { chatId } = useParams<{ chatId?: string }>();
@@ -563,7 +562,7 @@ const AiChat: React.FC = () => {
   }, [authUser]);
 
   useEffect(() => {
-    if (!authUser || roleLoading || role !== 'tester') return;
+    if (!authUser) return;
 
     let isMounted = true;
     setConsentStatus('loading');
@@ -619,7 +618,7 @@ const AiChat: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [authUser, role, roleLoading, consentRetry]);
+  }, [authUser, consentRetry]);
 
   const acceptNibrasDisclosure = async () => {
     if (!authUser || consentSaving) return;
@@ -974,7 +973,7 @@ const AiChat: React.FC = () => {
         throw new Error(detail ? `The request could not be validated: ${detail}` : 'The request could not be validated. Please check your question and attachments.');
       }
       if (response.status === 429) {
-        throw new Error('The tutor is receiving too many requests. Please wait a moment and try again.');
+        throw new Error(detail || 'The tutor is receiving too many requests. Please wait a moment and try again.');
       }
       if (response.status === 502) {
         throw new Error(detail || 'The tutor is temporarily unavailable. Please try again.');
@@ -1257,8 +1256,8 @@ const AiChat: React.FC = () => {
   const activeSectionChats = sessions.filter(s => s.subject === activeSubjectValue);
 
   /* ─── Render ─────────────────────────────────────────── */
-  const isAccessLoading = authLoading || (!!authUser && roleLoading) ||
-    (role === 'tester' && (consentStatus === 'loading' || consentUserId !== authUser?.id));
+  const isAccessLoading = authLoading ||
+    (!!authUser && (consentStatus === 'loading' || consentUserId !== authUser?.id));
 
   if (isAccessLoading) {
     return (
@@ -1297,54 +1296,9 @@ const AiChat: React.FC = () => {
     );
   }
 
-  if (role !== 'tester') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <div className="max-w-md w-full p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 text-center">
-          <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-2xl flex items-center justify-center mb-6">
-            <Sparkles size={32} />
-          </div>
-          <h2 className="text-2xl font-bold mb-3">Early Access Only</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
-            The AI Tutor is currently in beta and is only available to registered testers. You can get early access if you contact us via{' '}
-            <a
-              href="https://discord.gg/qCQTxTQkRh"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-            >
-              Discord
-            </a>{' '}
-            or{' '}
-            <a
-              href="mailto:learnmates.share@gmail.com"
-              className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
-            >
-              email
-            </a>
-            .
-          </p>
-          <Link to="/">
-            <Button className="w-full h-12 text-base font-semibold bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white shadow-md">
-              Return Home
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   if (consentStatus !== 'accepted') {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
-        <Helmet>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link
-            href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap"
-            rel="stylesheet"
-          />
-        </Helmet>
         <section
           role="dialog"
           aria-modal="true"
@@ -1358,49 +1312,104 @@ const AiChat: React.FC = () => {
               <span>Nibras · AI tutor</span>
             </div>
             <h1 id="nibras-disclosure-title" className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              Please read before continuing
+              {consentStep === 1 ? 'A message from HAF' : 'Please read before continuing'}
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              A short message from HAF, the creator of Nibras.
+              {consentStep === 1 ? 'The creator of Nibras' : 'Nibras Disclosure & Agreement'}
             </p>
           </div>
-          <div id="nibras-disclosure-copy" className="nibras-consent-copy space-y-3 text-base leading-relaxed text-slate-700 dark:text-slate-200 sm:text-lg">
-            <p>
-              Hi there! I&apos;m HAF, the creator of Nibras, the AI tutor here on Learnmates. First, thanks for using Learnmates, and I hope it&apos;s been a good experience so far.
-            </p>
-            <p>
-              Quick word on Nibras: it&apos;s built on past papers, mark schemes, and the syllabus/specification, so it stays within the curriculum and knows what examiners are actually looking for. That said, Nibras is still an AI, and like any AI it can get things wrong. If something doesn&apos;t make sense, we advise double-checking it yourself, and please report any issues to us. We&apos;d genuinely rather hear about it.
-            </p>
-            <p>
-              One more thing, because we think you should know: your chats are stored on our database and may be used to improve Nibras. When we review them, we look at the chat linked to an ID rather than your username, though that ID is linked to your account. Your chats are never shared or sold, and you can delete them anytime.
-            </p>
-            <p>
-              Thanks for trusting us with your studying. If you&apos;re happy with all this, just hit the button below to agree and carry on.
-            </p>
+
+          <div id="nibras-disclosure-copy" className="nibras-consent-copy space-y-6 text-base leading-relaxed text-slate-700 dark:text-slate-200 sm:text-lg">
+            {consentStep === 1 ? (
+              <>
+                <div className="bg-blue-50/50 dark:bg-blue-900/20 p-5 rounded-2xl border border-blue-100 dark:border-blue-800/50">
+                  <p className="font-medium text-slate-900 dark:text-white mb-2">Message from HAF:</p>
+                  <p>
+                    Hi there! I&apos;m HAF, the creator of Nibras. Thanks for using Learnmates, and I hope it&apos;s been a good experience so far. I built Nibras to be the ultimate study companion for exam preparation.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                    <div>
+                      <p className="font-semibold text-slate-900 dark:text-white">Curriculum Aligned</p>
+                      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                        Nibras is built on past papers, mark schemes, and official specifications. It knows exactly what examiners are looking for.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                    <div>
+                      <p className="font-semibold text-slate-900 dark:text-white">Best Use Cases</p>
+                      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                        It performs best at specific exam tasks: explaining questions, checking your reasoning, or providing MS-aligned answers.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                    <div>
+                      <p className="font-semibold text-slate-900 dark:text-white">Limitations</p>
+                      <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
+                        While powerful, it may be less effective for generating general subject notes. Use it as a tutor, not a textbook.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  That said, Nibras is still an AI, and like any AI it can get things wrong. If something doesn&apos;t make sense, we advise double-checking it yourself, and please report any issues to us. We&apos;d genuinely rather hear about it.
+                </p>
+                <p>
+                  One more thing, because we think you should know: your chats are stored on our database and may be used to improve Nibras. When we review them, we look at the chat linked to an ID rather than your username, though that ID is linked to your account. Your chats are never shared or sold, and you can delete them anytime.
+                </p>
+                <p>
+                  Thanks for trusting us with your studying. If you&apos;re happy with all this, just hit the button below to agree and carry on.
+                </p>
+              </>
+            )}
           </div>
+
+          {consentStep === 2 && (
+            <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={event => setConsentChecked(event.target.checked)}
+                disabled={consentStatus !== 'required' || consentSaving}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-blue-600"
+              />
+              <span>I have read and agree to the Nibras disclosure above.</span>
+            </label>
+          )}
+
           {consentError && (
             <p role="alert" className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
               {consentError}
             </p>
           )}
-          <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white/70 p-4 text-sm leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
-            <input
-              type="checkbox"
-              checked={consentChecked}
-              onChange={event => setConsentChecked(event.target.checked)}
-              disabled={consentStatus !== 'required' || consentSaving}
-              className="mt-0.5 h-5 w-5 shrink-0 accent-blue-600"
-            />
-            <span>I have read and agree to the Nibras disclosure above.</span>
-          </label>
+
           <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 dark:border-slate-700 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button type="button" variant="outline" asChild>
-                <Link to="/dashboard">
+              {consentStep === 1 ? (
+                <Button type="button" variant="outline" asChild>
+                  <Link to="/dashboard">
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to dashboard
+                  </Link>
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => setConsentStep(1)}>
                   <ArrowLeft className="h-4 w-4" />
-                  Back to dashboard
-                </Link>
-              </Button>
+                  Previous
+                </Button>
+              )}
               {consentStatus === 'error' && (
                 <Button
                   type="button"
@@ -1411,14 +1420,25 @@ const AiChat: React.FC = () => {
                 </Button>
               )}
             </div>
-            <Button
-              type="button"
-              onClick={acceptNibrasDisclosure}
-              disabled={consentStatus !== 'required' || consentSaving || !consentChecked}
-              className="min-h-12 px-6 text-base font-semibold"
-            >
-              {consentSaving ? 'Saving…' : 'I agree and continue'}
-            </Button>
+            {consentStep === 1 ? (
+              <Button
+                type="button"
+                onClick={() => setConsentStep(2)}
+                className="min-h-12 px-6 text-base font-semibold"
+              >
+                Next
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={acceptNibrasDisclosure}
+                disabled={consentStatus !== 'required' || consentSaving || !consentChecked}
+                className="min-h-12 px-6 text-base font-semibold"
+              >
+                {consentSaving ? 'Saving…' : 'I agree and continue'}
+              </Button>
+            )}
           </div>
         </section>
       </div>
@@ -1426,7 +1446,7 @@ const AiChat: React.FC = () => {
   }
 
   return (
-    <div className={`flex h-[calc(100dvh-5rem)] lg:h-[calc(100vh-5rem)] text-gray-900 dark:text-gray-100 overflow-hidden bg-slate-50 dark:bg-gray-950 relative theme-${activeSubject.theme}`}>
+    <div className={`flex h-[calc(100dvh-5rem)] lg:h-[calc(100vh-5rem)] text-gray-900 dark:text-gray-100 overflow-hidden bg-slate-50 dark:bg-black relative theme-${activeSubject.theme}`}>
       <Helmet>
         <title>AI Tutor | Learnmates</title>
         <meta name="description" content="Ask your IGCSE and A-Level science questions and get instant, curriculum-aligned answers with Learnmates AI Tutor." />

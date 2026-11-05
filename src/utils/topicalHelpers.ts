@@ -232,18 +232,21 @@ export const shuffleArray = <T>(array: T[]): T[] => {
 export const makeKey = (level: string, board: string, subject: string, unit: string, name: string) =>
   `${level}||${board}||${subject}||${unit}||${name}`;
 
-// Collapses a sorted list of numbers into compact ranges, e.g.
+// Collapses a list of numbers into compact ranges, e.g.
 // [2020, 2022, 2023, 2024, 2025] => "2020, 2022-2025". If the joined result is
 // longer than maxLength it is cut at the last whole range and given a trailing
 // ellipsis.
-export const formatRangeSummary = (values: number[], maxLength = 25): string => {
+export const formatRangeSummary = (values: number[], maxLength = 45): string => {
   if (values.length === 0) return '';
 
+  // Ensure values are sorted ascending for range detection
+  const sorted = [...values].sort((a, b) => a - b);
+
   const parts: string[] = [];
-  let start = values[0];
-  let prev = values[0];
-  for (let i = 1; i <= values.length; i++) {
-    const curr = values[i];
+  let start = sorted[0];
+  let prev = sorted[0];
+  for (let i = 1; i <= sorted.length; i++) {
+    const curr = sorted[i];
     if (curr === prev + 1) {
       prev = curr;
       continue;
@@ -253,14 +256,20 @@ export const formatRangeSummary = (values: number[], maxLength = 25): string => 
     prev = curr;
   }
 
+  // Reverse parts to show newest ranges first if that's the preference, 
+  // but usually ranges are shown ascending. Let's keep ascending for clarity
+  // but if we want newest first we'd reverse parts.
+  // The user's example '2023-2025, 2017-2020' is descending order of ranges.
+  parts.reverse();
+
   const joined = parts.join(', ');
   if (joined.length <= maxLength) return joined;
 
   let truncated = '';
   for (const part of parts) {
-    const candidate = truncated ? `${truncated}, ${part}` : part;
-    if (candidate.length > maxLength - 1) break;
-    truncated = candidate;
+    const separator = truncated ? ', ' : '';
+    if ((truncated + separator + part).length > maxLength - 1) break;
+    truncated += separator + part;
   }
   return truncated ? `${truncated}…` : `${joined.slice(0, maxLength - 1)}…`;
 };

@@ -4,6 +4,7 @@ import { Question } from '../components/TopicalQuiz';
 import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from './awardDownloadXP';
 import { topicalConfigs } from '../pages/topicalpagesdata';
+import { embedVisiblePage } from './pdfContentCrop';
 
 export type ExportType = 'questions' | 'markschemes';
 
@@ -280,72 +281,6 @@ const formatTopicHeaderText = (topicMatches: string[] = []): string => {
     .filter((value, index, array) => array.indexOf(value) === index);
 
   return topicCodes.join(', ');
-};
-
-// ---------------------------------------------------------------------------
-// CropBox-aware page embedding
-//
-// Some source files are "soft cropped" with PyMuPDF (fitz): only /CropBox is
-// set, the content outside it is never removed. pdf-lib's default embedding
-// (and getSize()) only looks at /MediaBox, so merging such a page shows the
-// hidden content and shifts the layout. This helper embeds only the visible
-// /CropBox region, baking in any page rotation so the result matches what a
-// viewer actually shows.
-// ---------------------------------------------------------------------------
-
-interface VisiblePage {
-  embedded: PDFEmbeddedPage;
-  width: number;
-  height: number;
-}
-
-const embedVisiblePage = async (
-  targetDoc: PDFDocument,
-  page: PDFPage
-): Promise<VisiblePage> => {
-  const cropBox = page.getCropBox();
-  const left = cropBox.x;
-  const bottom = cropBox.y;
-  const cropWidth = cropBox.width;
-  const cropHeight = cropBox.height;
-
-  // Map the crop region onto (0,0)-(cropWidth,cropHeight) of the target page,
-  // applying the page's own rotation (viewers rotate /Rotate pages clockwise,
-  // and that rotation must be baked into the form XObject matrix).
-  let width = cropWidth;
-  let height = cropHeight;
-  let matrix: [number, number, number, number, number, number];
-
-  switch (((page.getRotation().angle % 360) + 360) % 360) {
-    case 90:
-      matrix = [0, -1, 1, 0, -bottom, left + cropWidth];
-      width = cropHeight;
-      height = cropWidth;
-      break;
-    case 180:
-      matrix = [-1, 0, 0, -1, left + cropWidth, bottom + cropHeight];
-      break;
-    case 270:
-      matrix = [0, 1, -1, 0, bottom + cropHeight, -left];
-      width = cropHeight;
-      height = cropWidth;
-      break;
-    default:
-      matrix = [1, 0, 0, 1, -left, -bottom];
-  }
-
-  // The bounding box is expressed in the content's own (page) coordinate
-  // space and is also used as the clip region when the form XObject is
-  // rendered, so it must be the crop box as stored in the file (with its
-  // real x/y origin), not a zero-based box — otherwise the content inside
-  // the crop region is clipped away.
-  const embedded = await targetDoc.embedPage(
-    page,
-    { left, bottom, right: left + cropWidth, top: bottom + cropHeight },
-    matrix
-  );
-
-  return { embedded, width, height };
 };
 
 // Add a source page to the merged document showing only what is actually
@@ -797,6 +732,53 @@ export const mergeTopicalPDFs = async (
   const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
   const regularFont = await mergedPdf.embedFont(StandardFonts.Helvetica);
 
+  // IGCSE Chemistry question papers get the periodic table appended at the very
+  // end (as-is, original size/orientation) so students always have it on hand.
+  const isIgcseChemistry =
+    levelBoardSubject.level.toLowerCase() === 'igcse' &&
+    levelBoardSubject.subject.toLowerCase() === 'chemistry';
+
+  const appendPeriodicTable = async () => {
+    if (type !== 'questions' || !isIgcseChemistry) return;
+    try {
+      const periodicTableUrl = new URL('/documents/Periodic table.pdf', window.location.origin).href;
+      const buffer = await fetchFileAsArrayBuffer(periodicTableUrl);
+      if (!buffer) {
+        console.warn('Periodic table PDF could not be fetched for export');
+        return;
+      }
+      const sourcePdf = await PDFDocument.load(buffer);
+      const copiedPages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
+      
+      const A4_WIDTH = 595.28;
+      const A4_HEIGHT = 841.89;
+
+      for (const page of copiedPages) {
+        const { width, height } = page.getSize();
+        
+        // Always create a fresh A4 page and embed the periodic table content to ensure
+        // it fits the A4 sheet perfectly (scaled and centered).
+        const newPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+        const embeddedPage = await mergedPdf.embedPage(page);
+        
+        const scale = Math.min(A4_WIDTH / width, A4_HEIGHT / height);
+        const drawWidth = width * scale;
+        const drawHeight = height * scale;
+        const xOffset = (A4_WIDTH - drawWidth) / 2;
+        const yOffset = (A4_HEIGHT - drawHeight) / 2;
+        
+        newPage.drawPage(embeddedPage, {
+          x: xOffset,
+          y: yOffset,
+          width: drawWidth,
+          height: drawHeight,
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to append periodic table to export:', error);
+    }
+  };
+
   try {
     await createCoverPage(mergedPdf, type, selectedTopics, levelBoardSubject, boldFont, regularFont, filters, questions.length);
   } catch (error) {
@@ -1074,6 +1056,7 @@ export const mergeTopicalPDFs = async (
         }
       }
     }
+    await appendPeriodicTable();
     const pdfBytes = await mergedPdf.save();
     return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
   }
@@ -1289,6 +1272,7 @@ export const mergeTopicalPDFs = async (
     }
   }
 
+  await appendPeriodicTable();
   const pdfBytes = await mergedPdf.save();
   return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
 };

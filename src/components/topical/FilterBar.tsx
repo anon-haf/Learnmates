@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { btnPrimary, btnToggleBase, btnToggleActive, btnToggleInactive } from './ui';
 import Dropdown from './Dropdown';
 import { Filter } from 'lucide-react';
@@ -65,7 +66,7 @@ const McqTheoryToggle: React.FC<{
   ];
 
   return (
-    <div className="inline-flex" role="group" aria-label="Filter by MCQ or theory">
+    <div className="inline-flex gap-2" role="group" aria-label="Filter by MCQ or theory">
       {options.map(opt => (
         <button
           key={opt.key}
@@ -137,8 +138,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const hasAdvancedFilters = Boolean(onToggleMonth || onToggleVariant);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-4">
       <button className={btnPrimary} onClick={onLoad}>
           Load matching questions
         </button>
@@ -153,7 +154,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           options={availablePaperNumbers.map(n => ({ value: n, label: `P${n}` }))}
           selected={paperFilter}
           onToggle={n => onTogglePaper(Number(n))}
-          className="max-w-[220px]"
+          className="max-w-[280px] shrink-0"
           title="Filter matches by paper"
         />
       ) : showMcqTheoryFilter ? (
@@ -169,7 +170,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
         options={availableYears.map(year => ({ value: year, label: String(year) }))}
         selected={yearFilter}
         onToggle={year => onToggleYear(Number(year))}
-        className="max-w-[220px]"
+        className="max-w-[350px] shrink-0"
         disabled={availableYears.length === 0}
         title={
           yearFilter.size > 0
@@ -194,7 +195,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           ]}
           selectedValue={orderFilter || 'newest'}
           onSelect={value => onOrderFilterChange(value as 'newest' | 'oldest' | 'random')}
-          className="min-w-[140px]"
+          className="min-w-[140px] shrink-0"
           title="Order of matching questions"
         />
       )}
@@ -204,7 +205,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           type="number"
           min="1"
           placeholder="Max questions"
-          className="h-9 w-32 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder:text-gray-400 transition-colors hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
+          className="h-9 w-32 shrink-0 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 placeholder:text-gray-400 transition-colors hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-500 dark:hover:border-gray-600"
           value={limitFilter}
           onChange={(e) => {
             const val = e.target.value;
@@ -224,20 +225,31 @@ const FilterBar: React.FC<FilterBarProps> = ({
       )}
 
       {hasAdvancedFilters && (
-        <button
+        <motion.button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
+          whileTap={{ scale: 0.95 }}
           className={`${btnToggleBase} ${showAdvanced ? btnToggleActive : btnToggleInactive} rounded-lg flex items-center gap-1.5`}
           title="Toggle advanced filters"
         >
           <Filter className="w-4 h-4" />
           Advanced
-        </button>
+          <svg className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </motion.button>
       )}
       </div>
 
+      <AnimatePresence>
       {showAdvanced && hasAdvancedFilters && (
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200 dark:border-gray-700 overflow-hidden"
+        >
           {!hasSelectedTopics ? (
             <div className="text-sm text-gray-500 dark:text-gray-400 italic">
               Please choose a topic first to see available months and variants.
@@ -254,7 +266,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   options={availableMonths.map(m => ({ value: m, label: m }))}
                   selected={monthFilter || new Set()}
                   onToggle={m => onToggleMonth(m as string)}
-                  className="max-w-[220px]"
+                  className="max-w-[280px] shrink-0"
                   title={
                     (monthFilter && monthFilter.size > 0)
                       ? `Filter matches by month (${availableMonths.filter(m => monthFilter.has(m)).join(', ')})`
@@ -273,7 +285,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   options={availableVariants.map(v => ({ value: v, label: `Variant ${v}` }))}
                   selected={variantFilter || new Set()}
                   onToggle={v => onToggleVariant(Number(v))}
-                  className="max-w-[220px]"
+                  className="max-w-[280px] shrink-0"
                   title={
                     (variantFilter && variantFilter.size > 0)
                       ? `Filter matches by variant (${availableVariants.filter(v => variantFilter.has(v)).sort((a, b) => a - b).join(', ')})`
@@ -283,8 +295,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
               )}
             </>
           )}
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

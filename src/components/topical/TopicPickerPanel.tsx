@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { SubjectConfig } from '../../utils/topicalConfig';
 import { makeKey } from '../../utils/topicalHelpers';
-import { pillActive, pillInactive, btnSecondary } from './ui';
+import { pillActive, pillInactive } from './ui';
 import TopicalCheckbox from './Checkbox';
 
 interface TopicPickerPanelProps {
@@ -20,7 +20,8 @@ interface TopicPickerPanelProps {
   selectedTopicsCount: number;
   hasAnySelectedTopics: boolean;
   collapsed: boolean;
-  onExpandPicker: () => void;
+  onToggleAllTopics?: () => void;
+  isAllTopicsSelected?: boolean;
 }
 
 const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
@@ -37,7 +38,8 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
   selectedTopicsCount,
   hasAnySelectedTopics,
   collapsed,
-  onExpandPicker,
+  onToggleAllTopics,
+  isAllTopicsSelected,
 }) => {
   const countLabel = hasAnySelectedTopics
     ? `${selectedTopicsCount} topic${selectedTopicsCount === 1 ? '' : 's'} selected`
@@ -50,9 +52,20 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
-          Topics
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
+            Topics
+          </span>
+          {onToggleAllTopics && (
+            <button
+              type="button"
+              onClick={onToggleAllTopics}
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-colors border border-slate-200 dark:border-slate-700"
+            >
+              {isAllTopicsSelected ? 'Deselect All' : 'Select All'}
+            </button>
+          )}
+        </div>
         <span className={hasAnySelectedTopics ? pillActive : pillInactive}>{countLabel}</span>
       </div>
       {cfg.units.map((unit, uidx) => {
@@ -60,15 +73,15 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
         const isUnitExpanded = expandedUnits.has(unitKey);
         return (
           <div key={uidx} className="mt-4 pl-0">
-            <div className="bg-slate-800 dark:bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-lg">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-lg">
               <div
                 className="flex items-center justify-between cursor-pointer mb-2 group"
                 onClick={() => toggleUnitExpanded(cfg, unit.unit)}
               >
-                <h3 className="text-lg font-bold text-white tracking-wide uppercase">
-                  <span className="text-indigo-300 group-hover:text-indigo-200 transition-colors">{unit.unit}</span>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-wide uppercase">
+                  <span className="text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-500 dark:group-hover:text-indigo-200 transition-colors">{unit.unit}</span>
                 </h3>
-                <span className="flex items-center gap-2 text-sm font-semibold text-indigo-300 group-hover:text-indigo-200 transition-colors">
+                <span className="flex items-center gap-2 text-sm font-semibold text-indigo-600 dark:text-indigo-300 group-hover:text-indigo-500 dark:group-hover:text-indigo-200 transition-colors">
                   <span>{isUnitExpanded ? 'Collapse' : 'Expand'}</span>
                   <motion.div animate={{ rotate: isUnitExpanded ? 180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}>
                     <ChevronDown className="w-5 h-5" />
@@ -92,7 +105,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                         const checkedHere = isTopicChecked(cfg, unit.unit, topic.topic);
                         const partiallyCheckedHere = isTopicPartiallyChecked(cfg, unit.unit, topic.topic);
                         return (
-                          <li key={tidx} className="rounded-lg bg-slate-900/70 dark:bg-slate-800/80 border border-slate-700 p-3">
+                          <li key={tidx} className="rounded-lg bg-slate-50/50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 p-3">
                             <div className="flex items-center justify-between gap-2">
                               <label className="inline-flex items-center space-x-3 cursor-pointer group w-full">
                                 <TopicalCheckbox
@@ -104,8 +117,8 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                                 <span
                                   className={`ml-2 text-base font-semibold transition-colors break-words whitespace-normal ${
                                     checkedHere
-                                      ? 'text-gray-100 dark:text-gray-200'
-                                      : 'text-gray-100 dark:text-gray-200 group-hover:text-white'
+                                      ? 'text-slate-900 dark:text-gray-200'
+                                      : 'text-slate-600 dark:text-gray-400 group-hover:text-slate-900 dark:group-hover:text-white'
                                   }`}
                                 >
                                   {topic.topic}
@@ -115,7 +128,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => toggleExpanded(cfg, unit.unit, topic.topic)}
-                                  className="text-sm text-slate-400 hover:text-white dark:text-slate-400 dark:hover:text-white ml-3 transition-colors p-1 rounded-md hover:bg-slate-700/50"
+                                  className="text-sm text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-white ml-3 transition-colors p-1 rounded-md hover:bg-slate-200/50 dark:hover:bg-slate-700/50"
                                   title={expandedHere ? 'Collapse subtopics' : 'Expand subtopics'}
                                 >
                                   <motion.div animate={{ rotate: expandedHere ? 180 : 0 }} transition={{ type: "spring", stiffness: 300, damping: 24 }}>
@@ -124,7 +137,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                                 </button>
                               )}
                             </div>
-
+                            
                             <AnimatePresence initial={false}>
                               {hasSub && expandedHere && (
                                 <motion.div
@@ -134,7 +147,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                                   transition={{ type: "spring", stiffness: 300, damping: 26 }}
                                   className="overflow-hidden"
                                 >
-                                  <ul className="pl-10 mt-3 space-y-3 pb-2 border-l border-slate-700/50 ml-2.5">
+                                  <ul className="pl-10 mt-3 space-y-3 pb-2 border-l border-slate-200 dark:border-slate-700/50 ml-2.5">
                                     {topic.subtopics!.map((sub, sidx) => {
                                       const subKey = makeKey(cfg.level, cfg.board, cfg.subject, unit.unit, sub.subtopic);
                                       const subChecked = checked.has(subKey);
@@ -149,7 +162,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
                                             />
                                             <span
                                               className={`text-sm transition-colors ${
-                                                subChecked ? 'text-gray-300 dark:text-gray-400' : 'text-gray-300 dark:text-gray-400 group-hover:text-gray-200'
+                                                subChecked ? 'text-slate-700 dark:text-gray-400' : 'text-slate-500 dark:text-gray-400 group-hover:text-slate-700 dark:group-hover:text-gray-200'
                                               }`}
                                             >
                                               {sub.subtopic}

@@ -1735,7 +1735,7 @@ const MediaViewer: React.FC<MediaViewerProps> = ({
                       title="Previous question"
                     >
                       <span className="sm:hidden">←</span>
-                      <span className="hidden sm:inline">← Prev</span>
+                      <span className="hidden sm:inline">← Previous</span>
                     </button>
                     <button
                       onClick={async () => {

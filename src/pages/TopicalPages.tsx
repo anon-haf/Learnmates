@@ -546,6 +546,36 @@ const TopicalPages: React.FC = () => {
     updateQueryParams(newSet, mcqFilter, paperFilter, yearFilter, orderFilter, limitFilter, strictFilter);
   };
 
+  const toggleAllTopics = () => {
+    const currentCfg = matches[0];
+    if (!currentCfg) return;
+
+    const allKeys: string[] = [];
+    currentCfg.units.forEach(unit => {
+      unit.topics.forEach(topic => {
+        if (topic.subtopics && topic.subtopics.length > 0) {
+          topic.subtopics.forEach(sub => {
+            allKeys.push(makeKey(currentCfg.level, currentCfg.board, currentCfg.subject, unit.unit, sub.subtopic));
+          });
+        } else {
+          allKeys.push(makeKey(currentCfg.level, currentCfg.board, currentCfg.subject, unit.unit, topic.topic));
+        }
+      });
+    });
+
+    const isAllSelected = allKeys.length > 0 && allKeys.every(k => checked.has(k));
+    const newSet = new Set(checked);
+
+    if (isAllSelected) {
+      allKeys.forEach(k => newSet.delete(k));
+    } else {
+      allKeys.forEach(k => newSet.add(k));
+    }
+
+    setChecked(newSet);
+    updateQueryParams(newSet, mcqFilter, paperFilter, yearFilter, orderFilter, limitFilter, strictFilter, monthFilter, variantFilter);
+  };
+
   const toggleSubtopic = (cfg: SubjectConfig, unitName: string, topicName: string, subtopicName: string) => {
     setLoadFeedback(null);
     const subKey = makeKey(cfg.level, cfg.board, cfg.subject, unitName, subtopicName);
@@ -820,6 +850,20 @@ const TopicalPages: React.FC = () => {
 
           const showUnitTags = cfg.units.length > 1;
 
+          const allTopicKeys: string[] = [];
+          cfg.units.forEach(unit => {
+            unit.topics.forEach(topic => {
+              if (topic.subtopics && topic.subtopics.length > 0) {
+                topic.subtopics.forEach(sub => {
+                  allTopicKeys.push(makeKey(cfg.level, cfg.board, cfg.subject, unit.unit, sub.subtopic));
+                });
+              } else {
+                allTopicKeys.push(makeKey(cfg.level, cfg.board, cfg.subject, unit.unit, topic.topic));
+              }
+            });
+          });
+          const isAllTopicsSelected = allTopicKeys.length > 0 && allTopicKeys.every(k => checked.has(k));
+
           return (
             <div key={idx} className="mt-8">
               <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -884,7 +928,8 @@ const TopicalPages: React.FC = () => {
                       selectedTopicsCount={selectedTopicsCount}
                       hasAnySelectedTopics={hasAnySelectedTopics}
                       collapsed={pickerCollapsed}
-                      onExpandPicker={() => setPickerCollapsed(false)}
+                      onToggleAllTopics={toggleAllTopics}
+                      isAllTopicsSelected={isAllTopicsSelected}
                     />
                   </div>
 
@@ -896,7 +941,8 @@ const TopicalPages: React.FC = () => {
                       loadingProgress={loadingProgress}
                       showUnitTags={showUnitTags}
                       onExport={handleExport}
-                      onExpandPicker={() => setPickerCollapsed(false)}
+                      onTogglePicker={() => setPickerCollapsed(prev => !prev)}
+                      pickerCollapsed={pickerCollapsed}
                       loadFeedback={loadFeedback}
                       showExtraPageOption={showExtraPageOption}
                       extraPageEnabled={extraPageEnabled}

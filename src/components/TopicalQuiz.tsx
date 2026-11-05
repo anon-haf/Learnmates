@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check } from 'lucide-react';
+import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check, Table } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { ReportModal } from './ReportModal';
@@ -14,8 +14,8 @@ import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { ShortcutKey } from './ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import NibrasAnimatedMark from './NibrasAnimatedMark';
+import { PeriodicTablePopup } from './PeriodicTablePopup';
 import { useAuth } from '../context/AuthContext';
-import { useUserRole } from '../hooks/useUserRole';
 import NibrasIcon from '../assets/logos/nibras.svg?react';
 import { supabase } from '../lib/supabaseClient';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -45,6 +45,9 @@ export interface Question {
   isMcq?: boolean; // True when the topical paper uses mcq_ans.json for its answer key
   mcqAnswer?: string; // Optional answer for Cambridge IGCSE MCQ practice papers
 }
+
+/** Periodic table reference, shown only for IGCSE Chemistry topics. */
+const PERIODIC_TABLE_URL = '/documents/Periodic table.pdf';
 
 interface SingleQuizProps {
   questions: Question[];
@@ -89,6 +92,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showMarkScheme, setShowMarkScheme] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [showPeriodicTableInline, setShowPeriodicTableInline] = useState(false);
+  const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [annotations, setAnnotations] = useState<Map<string, string>>(new Map());
   const [mcqSelections, setMcqSelections] = useState<Record<number, string>>({});
@@ -112,8 +117,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const explanationPanelRef = useRef<HTMLDivElement>(null);
   const preparedExplanationImagesRef = useRef<Map<string, Promise<File[]>>>(new Map());
   const { user: authUser } = useAuth();
-  const { role: userRole, loading: roleLoading } = useUserRole(authUser?.id);
-  const canExplainTopical = Boolean(authUser && !roleLoading && userRole === 'tester');
+  const canExplainTopical = Boolean(authUser);
 
   const handleDownloadMergedPDFs = async (
     quiz: MultiQuiz,
@@ -534,7 +538,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     question: Question,
     markSchemeUrl: string | null,
     prompt: string,
-    action: 'generate' | 'followup' | 'check',
+    action: 'generate' | 'followup',
     cacheKey?: string,
   ): Promise<string> => {
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -556,7 +560,12 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       'X-Learnmates-Feature': 'topical-explanation',
       'X-Learnmates-Topical-Action': action,
     };
-    if (cacheKey) requestHeaders['X-Learnmates-Topical-Cache-Key'] = cacheKey;
+    if (action === 'generate' && cacheKey) {
+      requestHeaders['X-Learnmates-Topical-Cache-Key'] = cacheKey;
+      if (question.questionContent) {
+        requestHeaders['X-Learnmates-Topical-Question-Url'] = question.questionContent;
+      }
+    }
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 60_000);
@@ -722,6 +731,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
   const validCurrentQuestion = Math.min(currentQuestion, Math.max(0, questions.length - 1));
   const currentQ = questionsWithMarkSchemes[validCurrentQuestion];
+  const isIgcseChemistry = Boolean(currentQ && getTopicalAiSubject(currentQ) === 'IG_Chem');
   const currentQuestionIsMcq = currentQ && (currentQ.isMcq ?? Boolean(currentQ.mcqAnswer));
   const currentQuestionMarkSchemeUrl = currentQ && !currentQuestionIsMcq
     ? currentQ.markScheme || deriveMarkSchemeUrl(currentQ.questionContent)
@@ -1235,7 +1245,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               disabled={currentQuestion === 0}
               className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Prev
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Prev</span>
             </button>
 
             <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -1373,6 +1384,23 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 renderExplainButton()
               )}
 
+              {isIgcseChemistry && (
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodicTableInline(prev => !prev)}
+                  aria-pressed={showPeriodicTableInline}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-colors ${showPeriodicTableInline
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50'
+                    }`}
+                  title="Show or hide the periodic table"
+                >
+                  <Table className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Periodic Table</span>
+                  <span className="sm:hidden">PT</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setShowLargeView(true)}
@@ -1403,6 +1431,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   {!showLargeView && <UniversalDocumentViewer
                     key={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || 'empty')}
                     mode="inline"
+                    surface="light"
                     pdfUrl={showMarkScheme && currentQ.markScheme ? currentQ.markScheme : (currentQ.questionContent || '')}
                     type={
                       showMarkScheme && currentQ.markScheme
@@ -1416,6 +1445,33 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               <p className="text-gray-500 dark:text-gray-400">No question content provided</p>
             )}
           </div>
+
+          {/* Periodic table (IGCSE Chemistry) — opens under the question / mark scheme */}
+          {!showLargeView && isIgcseChemistry && showPeriodicTableInline && (
+            <div className="@container mt-3 w-full border-2 border-emerald-300 dark:border-emerald-800 rounded-lg p-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                  Periodic Table
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodicTableInline(false)}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  Hide
+                </button>
+              </div>
+              <div className="w-full overflow-hidden relative flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
+                <UniversalDocumentViewer
+                  key="periodic-table-inline"
+                  mode="inline"
+                  surface="light"
+                  pdfUrl={PERIODIC_TABLE_URL}
+                  type="pdf"
+                />
+              </div>
+            </div>
+          )}
 
           {!showLargeView && mcqBlock}
           {!showLargeView && canExplainTopical && Boolean(
@@ -1519,7 +1575,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             Jump to question
           </h3>
         </div>
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="lm-scrollbar flex-1 overflow-y-auto overscroll-contain">
           {questions.map((q, idx) => {
             const qPath = q.questionContent || q.id;
             const isJumpChecked = jumpCheckedQuestions.has(qPath);
@@ -1572,6 +1628,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         </>
       )}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} question={currentQ} />
+      <PeriodicTablePopup
+        open={showPeriodicTablePopup && isIgcseChemistry}
+        onClose={() => setShowPeriodicTablePopup(false)}
+        url={PERIODIC_TABLE_URL}
+      />
       {showLargeView && createPortal(
         <div className="fixed inset-0 z-[100] h-[100dvh] overflow-hidden overscroll-none bg-[#0d1520] flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
@@ -1590,6 +1651,18 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
 
             <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+              {isIgcseChemistry && (
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodicTablePopup(true)}
+                  title="Open the periodic table"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25"
+                >
+                  <Table className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Periodic Table</span>
+                  <span className="sm:hidden">PT</span>
+                </button>
+              )}
               {Boolean(currentQ.markScheme) && !currentQ.mcqAnswer && (
                 <button
                   type="button"
@@ -1656,6 +1729,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 <UniversalDocumentViewer
                   key={currentQ.questionContent || 'empty'}
                   mode="inline"
+                  surface="light"
                   pdfUrl={currentQ.questionContent || ''}
                   type={(currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
                 />
@@ -1699,7 +1773,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 {/* Question navigation */}
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
-                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                  <div className="lm-scrollbar-dark flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                     {questions.map((q, idx) => {
                       const qPath = q.questionContent || q.id;
                       const isJumpChecked = jumpCheckedQuestions.has(qPath);
@@ -1753,6 +1827,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <UniversalDocumentViewer
                     key={currentQ.markScheme}
                     mode="inline"
+                    surface="light"
                     pdfUrl={currentQ.markScheme}
                     type={(currentQ.markSchemeType || currentQ.questionContentType || 'pdf') as 'pdf' | 'image'}
                   />
@@ -1832,7 +1907,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 {/* Jump to Question */}
                 <div className="flex-1 min-w-[120px] lg:overflow-y-auto min-h-0 flex flex-col gap-2 lg:gap-3 lg:w-auto">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Q</h3>
-                  <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
+                  <div className="lm-scrollbar-dark flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
                     {questions.map((q, idx) => {
                       const qPath = q.questionContent || q.id;
                       const isJumpChecked = jumpCheckedQuestions.has(qPath);

@@ -108,5 +108,95 @@
   .animate-check-spark {
     animation: check-spark 0.35s ease-out forwards;
   }
+
+  /* ------------------------------------------------------------------ */
+  /* LearnMates themed scrollbar                                        */
+  /* Replaces the default square white/grey OS scrollbar so it blends   */
+  /* with the site's blue/slate palette. Applied via the `lm-scrollbar` */
+  /* (light surfaces) or `lm-scrollbar-dark` (dark surfaces) class.     */
+  /* ------------------------------------------------------------------ */
+  .lm-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+  }
+  .lm-scrollbar::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .lm-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .lm-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.5);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  .lm-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(37, 99, 235, 0.75);
+    background-clip: content-box;
+  }
+  .lm-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .lm-scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(96, 165, 250, 0.45) transparent;
+  }
+  .lm-scrollbar-dark::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .lm-scrollbar-dark::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .lm-scrollbar-dark::-webkit-scrollbar-thumb {
+    background-color: rgba(96, 165, 250, 0.35);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+  }
+  .lm-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(96, 165, 250, 0.75);
+    background-clip: content-box;
+  }
+  .lm-scrollbar-dark::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Themed number-input stepper                                        */
+  /* Chrome's native spinner is a jarring white box with grey arrows.   */
+  /* We hide it and paint themed chevrons (up + down) that match the    */
+  /* toolbar surface. Stepping still works (top half = up, bottom = down)*/
+  /* ------------------------------------------------------------------ */
+  .lm-number-input::-webkit-outer-spin-button,
+  .lm-number-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    width: 1.15rem;
+    height: 100%;
+    cursor: pointer;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 24' preserveAspectRatio='none'%3E%3Cpath d='M3 9.5L6 5.5l3 4' fill='none' stroke='%2381a2ff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 14.5l3 4 3-4' fill='none' stroke='%2381a2ff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 0.62rem 1.15rem;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+  }
+  .lm-number-input::-webkit-inner-spin-button:hover,
+  .lm-number-input::-webkit-outer-spin-button:hover {
+    opacity: 1;
+  }
+  /* Firefox only: drop the native spinner so it doesn't clash with the theme. */
+  @supports (-moz-appearance: none) {
+    .lm-number-input {
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+  }
 }
 

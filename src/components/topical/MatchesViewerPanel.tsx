@@ -10,7 +10,8 @@ interface MatchesViewerPanelProps {
   loadingProgress: { current: number; total: number; isLoading: boolean };
   showUnitTags: boolean;
   onExport: (type: 'questions' | 'markschemes', options?: { extraPage?: boolean; headerPage?: boolean; worksheet?: boolean; headerSeparatePage?: boolean }) => void;
-  onExpandPicker?: () => void;
+  onTogglePicker?: () => void;
+  pickerCollapsed?: boolean;
   loadFeedback?: string | null;
   showExtraPageOption?: boolean;
   extraPageEnabled?: boolean;
@@ -45,7 +46,8 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
   loadingProgress,
   showUnitTags,
   onExport,
-  onExpandPicker,
+  onTogglePicker,
+  pickerCollapsed,
   loadFeedback,
   showExtraPageOption = false,
   extraPageEnabled = false,
@@ -70,9 +72,23 @@ const MatchesViewerPanel: React.FC<MatchesViewerPanelProps> = ({
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-5 h-full flex flex-col">
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <div>
-          {hasLoadedOnce && topicalQuiz.length > 0 && onExpandPicker ? (
-            <button type="button" onClick={onExpandPicker} className={`${btnSecondary} whitespace-nowrap transition-transform active:scale-95`}>
-              Edit topics
+          {hasLoadedOnce && topicalQuiz.length > 0 && onTogglePicker ? (
+            <button
+              type="button"
+              onClick={onTogglePicker}
+              aria-expanded={!pickerCollapsed}
+              className={`${btnSecondary} whitespace-nowrap transition-transform active:scale-95`}
+            >
+              {pickerCollapsed ? 'Edit topics' : 'Hide topics'}
+              <svg
+                className={`w-3.5 h-3.5 transition-transform ${pickerCollapsed ? '' : 'rotate-180'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
           ) : (
             <>

@@ -1,6 +1,7 @@
-import { PDFDocument, rgb, StandardFonts, PDFPage, PDFEmbeddedPage } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, getAssetAuthHeaders, fetchR2AsBlob } from './r2Utils';
 import { isEdexcelIALPureMathOrMechanics } from './topicalHelpers';
+import { embedVisiblePage } from './pdfContentCrop';
 
 export interface MergeItem {
   id: string; // Used to identify the question number
@@ -116,57 +117,6 @@ const fetchWithTimeout = (url: string, timeout = 3000): Promise<Response> => {
         reject(err);
       });
   });
-};
-
-// ---------------------------------------------------------------------------
-// CropBox-aware page embedding
-// ---------------------------------------------------------------------------
-
-interface VisiblePage {
-  embedded: PDFEmbeddedPage;
-  width: number;
-  height: number;
-}
-
-const embedVisiblePage = async (
-  targetDoc: PDFDocument,
-  page: PDFPage
-): Promise<VisiblePage> => {
-  const cropBox = page.getCropBox();
-  const left = cropBox.x;
-  const bottom = cropBox.y;
-  const cropWidth = cropBox.width;
-  const cropHeight = cropBox.height;
-
-  let width = cropWidth;
-  let height = cropHeight;
-  let matrix: [number, number, number, number, number, number];
-
-  switch (((page.getRotation().angle % 360) + 360) % 360) {
-    case 90:
-      matrix = [0, -1, 1, 0, -bottom, left + cropWidth];
-      width = cropHeight;
-      height = cropWidth;
-      break;
-    case 180:
-      matrix = [-1, 0, 0, -1, left + cropWidth, bottom + cropHeight];
-      break;
-    case 270:
-      matrix = [0, 1, -1, 0, bottom + cropHeight, -left];
-      width = cropHeight;
-      height = cropWidth;
-      break;
-    default:
-      matrix = [1, 0, 0, 1, -left, -bottom];
-  }
-
-  const embedded = await targetDoc.embedPage(
-    page,
-    { left, bottom, right: left + cropWidth, top: bottom + cropHeight },
-    matrix
-  );
-
-  return { embedded, width, height };
 };
 
 const resolveAssetUrl = async (url: string): Promise<string> => {

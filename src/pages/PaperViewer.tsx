@@ -102,6 +102,82 @@ const PaperQuestionCompletionCheckbox: React.FC<{
   );
 };
 
+const QuestionNumberJump: React.FC<{
+  value: string;
+  total: number;
+  onChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}> = ({ value, total, onChange, onSubmit }) => (
+  <form onSubmit={onSubmit} className="flex items-center gap-1.5 text-gray-400">
+    <label htmlFor="question-number-jump" className="sr-only">Go to question number</label>
+    <span className="text-xs sm:text-sm whitespace-nowrap">Question</span>
+    <input
+      id="question-number-jump"
+      type="number"
+      min="1"
+      step="1"
+      required
+      inputMode="numeric"
+      value={value}
+      onChange={event => onChange(event.target.value)}
+      className="w-14 rounded-md border border-gray-600 bg-gray-800 px-1.5 py-1 text-center text-sm text-gray-100 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      aria-label="Go to question number"
+      title="Type a question number and press Enter"
+    />
+    <span className="text-xs sm:text-sm whitespace-nowrap">of {total}</span>
+    <button type="submit" className="sr-only">Go to question</button>
+  </form>
+);
+
+const LargeViewPanelResizer: React.FC<{
+  value: number;
+  onChange: (value: number) => void;
+  panelLabel: string;
+  overlay?: boolean;
+}> = ({ value, onChange, panelLabel, overlay = false }) => {
+  const adjustHeight = (delta: number) => onChange(Math.max(20, Math.min(70, value + delta)));
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label={`Resize ${panelLabel} height`}
+      aria-valuemin={20}
+      aria-valuemax={70}
+      aria-valuenow={value}
+      tabIndex={0}
+      onPointerDown={event => {
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        if (event.buttons !== 1) return;
+        const container = overlay
+          ? event.currentTarget.parentElement?.parentElement
+          : event.currentTarget.parentElement;
+        if (!container) return;
+        const bounds = container.getBoundingClientRect();
+        if (bounds.height === 0) return;
+        const panelHeight = ((bounds.bottom - event.clientY) / bounds.height) * 100;
+        onChange(Math.max(20, Math.min(70, panelHeight)));
+      }}
+      onKeyDown={event => {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          adjustHeight(5);
+        } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          adjustHeight(-5);
+        }
+      }}
+      className="lg:hidden flex h-5 shrink-0 touch-none cursor-row-resize items-center justify-center bg-[#0a1628] focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-400"
+      title={`Drag to adjust ${panelLabel.toLowerCase()} height`}
+    >
+      <span className="h-1 w-12 rounded-full bg-gray-500" />
+    </div>
+  );
+};
+
 const PaperViewerPage: React.FC = () => {
   const shortcutPreferences = useShortcutPreferences();
   const base = useRouteBase();
@@ -111,6 +187,7 @@ const PaperViewerPage: React.FC = () => {
   const location = useLocation();
 
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [questionJumpInput, setQuestionJumpInput] = useState('1');
   const [papers, setPapers] = useState<PaperEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -148,6 +225,7 @@ const PaperViewerPage: React.FC = () => {
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [largeViewPanelHeight, setLargeViewPanelHeight] = useState(40);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
   const [explainButtonTarget, setExplainButtonTarget] = useState<HTMLDivElement | null>(null);
@@ -397,8 +475,29 @@ const PaperViewerPage: React.FC = () => {
   }, [markSchemeOpen]);
 
   const toggleFullMarkScheme = useCallback(() => {
-    setMarkSchemeOpenFull(open => !open);
-  }, []);
+    if (papers.some(paper => paper.mcqAnswer)) {
+      setMcqPanelOpenFull(open => !open);
+    } else {
+      setMarkSchemeOpenFull(open => !open);
+    }
+  }, [papers]);
+
+  const jumpToQuestion = useCallback((event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const requestedNumber = Number(questionJumpInput);
+    if (!Number.isInteger(requestedNumber) || requestedNumber < 1) return;
+
+    const matchingQuestionIndex = papers.findIndex(paper => paper.questionNumber === requestedNumber);
+    const targetIndex = matchingQuestionIndex >= 0 ? matchingQuestionIndex : requestedNumber - 1;
+    if (targetIndex < 0 || targetIndex >= papers.length) return;
+
+    const targetPaper = papers[targetIndex];
+    setQuestionIndex(targetIndex);
+    setCurrentPdf(targetPaper);
+    setSelectedOption(null);
+    setIsAnswerChecked(false);
+    setQuestionJumpInput(String(targetPaper.questionNumber || targetIndex + 1));
+  }, [papers, questionJumpInput]);
 
   const goToNext = useCallback(() => {
     if (questionIndex < papers.length - 1) {
@@ -417,6 +516,10 @@ const PaperViewerPage: React.FC = () => {
       setIsAnswerChecked(false);
     }
   }, [papers, questionIndex]);
+
+  useEffect(() => {
+    setQuestionJumpInput(String(currentPdf?.questionNumber || questionIndex + 1));
+  }, [currentPdf?.questionNumber, questionIndex]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -558,11 +661,15 @@ const PaperViewerPage: React.FC = () => {
               disabled={questionIndex === 0}
               className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Prev
+              <span className="hidden sm:inline">Previous</span>
+              <span className="sm:hidden">Prev</span>
             </button>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Question {currentPdf.questionNumber || questionIndex + 1} of {papers.length}
-            </div>
+            <QuestionNumberJump
+              value={questionJumpInput}
+              total={papers.length}
+              onChange={setQuestionJumpInput}
+              onSubmit={jumpToQuestion}
+            />
             <button
               onClick={goToNext}
               disabled={questionIndex === papers.length - 1}
@@ -645,6 +752,7 @@ const PaperViewerPage: React.FC = () => {
                   <UniversalDocumentViewer
                     key={singlePaperViewerUrl}
                     mode="inline"
+                    surface="light"
                     pdfUrl={singlePaperViewerUrl}
                     type="pdf"
                     savedAnnotation={markSchemeOpen && currentPdf.msUrl
@@ -797,8 +905,8 @@ const PaperViewerPage: React.FC = () => {
                   onClick={toggleFullMarkScheme}
                   disabled={isMerging || isMergingMs}
                   aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
-                  title={`${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Schemes (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
-                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${markSchemeOpenFull
+                  title={`${papers.some(p => p.mcqAnswer) ? (mcqPanelOpenFull ? 'Hide' : 'Show') + ' MCQ Checker' : (markSchemeOpenFull ? 'Hide' : 'Show') + ' Mark Schemes'} (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${(papers.some(p => p.mcqAnswer) ? mcqPanelOpenFull : markSchemeOpenFull)
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
@@ -806,19 +914,10 @@ const PaperViewerPage: React.FC = () => {
                   {isMergingMs ? (
                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                   ) : null}
-                  {markSchemeOpenFull ? 'Hide Mark Schemes' : 'Show Mark Schemes'} <ShortcutKey>{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
-                </button>
-              )}
-              {papers.some(p => p.mcqAnswer) && (
-                <button
-                  onClick={() => setMcqPanelOpenFull(!mcqPanelOpenFull)}
-                  disabled={isMerging}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border ${mcqPanelOpenFull
-                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                >
-                  {mcqPanelOpenFull ? 'Hide MCQ Checker' : 'Show MCQ Checker'}
+                  {papers.some(p => p.mcqAnswer)
+                    ? `${mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker`
+                    : `${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Schemes`}
+                  <ShortcutKey>{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
             </div>
@@ -832,13 +931,14 @@ const PaperViewerPage: React.FC = () => {
                 <p className="text-sm text-gray-500 mt-2">Merging {papers.length} questions together</p>
               </div>
             ) : fullPaperPdfUrl ? (
-              <div className="flex flex-col lg:flex-row gap-4 relative min-w-0 @container">
-                <div className="flex-1 flex flex-col relative min-w-0 min-h-0">
-                  <div className="w-full min-w-0 relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
+              <div className="flex flex-col lg:flex-row gap-2 sm:gap-4 relative min-w-0 @container">
+                <div className="flex-1 flex flex-col relative min-w-0 min-h-0 h-[45vh] lg:h-auto">
+                  <div className="w-full min-w-0 relative rounded-xl overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col flex-1 min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
                     {!showLargeView ? (
                       <UniversalDocumentViewer
                         key={fullPaperViewerUrl}
                         mode="inline"
+                        surface="light"
                         pdfUrl={fullPaperViewerUrl}
                         type="pdf"
                         savedAnnotation={markSchemeOpenFull && fullPaperMsUrl
@@ -862,8 +962,8 @@ const PaperViewerPage: React.FC = () => {
                   </div>
                 </div>
                 {papers.some(p => p.mcqAnswer) && mcqPanelOpenFull && (
-                  <div className="w-full lg:w-72 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl lg:shadow-none flex flex-col shrink-0 min-h-0 overflow-hidden h-[50vh] lg:h-auto" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl shrink-0">
+                  <div className="w-full lg:w-72 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl lg:shadow-none flex flex-col shrink-0 min-h-0 overflow-hidden h-[35vh] lg:h-auto" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
+                    <div className="p-2 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl shrink-0">
                       <McqCheckerHeader
                         title="MCQ Answer Sheet"
                         subtitle={null}
@@ -872,14 +972,14 @@ const PaperViewerPage: React.FC = () => {
                         onToggle={() => setLiveMcqCheckEnabled(prev => !prev)}
                       />
                     </div>
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+                    <div className="flex-1 overflow-y-auto p-2 sm:p-4 flex flex-col gap-2 sm:gap-3">
                       {papers.filter(p => p.mcqAnswer).map((p) => {
                         const qNum = p.questionNumber || 0;
                         const selected = fullMcqSelections[qNum];
                         return (
-                          <div key={qNum} className="flex items-center gap-3">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300 w-6 text-right shrink-0">{qNum}.</span>
-                            <div className="grid grid-cols-4 gap-2 flex-1">
+                          <div key={qNum} className="flex items-center gap-1.5 sm:gap-3">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300 w-5 sm:w-6 text-right shrink-0 text-xs sm:text-sm">{qNum}.</span>
+                            <div className="grid grid-cols-4 gap-1 sm:gap-2 flex-1">
                               {['A', 'B', 'C', 'D'].map(opt => {
                                 const isSelected = selected === opt;
                                 const showAnswers = liveMcqCheckEnabled && selected !== undefined;
@@ -891,7 +991,7 @@ const PaperViewerPage: React.FC = () => {
                                     selected={isSelected}
                                     showAnswer={showAnswers}
                                     surface="themed"
-                                    className="aspect-square w-full max-w-[44px] h-10 shrink-0 mx-auto text-sm"
+                                    className="aspect-square w-full min-w-0 h-7 sm:h-10 shrink-0 text-xs sm:text-sm"
                                     onClick={() => setFullMcqSelections(prev => ({ ...prev, [qNum]: opt }))}
                                   />
                                 );
@@ -947,24 +1047,16 @@ const PaperViewerPage: React.FC = () => {
                   type="button"
                   onClick={toggleFullMarkScheme}
                   aria-keyshortcuts={getAriaShortcut(shortcutPreferences.toggleMarkScheme)}
-                  title={`${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Scheme (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
-                  className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border ${markSchemeOpenFull
+                  title={`${papers.some(p => p.mcqAnswer) ? (mcqPanelOpenFull ? 'Hide' : 'Show') + ' MCQ Checker' : (markSchemeOpenFull ? 'Hide' : 'Show') + ' Mark Scheme'} (${formatShortcut(shortcutPreferences.toggleMarkScheme)})`}
+                  className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border ${(papers.some(p => p.mcqAnswer) ? mcqPanelOpenFull : markSchemeOpenFull)
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {markSchemeOpenFull ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
-                </button>
-              )}
-              {viewMode === 'full' && papers.some(p => p.mcqAnswer) && (
-                <button
-                  onClick={() => setMcqPanelOpenFull(!mcqPanelOpenFull)}
-                  className={`px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border ${mcqPanelOpenFull
-                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                >
-                  {mcqPanelOpenFull ? 'Hide MCQ' : 'Show MCQ'}
+                  {papers.some(p => p.mcqAnswer)
+                    ? `${mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker`
+                    : `${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Scheme`}
+                  <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
               {viewMode === 'single' && currentPdf && !currentPdf.mcqAnswer && (
@@ -986,9 +1078,12 @@ const PaperViewerPage: React.FC = () => {
 
               {viewMode === 'single' && (
                 <>
-                  <span className="text-gray-400 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap">
-                    {questionIndex + 1} of {papers.length}
-                  </span>
+                  <QuestionNumberJump
+                    value={questionJumpInput}
+                    total={papers.length}
+                    onChange={setQuestionJumpInput}
+                    onSubmit={jumpToQuestion}
+                  />
                   <div className="flex items-center gap-1 sm:gap-2">
                     <button
                       onClick={goToPrev}
@@ -1019,6 +1114,7 @@ const PaperViewerPage: React.FC = () => {
                   ? (currentPdf?.pdfUrl || 'empty')
                   : (fullPaperPdfUrl || 'empty')}
                 mode="inline"
+                surface="light"
                 pdfUrl={viewMode === 'single'
                   ? (currentPdf?.pdfUrl || '')
                   : (fullPaperPdfUrl || '')}
@@ -1036,12 +1132,34 @@ const PaperViewerPage: React.FC = () => {
               />
             </div>
 
+            {(
+              (viewMode === 'single' && (
+                (markSchemeOpen && currentPdf?.msUrl) || currentPdf?.mcqAnswer
+              )) ||
+              (viewMode === 'full' && markSchemeOpenFull && fullPaperMsUrl)
+            ) && (
+              <LargeViewPanelResizer
+                value={largeViewPanelHeight}
+                onChange={setLargeViewPanelHeight}
+                panelLabel={
+                  (viewMode === 'single' && currentPdf?.mcqAnswer) ||
+                  (viewMode === 'full' && papers.some(paper => paper.mcqAnswer) && mcqPanelOpenFull)
+                    ? 'MCQ checker'
+                    : 'Mark scheme'
+                }
+              />
+            )}
+
             {viewMode === 'single' && markSchemeOpen && currentPdf?.msUrl && (
-              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]">
+              <div
+                className="flex-[0_0_var(--expanded-panel-height)] lg:flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]"
+                style={{ '--expanded-panel-height': `${largeViewPanelHeight}%` } as React.CSSProperties}
+              >
                 <div className="flex-1 relative min-h-0">
                   <UniversalDocumentViewer
                     key={currentPdf.msUrl}
                     mode="inline"
+                    surface="light"
                     pdfUrl={currentPdf.msUrl}
                     type="pdf"
                     savedAnnotation={msAnnotations[currentPdf.msUrl]}
@@ -1052,11 +1170,15 @@ const PaperViewerPage: React.FC = () => {
             )}
 
             {viewMode === 'full' && markSchemeOpenFull && fullPaperMsUrl && (
-              <div className="flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]">
+              <div
+                className="flex-[0_0_var(--expanded-panel-height)] lg:flex-1 relative bg-[#0a1628] flex flex-col min-h-0 min-w-0 border-t lg:border-t-0 lg:border-l border-[#1a2d47]"
+                style={{ '--expanded-panel-height': `${largeViewPanelHeight}%` } as React.CSSProperties}
+              >
                 <div className="flex-1 relative min-h-0">
                   <UniversalDocumentViewer
                     key={fullPaperMsUrl}
                     mode="inline"
+                    surface="light"
                     pdfUrl={fullPaperMsUrl}
                     type="pdf"
                     savedAnnotation={msAnnotations[fullPaperMsUrl]}
@@ -1136,7 +1258,10 @@ const PaperViewerPage: React.FC = () => {
               </div>
             )}
             {viewMode === 'single' && currentPdf?.mcqAnswer && (
-              <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
+              <div
+                className="w-full lg:w-80 flex-[0_0_var(--expanded-panel-height)] lg:flex-none flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden min-h-0 p-3 lg:px-4 lg:py-5 gap-4 lg:gap-5 items-stretch"
+                style={{ '--expanded-panel-height': `${largeViewPanelHeight}%` } as React.CSSProperties}
+              >
                 {/* Topics and Report - hidden on small screens, shown on large */}
                 <div className="hidden lg:flex flex-col lg:flex-row items-start justify-between bg-transparent shrink-0 lg:min-w-0">
                   <div className="flex flex-col gap-2 mb-3 lg:mb-0">
@@ -1234,7 +1359,16 @@ const PaperViewerPage: React.FC = () => {
             )}
 
             {viewMode === 'full' && papers.some(p => p.mcqAnswer) && mcqPanelOpenFull && (
-              <div className="w-full lg:w-72 h-1/2 lg:h-auto max-h-[50vh] lg:max-h-full flex flex-col bg-gray-800 border-t lg:border-t-0 lg:border-l border-gray-700 shrink-0 min-h-0 overflow-hidden">
+              <div
+                className="absolute inset-x-0 bottom-0 z-20 flex h-[var(--expanded-panel-height)] flex-col overflow-hidden border-t border-gray-700 bg-gray-800 lg:inset-y-0 lg:left-auto lg:right-0 lg:h-full lg:w-72 lg:border-l lg:border-t-0"
+                style={{ '--expanded-panel-height': `${largeViewPanelHeight}%` } as React.CSSProperties}
+              >
+                <LargeViewPanelResizer
+                  value={largeViewPanelHeight}
+                  onChange={setLargeViewPanelHeight}
+                  panelLabel="MCQ checker"
+                  overlay
+                />
                 {/* Fixed header - never scrolls */}
                 <div className="shrink-0 px-4 py-3 border-b border-gray-700 bg-gray-900/60">
                   <McqCheckerHeader
@@ -1265,7 +1399,9 @@ const PaperViewerPage: React.FC = () => {
                                 selected={isSelected}
                                 showAnswer={showAnswers}
                                 surface="dark"
-                                className="w-full aspect-square lg:max-w-[44px] lg:h-10 lg:aspect-auto shrink-0 text-sm"
+                                className={`w-full min-w-0 h-9 sm:h-10 lg:max-w-[44px] shrink-0 text-sm ${
+                                  !isSelected && !(showAnswers && opt === p.mcqAnswer) ? 'bg-gray-900' : ''
+                                }`}
                                 onClick={() => setFullMcqSelections(prev => ({ ...prev, [qNum]: opt }))}
                               />
                             );

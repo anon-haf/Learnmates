@@ -385,7 +385,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       {/* Pages Container - all pages stacked vertically */}
       <div
         ref={pagesContainerRef}
-        className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-950 p-4"
+        className="flex-1 overflow-auto bg-gray-50 dark:bg-black p-4"
       >
         <div className="flex flex-col gap-4 items-center">
           {numPages &&

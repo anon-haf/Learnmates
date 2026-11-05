@@ -21,7 +21,7 @@ export const btnSecondary =
 // Toggle / segmented-control style buttons (MCQ/Theory, Paper filter chips)
 export const btnToggleBase =
   `inline-flex items-center justify-center ${CONTROL_HEIGHT} px-3 text-sm font-medium ` +
-  'transition-colors border first:rounded-l-lg last:rounded-r-lg -ml-px first:ml-0';
+  'transition-colors border rounded-lg';
 
 export const btnToggleActive =
   'bg-blue-500 shadow-sm hover:bg-blue-600 dark:bg-blue-700 dark:hover:bg-blue-800 border-blue-600 text-white z-10';

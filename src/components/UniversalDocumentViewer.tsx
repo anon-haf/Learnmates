@@ -53,6 +53,14 @@ import { useEngagement } from '../context/EngagementContext';
 import { downloadFileWithXP, logDownload, formatResourceUrl } from '../utils/awardDownloadXP';
 import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
+import {
+  loadPdfDrawingPreferences,
+  PDF_PEN_SIZE_MAX,
+  PDF_PEN_SIZE_MIN,
+  PDF_PEN_SIZE_STEP,
+  savePdfDrawingPreferences,
+} from '../utils/pdfDrawingPreferences';
+import type { PdfDrawingPreferences } from '../utils/pdfDrawingPreferences';
 
 type PdfFileSource = string | { data: Uint8Array };
 
@@ -68,6 +76,8 @@ export interface UniversalDocumentViewerProps {
   onSaveAnnotation?: (data: string) => void;
   hideToolbar?: boolean;
   readOnly?: boolean;
+  /** Background of the area around the PDF pages. `light` renders a white surface. */
+  surface?: 'dark' | 'light';
 
   pdfUrl: string;
   fileName?: string;
@@ -127,6 +137,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   onSaveAnnotation,
   hideToolbar = false,
   readOnly = false,
+  surface = 'dark',
   pdfUrl,
   fileName = 'document.pdf',
   onClose,
@@ -182,15 +193,35 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [pdfFile, setPdfFile] = useState<PdfFileSource | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [drawingEnabled, setDrawingEnabled] = useState(false);
-  const [touchScrollInDrawMode, setTouchScrollInDrawMode] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(pointer: coarse)').matches
+  const [drawingPreferences, setDrawingPreferences] =
+    useState<PdfDrawingPreferences>(loadPdfDrawingPreferences);
+  const { penColor, penSize, eraserSize, handMode: touchScrollInDrawMode } =
+    drawingPreferences;
+  const updateDrawingPreferences = useCallback(
+    (updates: Partial<PdfDrawingPreferences>) => {
+      setDrawingPreferences(current => ({ ...current, ...updates }));
+    },
+    []
   );
+  const setPenColor = useCallback(
+    (value: string) => updateDrawingPreferences({ penColor: value }),
+    [updateDrawingPreferences]
+  );
+  const setPenSize = useCallback(
+    (value: number) => updateDrawingPreferences({ penSize: value }),
+    [updateDrawingPreferences]
+  );
+  const setEraserSize = useCallback(
+    (value: number) => updateDrawingPreferences({ eraserSize: value }),
+    [updateDrawingPreferences]
+  );
+  const toggleTouchScrollInDrawMode = useCallback(() => {
+    setDrawingPreferences(current => ({
+      ...current,
+      handMode: !current.handMode,
+    }));
+  }, []);
   const [drawTool, setDrawTool] = useState<DrawTool>('pen');
-  const [penColor, setPenColor] = useState('#000000');
-  const [penSize, setPenSize] = useState(2);
-  const [eraserSize, setEraserSize] = useState(20);
   const [textColor, setTextColor] = useState('#000000');
   const [annotationTextSize, setAnnotationTextSize] = useState(12);
   const [selectedText, setSelectedText] = useState<{
@@ -208,6 +239,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const [activeDropdown, setActiveDropdown] = useState<'pen' | 'shapes' | 'eraser' | 'text' | null>(null);
   const shortcutPreferences = useShortcutPreferences();
 
+  useEffect(() => {
+    savePdfDrawingPreferences(drawingPreferences);
+  }, [drawingPreferences]);
+
   const toggleAnnotationMode = useCallback(() => {
     setDrawingEnabled(prev => {
       if (!prev) setDrawTool('pen');
@@ -221,13 +256,17 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
   useEffect(() => {
     if (!activeDropdown) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (!(e.target as Element).closest('.tool-dropdown-container')) {
+    const handlePointerDownOutside = (e: PointerEvent) => {
+      if (
+        e.target instanceof Element &&
+        !e.target.closest('.tool-dropdown-container')
+      ) {
         setActiveDropdown(null);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerDownOutside);
+    return () =>
+      document.removeEventListener('pointerdown', handlePointerDownOutside);
   }, [activeDropdown]);
   const [drawingPages, setDrawingPages] = useState<Set<number>>(() => new Set());
   const [, startTransition] = useTransition();
@@ -1075,8 +1114,12 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     });
   }, [renderStart, renderEnd, drawingPages]);
 
+  const isDarkSurface = surface === 'dark' || invertColors;
+  const viewerBgClass = readOnly ? 'bg-transparent' : isDarkSurface ? 'bg-black' : 'bg-white';
+  const viewerTextClass = isDarkSurface ? 'text-gray-100' : 'text-gray-900';
+
   return (
-    <div className={`w-full flex flex-col ${readOnly ? 'bg-transparent' : 'bg-gray-900'} text-gray-100 ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
+    <div className={`w-full flex flex-col ${viewerBgClass} ${viewerTextClass} ${mode === 'modal' ? 'h-screen' : 'h-full min-h-0'}`}>
       {showSaveDialog && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div
@@ -1149,7 +1192,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                     setZoomInputValue(String(Math.round(zoom)));
                   }
                 }}
-                className="w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
+                className="lm-number-input w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
                 title="Zoom percentage (25-400%) - Press Enter to apply"
               />
               <span className="text-xs sm:text-sm text-gray-500">%</span>
@@ -1184,7 +1227,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                       <button onClick={undo} disabled={!canUndo} className={`${iconBtn} ${iconBtnIdle}`} title="Undo"><Undo2 className={toolbarIconSize} /></button>
                       <button onClick={redo} disabled={!canRedo} className={`${iconBtn} ${iconBtnIdle}`} title="Redo"><Redo2 className={toolbarIconSize} /></button>
                       <div className="w-px h-6 bg-gray-700 mx-0.5" />
-                      <button onClick={() => setTouchScrollInDrawMode(prev => !prev)} className={`${iconBtn} ${touchScrollInDrawMode ? iconBtnActive : iconBtnIdle}`} title="Finger scroll & pinch zoom" aria-pressed={touchScrollInDrawMode}><Hand className={toolbarIconSize} /></button>
+                      <button onClick={toggleTouchScrollInDrawMode} className={`${iconBtn} ${touchScrollInDrawMode ? iconBtnActive : iconBtnIdle}`} title="Finger scroll & pinch zoom" aria-pressed={touchScrollInDrawMode}><Hand className={toolbarIconSize} /></button>
                       <div className="w-px h-6 bg-gray-700 mx-0.5" />
                       <div className="relative tool-dropdown-container">
                         <button onClick={() => { setDrawTool('pen'); setActiveDropdown(activeDropdown === 'pen' ? null : 'pen'); }} className={`${iconBtn} ${drawTool === 'pen' ? iconBtnActive : iconBtnIdle}`} title="Pen"><Pen className={toolbarIconSize} /></button>
@@ -1194,8 +1237,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Pen color" />
                               <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
                                 <span>Size</span>
-                                <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                                <input type="range" min={PDF_PEN_SIZE_MIN} max={PDF_PEN_SIZE_MAX} step={PDF_PEN_SIZE_STEP} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                                <span className="w-8 tabular-nums text-gray-300">{penSize}</span>
                               </label>
                             </div>
                           </div>
@@ -1215,8 +1258,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                               <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Stroke color" />
                               <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
                                 <span>Border</span>
-                                <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                                <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                                <input type="range" min={PDF_PEN_SIZE_MIN} max={PDF_PEN_SIZE_MAX} step={PDF_PEN_SIZE_STEP} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                                <span className="w-8 tabular-nums text-gray-300">{penSize}</span>
                               </label>
                             </div>
                           </div>
@@ -1385,7 +1428,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                   setZoomInputValue(String(Math.round(zoom)));
                 }
               }}
-              className="w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
+              className="lm-number-input w-14 sm:w-16 bg-gray-700 text-gray-100 text-xs sm:text-sm text-center rounded outline-none focus:ring-1 focus:ring-blue-500 tabular-nums"
               title="Zoom percentage (25-400%) - Press Enter to apply"
               aria-label="Zoom percentage"
             />
@@ -1496,7 +1539,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             <div className="w-px h-6 sm:h-7 bg-gray-700 mx-0.5" />
 
             <button
-              onClick={() => setTouchScrollInDrawMode(prev => !prev)}
+              onClick={toggleTouchScrollInDrawMode}
               className={`${iconBtn} ${touchScrollInDrawMode ? iconBtnActive : iconBtnIdle
                 }`}
               title="Finger scroll & pinch zoom"
@@ -1515,8 +1558,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Pen color" />
                     <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
                       <span>Size</span>
-                      <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                      <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                      <input type="range" min={PDF_PEN_SIZE_MIN} max={PDF_PEN_SIZE_MAX} step={PDF_PEN_SIZE_STEP} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                      <span className="w-8 tabular-nums text-gray-300">{penSize}</span>
                     </label>
                   </div>
                 </div>
@@ -1536,8 +1579,8 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                     <input type="color" value={penColor} onChange={e => setPenColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" title="Stroke color" />
                     <label className="flex items-center gap-2 text-gray-400 text-xs flex-1">
                       <span>Border</span>
-                      <input type="range" min={1} max={20} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
-                      <span className="w-4 tabular-nums text-gray-300">{penSize}</span>
+                      <input type="range" min={PDF_PEN_SIZE_MIN} max={PDF_PEN_SIZE_MAX} step={PDF_PEN_SIZE_STEP} value={penSize} onChange={e => setPenSize(Number(e.target.value))} className="flex-1 min-w-[4rem]" />
+                      <span className="w-8 tabular-nums text-gray-300">{penSize}</span>
                     </label>
                   </div>
                 </div>
@@ -1620,7 +1663,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
       <div className="flex flex-1 overflow-hidden relative">
         <div
           ref={setSidebarEl}
-          className={`absolute left-0 top-0 bottom-0 bg-gray-800 border-r border-gray-700 overflow-y-auto p-2 sm:p-3 md:p-4 transition-all duration-300 ease-out z-40 w-36 sm:w-44 md:w-52 lg:w-56 ${mode === 'modal' && sidebarOpen ? 'translate-x-0 visible' : '-translate-x-full invisible hidden'
+          className={`lm-scrollbar-dark absolute left-0 top-0 bottom-0 bg-gray-800 border-r border-gray-700 overflow-y-auto p-2 sm:p-3 md:p-4 transition-all duration-300 ease-out z-40 w-36 sm:w-44 md:w-52 lg:w-56 ${mode === 'modal' && sidebarOpen ? 'translate-x-0 visible' : '-translate-x-full invisible hidden'
             }`}
         >
           {numPages > 0 ? (
@@ -1667,7 +1710,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
 
         <div
           ref={scrollContainerRef}
-          className={`flex-1 overflow-y-auto overflow-x-auto ${readOnly ? 'bg-transparent p-0' : 'bg-gray-950 p-4'}`}
+          className={`lm-scrollbar flex-1 overflow-y-auto overflow-x-auto ${viewerBgClass} ${readOnly ? 'p-0' : 'p-4'}`}
           style={{ touchAction: 'pan-x pan-y pinch-zoom' } as React.CSSProperties}
           data-pdf-scroll-container="true"
         >

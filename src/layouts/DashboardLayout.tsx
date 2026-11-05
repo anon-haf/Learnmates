@@ -208,7 +208,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <aside
         onMouseEnter={() => setSidebarExpanded(true)}
         onMouseLeave={() => setSidebarExpanded(false)}
-        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:z-40 border-r border-gray-200/80 dark:border-gray-700/80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm overflow-hidden transition-[width,box-shadow,background-color] duration-500 ease-in-out ${sidebarExpanded ? 'w-72 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50' : 'w-20'
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:z-[60] border-r border-gray-200/80 dark:border-gray-700/80 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm overflow-hidden transition-[width,box-shadow,background-color] duration-500 ease-in-out ${sidebarExpanded ? 'w-72 shadow-xl shadow-slate-200/50 dark:shadow-slate-950/50' : 'w-20'
           }`}
       >
         <div className="flex h-20 items-center border-b border-gray-200/80 dark:border-gray-700/80 transition-all duration-500 px-4 justify-start">

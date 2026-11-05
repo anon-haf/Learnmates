@@ -82,7 +82,6 @@ const Dashboard: React.FC = () => {
   useRouteBase();
   const navigate = useNavigate();
   const { role } = useUserRole(authUser?.id);
-  const isTester = role === 'tester';
   const [favoriteSubjects, setFavoriteSubjects] = useState<FavoriteSubject[]>([]);
   const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
   const [isEditingSubjects, setIsEditingSubjects] = useState(false);
@@ -208,7 +207,7 @@ const Dashboard: React.FC = () => {
       </Helmet>
 
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="p-4 sm:p-6 lg:p-8">
-        {isTester && (
+        {authUser && (
           <motion.div variants={itemVariants} className="mb-8">
             <div className="group max-w-4xl rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-gray-800 sm:p-5">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -221,7 +220,7 @@ const Dashboard: React.FC = () => {
                       Meet your study partner
                     </h2>
                     <p className="mt-0.5 text-sm text-neutral-600 dark:text-neutral-300">
-                      Science help · 5 messages/day · resets at midnight UTC
+                      Science help · 7 requests/day · resets at midnight UTC
                     </p>
                   </div>
                 </div>
