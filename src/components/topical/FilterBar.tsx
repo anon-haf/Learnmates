@@ -264,7 +264,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   allSelected={isAllMonthsSelected || false}
                   onToggleAll={() => onToggleMonth('all')}
                   options={availableMonths.map(m => ({ value: m, label: m }))}
-                  selected={monthFilter || new Set()}
+                  selected={monthFilter?.size ? monthFilter : new Set(availableMonths)}
                   onToggle={m => onToggleMonth(m as string)}
                   className="max-w-[280px] shrink-0"
                   title={
@@ -283,7 +283,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   allSelected={isAllVariantsSelected || false}
                   onToggleAll={() => onToggleVariant('all')}
                   options={availableVariants.map(v => ({ value: v, label: `Variant ${v}` }))}
-                  selected={variantFilter || new Set()}
+                  selected={variantFilter?.size ? variantFilter : new Set(availableVariants)}
                   onToggle={v => onToggleVariant(Number(v))}
                   className="max-w-[280px] shrink-0"
                   title={

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check, Table } from 'lucide-react';
+import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check, Table, Timer, Play, Pause } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { ReportModal } from './ReportModal';
@@ -77,6 +77,49 @@ interface QuizMenuProps {
 
 type QuizComponentProps = SingleQuizProps | QuizMenuProps;
 
+interface TopicalTimerState {
+  elapsedMs: number;
+  startedAt: number | null;
+  error: string | null;
+}
+
+const readTopicalTimer = (storageKey: string | null): TopicalTimerState => {
+  if (!storageKey) return { elapsedMs: 0, startedAt: null, error: null };
+
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (!stored) return { elapsedMs: 0, startedAt: null, error: null };
+
+    const parsed: unknown = JSON.parse(stored);
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !('elapsedMs' in parsed) ||
+      typeof parsed.elapsedMs !== 'number' ||
+      !Number.isFinite(parsed.elapsedMs) ||
+      parsed.elapsedMs < 0 ||
+      !('startedAt' in parsed) ||
+      (parsed.startedAt !== null &&
+        (typeof parsed.startedAt !== 'number' || !Number.isFinite(parsed.startedAt)))
+    ) {
+      throw new Error('Saved timer data is invalid.');
+    }
+
+    return { elapsedMs: parsed.elapsedMs, startedAt: parsed.startedAt, error: null };
+  } catch (error) {
+    console.error('Could not load the topical timer from local storage:', error);
+    return { elapsedMs: 0, startedAt: null, error: 'Timer data could not be loaded from this browser.' };
+  }
+};
+
+const formatTimerDuration = (milliseconds: number): string => {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+  const minutes = String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0');
+  const hours = Math.floor(totalSeconds / 3600);
+  return hours > 0 ? `${String(hours).padStart(2, '0')}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+};
+
 const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const shortcutPreferences = useShortcutPreferences();
   const isQuizMenu = 'quizzes' in props;
@@ -86,12 +129,18 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const questions = useMemo(() => (isQuizMenu ? [] : singleQuizQuestions), [isQuizMenu, singleQuizQuestions]);
   const title = useMemo(() => (isQuizMenu ? '' : singleQuizTitle), [isQuizMenu, singleQuizTitle]);
   const quizId = useMemo(() => (isQuizMenu ? undefined : singleQuizId), [isQuizMenu, singleQuizId]);
+  const timerEnabled = !isQuizMenu && !('explanationOnly' in props && props.explanationOnly);
+  const timerStorageKey = timerEnabled && (quizId || title)
+    ? `topical_study_timer_v1_${encodeURIComponent(quizId || title)}`
+    : null;
 
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
   const [loadingQuizzes, setLoadingQuizzes] = useState<Map<string, boolean>>(new Map());
   const [loadedQuizzes, setLoadedQuizzes] = useState<Map<string, Question[]>>(new Map());
   const [isLoadingMore, setIsLoadingMore] = useState<Map<string, boolean>>(new Map());
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [timerState, setTimerState] = useState<TopicalTimerState>(() => readTopicalTimer(timerStorageKey));
+  const [timerNow, setTimerNow] = useState(() => Date.now());
   const [showMarkScheme, setShowMarkScheme] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
   const [showPeriodicTableInline, setShowPeriodicTableInline] = useState(false);
@@ -122,6 +171,81 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const canExplainTopical = Boolean(authUser);
   const nibrasUsage = useNibrasUsage(canExplainTopical);
 
+  useEffect(() => {
+    if (timerState.startedAt === null) return;
+
+    const intervalId = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [timerState.startedAt]);
+
+  useEffect(() => {
+    if (!timerStorageKey || timerState.error) return;
+
+    try {
+      localStorage.setItem(
+        timerStorageKey,
+        JSON.stringify({ elapsedMs: timerState.elapsedMs, startedAt: timerState.startedAt })
+      );
+    } catch (error) {
+      console.error('Could not save the topical timer to local storage:', error);
+      setTimerState(previous => ({
+        ...previous,
+        error: 'Timer data could not be saved to this browser.',
+      }));
+    }
+  }, [timerState.elapsedMs, timerState.startedAt, timerState.error, timerStorageKey]);
+
+  const toggleTopicalTimer = () => {
+    const now = Date.now();
+    setTimerNow(now);
+    setTimerState(previous => previous.startedAt === null
+      ? { ...previous, startedAt: now }
+      : {
+          ...previous,
+          elapsedMs: previous.elapsedMs + Math.max(0, now - previous.startedAt),
+          startedAt: null,
+        });
+  };
+
+  const displayedTimerMs = timerState.elapsedMs + (
+    timerState.startedAt === null ? 0 : Math.max(0, timerNow - timerState.startedAt)
+  );
+
+  const renderTimerControl = (largeView: boolean) => (
+    <div className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-800">
+      <Timer className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
+      <span className="min-w-[3.5rem] font-mono text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-100" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
+        {formatTimerDuration(displayedTimerMs)}
+      </span>
+      <button
+        type="button"
+        onClick={toggleTopicalTimer}
+        aria-label={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
+        title={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
+        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+          timerState.startedAt === null
+            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60'
+            : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60'
+        }`}
+      >
+        {timerState.startedAt === null
+          ? <Play className="h-3.5 w-3.5" aria-hidden="true" />
+          : <Pause className="h-3.5 w-3.5" aria-hidden="true" />}
+        <span className={largeView ? 'hidden sm:inline' : ''}>
+          {timerState.startedAt === null ? 'Start' : 'Stop'}
+        </span>
+      </button>
+      {timerState.error && (
+        <span
+          role="alert"
+          title={timerState.error}
+          className="text-[10px] font-medium text-red-600 dark:text-red-400"
+        >
+          Not saved
+        </span>
+      )}
+    </div>
+  );
   const handleDownloadMergedPDFs = async (
     quiz: MultiQuiz,
     type: 'questions' | 'markschemes',
@@ -1414,6 +1538,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 </button>
               )}
 
+              {timerEnabled && renderTimerControl(false)}
+
               <button
                 type="button"
                 onClick={() => setShowLargeView(true)}
@@ -1717,6 +1843,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               <span className="text-gray-400 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap">
                 {currentQuestion + 1} of {questions.length}
               </span>
+              {timerEnabled && renderTimerControl(true)}
               <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   onClick={() => {

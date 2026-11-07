@@ -37,9 +37,8 @@ const navItems: { name: string; href: string; icon: typeof Trophy; disabled?: bo
   { name: 'Curriculum', href: '/curriculum', icon: LibraryBig },
   { name: 'Past Papers', href: '/pastpapers', icon: FileText },
   { name: 'Topicals', href: '/topicals', icon: Layers },
-  { name: 'Lock in', href: '/lock_in', icon: Lock },
   { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-  { name: 'Nibras', href: '/nibras', icon: NibrasIcon, beta: true },
+  { name: 'Nibras', href: '/nibras', icon: NibrasIcon },
 ];
 
 interface ProfileSectionProps {

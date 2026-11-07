@@ -61,7 +61,7 @@ const CurriculumPdfViewerPage: React.FC = () => {
   const canonicalUrl = `https://www.learnmates.org/curriculum/${type}/${board}/${encodeURIComponent(subject || '')}/${title}/${pdfFile}`;
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[70]">
       <Helmet>
         <title>{pageTitle}</title>
         <meta name="description" content={pageDescription} />

@@ -212,6 +212,8 @@ const TopicalPages: React.FC = () => {
     newMonthFilter?: Set<string>,
     newVariantFilter?: Set<number>
   ) => {
+    const monthsToWrite = newMonthFilter ?? getMonthFilterFromQuery();
+    const variantsToWrite = newVariantFilter ?? getVariantFilterFromQuery();
     const params = new URLSearchParams();
     if (newChecked.size > 0) {
       const simplifiedTopics = Array.from(newChecked)
@@ -238,11 +240,11 @@ const TopicalPages: React.FC = () => {
     if (newStrictFilter) {
       params.set('strict', '1');
     }
-    if (newMonthFilter && newMonthFilter.size > 0) {
-      params.set('months', Array.from(newMonthFilter).join(','));
+    if (monthsToWrite.size > 0) {
+      params.set('months', Array.from(monthsToWrite).join(','));
     }
-    if (newVariantFilter && newVariantFilter.size > 0) {
-      params.set('variants', Array.from(newVariantFilter).join(','));
+    if (variantsToWrite.size > 0) {
+      params.set('variants', Array.from(variantsToWrite).join(','));
     }
     const queryString = params.toString();
     const newUrl = `${topicalsPath(selectedLevel, selectedBoard, selectedSubject)}${queryString ? '?' + queryString : ''}`;
@@ -410,12 +412,12 @@ const TopicalPages: React.FC = () => {
       : formatRangeSummary(availableYearNumbers.filter(year => yearFilter.has(year)));
 
   const availableMonthsArr = Array.from(availableMonths).sort();
-  const isAllMonthsSelected = availableMonthsArr.length > 0 && availableMonthsArr.every(m => monthFilter.has(m));
-  const selectedMonthSummary = isAllMonthsSelected ? 'All sessions' : monthFilter.size === 0 ? 'No session selected' : availableMonthsArr.filter(m => monthFilter.has(m)).join(', ');
+  const isAllMonthsSelected = availableMonthsArr.length > 0 && (monthFilter.size === 0 || availableMonthsArr.every(m => monthFilter.has(m)));
+  const selectedMonthSummary = isAllMonthsSelected ? 'All sessions' : availableMonthsArr.filter(m => monthFilter.has(m)).join(', ');
 
   const availableVariantsArr = Array.from(availableVariants).sort();
-  const isAllVariantsSelected = availableVariantsArr.length > 0 && availableVariantsArr.every(v => variantFilter.has(v));
-  const selectedVariantSummary = isAllVariantsSelected ? 'All variants' : variantFilter.size === 0 ? 'No variant selected' : availableVariantsArr.filter(v => variantFilter.has(v)).join(', ');
+  const isAllVariantsSelected = availableVariantsArr.length > 0 && (variantFilter.size === 0 || availableVariantsArr.every(v => variantFilter.has(v)));
+  const selectedVariantSummary = isAllVariantsSelected ? 'All variants' : availableVariantsArr.filter(v => variantFilter.has(v)).join(', ');
 
   const setMcqFilter = (filter: 'all' | 'mcq' | 'theory') => {
     setLoadFeedback(null);

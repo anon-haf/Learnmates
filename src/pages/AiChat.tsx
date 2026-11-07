@@ -541,6 +541,8 @@ const AiChat: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const typewriterRef = useRef<number | null>(null);
+  const chatGenerationRef = useRef(0);
+  const newlyCreatedSessionIdRef = useRef<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Chat State
@@ -726,11 +728,19 @@ const AiChat: React.FC = () => {
   }, [input]);
 
   const handleNewChat = () => {
+    chatGenerationRef.current += 1;
+    newlyCreatedSessionIdRef.current = null;
+    if (typewriterRef.current) {
+      clearTimeout(typewriterRef.current);
+      typewriterRef.current = null;
+    }
+    stopLoadingPhases();
+    setLoading(false);
     setCurrentSessionId(null);
     setMessages([]);
     setAttachments([]);
     setAttachmentError(null);
-    if (chatId) navigate('/nibras');
+    if (chatId || currentSessionId) navigate('/nibras');
     if (window.innerWidth < 1024) setSidebarOpen(false);
   };
 
@@ -751,6 +761,7 @@ const AiChat: React.FC = () => {
   };
 
   const handleLoadSession = useCallback(async (sessionId: string, updateUrl = true) => {
+    newlyCreatedSessionIdRef.current = null;
     setCurrentSessionId(sessionId);
     setMessages([]);
     setLoading(true);
@@ -811,6 +822,7 @@ const AiChat: React.FC = () => {
     if (fetchingSessions) return;
 
     if (!chatId) {
+      newlyCreatedSessionIdRef.current = null;
       if (currentSessionId) {
         setCurrentSessionId(null);
         setMessages([]);
@@ -818,6 +830,7 @@ const AiChat: React.FC = () => {
       return;
     }
 
+    if (chatId === newlyCreatedSessionIdRef.current) return;
     if (chatId === currentSessionId) return;
     if (sessions.some(session => session.id === chatId)) {
       void handleLoadSession(chatId, false);
@@ -1065,6 +1078,7 @@ const AiChat: React.FC = () => {
 
     setLoading(true);
     startLoadingPhases();
+    const requestGeneration = chatGenerationRef.current;
 
     try {
       const conversationContext = getConversationContext(messages, retry?.messageId);
@@ -1079,6 +1093,8 @@ const AiChat: React.FC = () => {
         if (!isQuestionTooLong || shorterConversationContext === conversationContext) throw error;
         data = await fetchAnswer(question, filesToSend, shorterConversationContext);
       }
+      if (requestGeneration !== chatGenerationRef.current) return;
+
       const answer = data.answer || '';
       const botMsgId = `a-${Date.now()}`;
       const storedQuestion = question || `Attached files: ${filesToSend.map(file => file.name).join(', ')}`;
@@ -1100,6 +1116,7 @@ const AiChat: React.FC = () => {
               .select('id')
               .single();
 
+            if (requestGeneration !== chatGenerationRef.current) return;
             if (sessionError || !sessionData) {
               const code = sessionError?.code ? ` (code: ${sessionError.code})` : '';
               const detail = sessionError?.message || 'Unknown database error';
@@ -1109,6 +1126,7 @@ const AiChat: React.FC = () => {
           }
 
           activeSessionId = newSessionId;
+          newlyCreatedSessionIdRef.current = newSessionId;
           setCurrentSessionId(newSessionId);
           setSessions(prev => [{
             id: newSessionId,
@@ -1158,10 +1176,12 @@ const AiChat: React.FC = () => {
           if (assistantMessageError) throw assistantMessageError;
         }
       } catch (error: unknown) {
+        if (requestGeneration !== chatGenerationRef.current) return;
         console.error('AI tutor replied, but chat history could not be saved:', error);
         setAttachmentError('Your tutor replied, but this chat could not be saved to history.');
       }
 
+      if (requestGeneration !== chatGenerationRef.current) return;
       const botMsg: ChatMessage = {
         id: botMsgId, role: 'assistant', text: answer,
         response: data, displayedLen: 0,
@@ -1169,6 +1189,7 @@ const AiChat: React.FC = () => {
       setMessages(prev => [...prev, botMsg]);
       startTypewriter(botMsg.id, answer);
     } catch (err: unknown) {
+      if (requestGeneration !== chatGenerationRef.current) return;
       const errMsg = err instanceof Error ? err.message : 'Could not reach the server.';
       setMessages(prev => [
         ...prev,
@@ -1181,8 +1202,10 @@ const AiChat: React.FC = () => {
         },
       ]);
     } finally {
-      stopLoadingPhases();
-      setLoading(false);
+      if (requestGeneration === chatGenerationRef.current) {
+        stopLoadingPhases();
+        setLoading(false);
+      }
     }
   };
 
