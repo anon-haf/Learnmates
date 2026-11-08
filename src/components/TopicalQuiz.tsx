@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, PanelRight, Check, Table, Timer, Play, Pause } from 'lucide-react';
+import { Flag, Trophy, FileText, Download, Maximize2, X, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, PanelRight, Check, Table, Timer, Play, Pause, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { ReportModal } from './ReportModal';
@@ -57,6 +57,8 @@ interface SingleQuizProps {
   quizId?: string;
   explanationOnly?: boolean;
   explainButtonTarget?: HTMLElement | null;
+  largeViewExplainButtonTarget?: HTMLElement | null;
+  largeViewActive?: boolean;
   showUnitTags?: boolean; // Show unit tags for each question when true
   isLoading?: boolean; // Indicates if more questions are still loading
 }
@@ -87,7 +89,7 @@ const readTopicalTimer = (storageKey: string | null): TopicalTimerState => {
   if (!storageKey) return { elapsedMs: 0, startedAt: null, error: null };
 
   try {
-    const stored = localStorage.getItem(storageKey);
+    const stored = sessionStorage.getItem(storageKey);
     if (!stored) return { elapsedMs: 0, startedAt: null, error: null };
 
     const parsed: unknown = JSON.parse(stored);
@@ -107,17 +109,22 @@ const readTopicalTimer = (storageKey: string | null): TopicalTimerState => {
 
     return { elapsedMs: parsed.elapsedMs, startedAt: parsed.startedAt, error: null };
   } catch (error) {
-    console.error('Could not load the topical timer from local storage:', error);
-    return { elapsedMs: 0, startedAt: null, error: 'Timer data could not be loaded from this browser.' };
+    console.error('Could not load the topical timer from session storage:', error);
+    return { elapsedMs: 0, startedAt: null, error: 'Timer data could not be loaded for this browser session.' };
   }
 };
 
 const formatTimerDuration = (milliseconds: number): string => {
-  const totalSeconds = Math.floor(milliseconds / 1000);
+  const totalMilliseconds = Math.floor(milliseconds);
+  const totalSeconds = Math.floor(totalMilliseconds / 1000);
+  const tenths = Math.floor((totalMilliseconds % 1000) / 100);
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   const minutes = String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0');
   const hours = Math.floor(totalSeconds / 3600);
-  return hours > 0 ? `${String(hours).padStart(2, '0')}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
+  const time = hours > 0
+    ? `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`
+    : `${minutes}:${seconds}`;
+  return `${time}.${tenths}`;
 };
 
 const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
@@ -140,9 +147,12 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [isLoadingMore, setIsLoadingMore] = useState<Map<string, boolean>>(new Map());
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timerState, setTimerState] = useState<TopicalTimerState>(() => readTopicalTimer(timerStorageKey));
+  const timerStorageKeyRef = useRef(timerStorageKey);
   const [timerNow, setTimerNow] = useState(() => Date.now());
   const [showMarkScheme, setShowMarkScheme] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [explanationSheetOpen, setExplanationSheetOpen] = useState(false);
+  const [explanationSheetMinimized, setExplanationSheetMinimized] = useState(false);
   const [showPeriodicTableInline, setShowPeriodicTableInline] = useState(false);
   const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
@@ -166,6 +176,9 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
   const [activeExplanationTool, setActiveExplanationTool] = useState<'followup' | null>(null);
   const explanationPanelRef = useRef<HTMLDivElement>(null);
+  const isLargeViewActive = showLargeView || (
+    !isQuizMenu && 'largeViewActive' in props && props.largeViewActive === true
+  );
   const preparedExplanationImagesRef = useRef<Map<string, Promise<File[]>>>(new Map());
   const { user: authUser } = useAuth();
   const canExplainTopical = Boolean(authUser);
@@ -174,26 +187,38 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   useEffect(() => {
     if (timerState.startedAt === null) return;
 
-    const intervalId = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    const intervalId = window.setInterval(() => setTimerNow(Date.now()), 100);
     return () => window.clearInterval(intervalId);
   }, [timerState.startedAt]);
 
   useEffect(() => {
-    if (!timerStorageKey || timerState.error) return;
+    if (
+      !timerStorageKey ||
+      timerStorageKeyRef.current !== timerStorageKey ||
+      timerState.error
+    ) return;
 
     try {
-      localStorage.setItem(
+      sessionStorage.setItem(
         timerStorageKey,
         JSON.stringify({ elapsedMs: timerState.elapsedMs, startedAt: timerState.startedAt })
       );
     } catch (error) {
-      console.error('Could not save the topical timer to local storage:', error);
+      console.error('Could not save the topical timer to session storage:', error);
       setTimerState(previous => ({
         ...previous,
-        error: 'Timer data could not be saved to this browser.',
+        error: 'Timer data could not be saved for this browser session.',
       }));
     }
   }, [timerState.elapsedMs, timerState.startedAt, timerState.error, timerStorageKey]);
+
+  useEffect(() => {
+    if (timerStorageKeyRef.current === timerStorageKey) return;
+
+    timerStorageKeyRef.current = timerStorageKey;
+    setTimerState(readTopicalTimer(timerStorageKey));
+    setTimerNow(Date.now());
+  }, [timerStorageKey]);
 
   const toggleTopicalTimer = () => {
     const now = Date.now();
@@ -207,14 +232,23 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         });
   };
 
+  const resetTopicalTimer = () => {
+    setTimerNow(Date.now());
+    setTimerState(previous => ({ ...previous, elapsedMs: 0, startedAt: null }));
+  };
+
   const displayedTimerMs = timerState.elapsedMs + (
     timerState.startedAt === null ? 0 : Math.max(0, timerNow - timerState.startedAt)
   );
 
   const renderTimerControl = (largeView: boolean) => (
-    <div className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-800">
-      <Timer className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
-      <span className="min-w-[3.5rem] font-mono text-xs font-semibold tabular-nums text-gray-700 dark:text-gray-100" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
+    <div className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
+      largeView
+        ? 'border-gray-600 bg-gray-800'
+        : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
+    }`}>
+      <Timer className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
+      <span className="min-w-[7rem] font-mono text-sm font-bold tabular-nums text-gray-700 dark:text-gray-100 sm:text-base" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
         {formatTimerDuration(displayedTimerMs)}
       </span>
       <button
@@ -222,18 +256,27 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
         onClick={toggleTopicalTimer}
         aria-label={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
         title={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold transition-colors ${
+        className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
           timerState.startedAt === null
             ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60'
             : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60'
         }`}
       >
         {timerState.startedAt === null
-          ? <Play className="h-3.5 w-3.5" aria-hidden="true" />
-          : <Pause className="h-3.5 w-3.5" aria-hidden="true" />}
+          ? <Play className="h-4 w-4" aria-hidden="true" />
+          : <Pause className="h-4 w-4" aria-hidden="true" />}
         <span className={largeView ? 'hidden sm:inline' : ''}>
           {timerState.startedAt === null ? 'Start' : 'Stop'}
         </span>
+      </button>
+      <button
+        type="button"
+        onClick={resetTopicalTimer}
+        aria-label="Reset timer"
+        title="Reset timer"
+        className="inline-flex items-center justify-center rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
+      >
+        <RotateCcw className="h-4 w-4" aria-hidden="true" />
       </button>
       {timerState.error && (
         <span
@@ -798,9 +841,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     setFollowUpError(null);
     setFollowUpInput('');
     setActiveExplanationTool(null);
-    window.requestAnimationFrame(() => {
-      explanationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    if (!isLargeViewActive) {
+      window.requestAnimationFrame(() => {
+        explanationPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
     try {
       const cacheKey = await createTopicalExplanationCacheKey(questionUrl, markSchemeUrl, isMcq, correctAnswer);
       const { data: sharedExplanation, error: sharedCacheError } = await supabase
@@ -900,22 +945,180 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       : null,
     [explanation, currentQ?.id, currentQ?.isMcq, currentQ?.mcqAnswer]
   );
+  const canExplainCurrentQuestion = Boolean(
+    currentQ &&
+    currentQ.questionContent &&
+    (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) &&
+    getTopicalAiSubject(currentQ)
+  );
+  const renderExplanationContent = (idSuffix: string) => currentQ && (
+    <>
+      {canExplainTopical && (
+        <NibrasUsageIndicator
+          usage={nibrasUsage.usage}
+          loading={nibrasUsage.loading}
+          error={nibrasUsage.error}
+          onRetry={() => void nibrasUsage.refresh()}
+          compact
+        />
+      )}
+      {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
+        <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
+          <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+          <span>
+            {isAskingFollowUp
+              ? 'Nibras is answering your follow-up…'
+              : 'Preparing your explanation…'}
+          </span>
+        </div>
+      )}
+      {currentExplanationError && (
+        <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {currentExplanationError}
+        </p>
+      )}
+      {currentExplanation && explanationSections && (
+        <div>
+          {currentExplanation.warning && (
+            <p role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              {currentExplanation.warning}
+            </p>
+          )}
+          {!explanationSections.isStructured && (
+            <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+              The tutor response did not use the requested section format, so it is shown as one expandable section.
+            </p>
+          )}
+          <TopicalExplanationSections
+            key={`${currentQ.id}-${currentExplanation.answer}-${idSuffix}`}
+            sections={explanationSections.sections}
+            isMcq={currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)}
+            correctOption={currentQ.mcqAnswer}
+            selectedOption={selectedMcqOption}
+          />
+          {canExplainTopical && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveExplanationTool(activeExplanationTool === 'followup' ? null : 'followup')}
+                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
+              >
+                Ask follow-up
+              </button>
+            </div>
+          )}
+          {activeExplanationTool === 'followup' && canExplainTopical && (
+            <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+              <label htmlFor={`topical-follow-up-${currentQ.id}-${idSuffix}`} className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100">
+                What would you like to ask?
+              </label>
+              <textarea
+                id={`topical-follow-up-${currentQ.id}-${idSuffix}`}
+                value={followUpInput}
+                onChange={event => setFollowUpInput(event.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder="Ask about a step, idea, or alternative method…"
+                className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
+              />
+              {followUpError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{followUpError}</p>}
+              <button
+                type="button"
+                disabled={!followUpInput.trim() || isAskingFollowUp || explainingQuestionId !== null}
+                onClick={() => void handleAskFollowUp(currentQ, currentExplanation.answer)}
+                className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isAskingFollowUp ? 'Sending…' : 'Send follow-up'}
+              </button>
+              {followUpAnswer && (
+                <div className="mt-3">
+                  <TopicalExplanationSections
+                    sections={[{ kind: 'answer', label: 'Follow-up answer', content: followUpAnswer }]}
+                    isMcq={false}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+  const largeViewExplainButtonTarget = !isQuizMenu && 'largeViewExplainButtonTarget' in props
+    ? props.largeViewExplainButtonTarget
+    : null;
   const explainButtonTarget = !isQuizMenu && 'explainButtonTarget' in props
     ? props.explainButtonTarget
     : null;
-  const renderExplainButton = () => (
+  const renderExplainButton = (openExplanationSheet = false) => (
     <button
       type="button"
       onClick={() => {
-        if (currentQ) void handleExplain(currentQ);
+        if (openExplanationSheet) {
+          setExplanationSheetOpen(true);
+          setExplanationSheetMinimized(false);
+          if (currentQ && !currentExplanation && explainingQuestionId !== currentQ.id) {
+            void handleExplain(currentQ);
+          }
+        } else if (currentQ) {
+          void handleExplain(currentQ);
+        }
       }}
-      disabled={explainingQuestionId !== null}
+      disabled={!openExplanationSheet && explainingQuestionId !== null}
       className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-      title="Explain this question with Nibras"
+      title={openExplanationSheet ? 'Open the question explanation' : 'Explain this question with Nibras'}
+      aria-expanded={openExplanationSheet ? explanationSheetOpen : undefined}
     >
       <NibrasIcon className="h-4 w-4 text-white" />
-      <span>Explain</span>
+      <span>{openExplanationSheet ? 'Explanation' : 'Explain'}</span>
     </button>
+  );
+  const renderExplanationSheet = () => isLargeViewActive && explanationSheetOpen && currentQ && createPortal(
+    <motion.section
+      initial={{ y: '100%' }}
+      animate={{ y: 0 }}
+      exit={{ y: '100%' }}
+      transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+      aria-label="Question explanation"
+      className={`fixed inset-x-0 bottom-0 z-[120] mx-auto flex max-h-[75dvh] flex-col overflow-hidden border-t border-blue-400/30 bg-[#0a1628]/[.98] text-gray-100 shadow-[0_-12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md transition-[height] ${
+        explanationSheetMinimized ? 'h-14' : 'h-[min(60dvh,520px)]'
+      }`}
+    >
+      <div className="flex shrink-0 items-center justify-between border-b border-[#1a2d47] px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-100">Explanation</h2>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setExplanationSheetMinimized(value => !value)}
+            className="rounded-md p-1.5 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
+            aria-label={explanationSheetMinimized ? 'Expand explanation' : 'Minimize explanation'}
+            title={explanationSheetMinimized ? 'Expand explanation' : 'Minimize explanation'}
+          >
+            {explanationSheetMinimized
+              ? <ChevronUp className="h-4 w-4" />
+              : <ChevronDown className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setExplanationSheetOpen(false)}
+            className="rounded-md p-1.5 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white"
+            aria-label="Close explanation"
+            title="Close explanation"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      {!explanationSheetMinimized && (
+        <div className="lm-scrollbar-dark flex-1 overflow-y-auto p-4">
+          {renderExplanationContent('zoomed')}
+          {!explainingQuestionId && !isAskingFollowUp && !currentExplanation && !currentExplanationError && (
+            <p className="text-sm text-gray-400">Use Explanation in the side panel to get a step-by-step answer.</p>
+          )}
+        </div>
+      )}
+    </motion.section>,
+    document.body
   );
 
   if (!isQuizMenu && 'explanationOnly' in props && props.explanationOnly && currentQ) {
@@ -935,93 +1138,16 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
           (isMcq || currentQ.markScheme) &&
           getTopicalAiSubject(currentQ) &&
           createPortal(renderExplainButton(), explainButtonTarget)}
+        {isLargeViewActive &&
+          largeViewExplainButtonTarget &&
+          canExplainTopical &&
+          canExplainCurrentQuestion &&
+          createPortal(renderExplainButton(true), largeViewExplainButtonTarget)}
 
         <div ref={explanationPanelRef} className="scroll-mt-6">
-          {canExplainTopical && (
-            <NibrasUsageIndicator
-              usage={nibrasUsage.usage}
-              loading={nibrasUsage.loading}
-              error={nibrasUsage.error}
-              onRetry={() => void nibrasUsage.refresh()}
-              compact
-            />
-          )}
-          {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
-            <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-              <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
-              <span>
-                {isAskingFollowUp
-                  ? 'Nibras is answering your follow-up…'
-                  : 'Preparing your explanation…'}
-              </span>
-            </div>
-          )}
-          {currentExplanationError && (
-            <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-              {currentExplanationError}
-            </p>
-          )}
-          {currentExplanation && explanationSections && (
-            <div>
-              {currentExplanation.warning && (
-                <p role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                  {currentExplanation.warning}
-                </p>
-              )}
-              <TopicalExplanationSections
-                key={`${currentQ.id}-${currentExplanation.answer}`}
-                sections={explanationSections.sections}
-                isMcq={isMcq}
-                correctOption={currentQ.mcqAnswer}
-                selectedOption={selectedMcqOption}
-              />
-              {canExplainTopical && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveExplanationTool(activeExplanationTool === 'followup' ? null : 'followup')}
-                    className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
-                  >
-                    Ask follow-up
-                  </button>
-                </div>
-              )}
-              {activeExplanationTool === 'followup' && canExplainTopical && (
-                <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
-                  <label htmlFor={`topical-follow-up-${currentQ.id}`} className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100">
-                    What would you like to ask?
-                  </label>
-                  <textarea
-                    id={`topical-follow-up-${currentQ.id}`}
-                    value={followUpInput}
-                    onChange={event => setFollowUpInput(event.target.value)}
-                    rows={3}
-                    maxLength={2000}
-                    placeholder="Ask about a step, idea, or alternative method…"
-                    className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                  />
-                  {followUpError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{followUpError}</p>}
-                  <button
-                    type="button"
-                    disabled={!followUpInput.trim() || isAskingFollowUp || explainingQuestionId !== null}
-                    onClick={() => void handleAskFollowUp(currentQ, currentExplanation.answer)}
-                    className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isAskingFollowUp ? 'Sending…' : 'Send follow-up'}
-                  </button>
-                  {followUpAnswer && (
-                    <div className="mt-3">
-                      <TopicalExplanationSections
-                        sections={[{ kind: 'answer', label: 'Follow-up answer', content: followUpAnswer }]}
-                        isMcq={false}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {renderExplanationContent('inline')}
         </div>
+        {renderExplanationSheet()}
       </div>
     );
   }
@@ -1517,6 +1643,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
 
             <div className="flex items-center gap-2">
+              {timerEnabled && renderTimerControl(false)}
+
               {Boolean(canExplainTopical && currentQ.questionContent && (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) && getTopicalAiSubject(currentQ)) && (
                 renderExplainButton()
               )}
@@ -1537,8 +1665,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <span className="sm:hidden">PT</span>
                 </button>
               )}
-
-              {timerEnabled && renderTimerControl(false)}
 
               <button
                 type="button"
@@ -1623,95 +1749,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
           )}
           <div ref={explanationPanelRef} className="scroll-mt-6">
-            {canExplainTopical && (
-              <NibrasUsageIndicator
-                usage={nibrasUsage.usage}
-                loading={nibrasUsage.loading}
-                error={nibrasUsage.error}
-                onRetry={() => void nibrasUsage.refresh()}
-                compact
-              />
-            )}
-            {(explainingQuestionId === currentQ.id || isAskingFollowUp) && (
-              <div role="status" className="mt-3 flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-4 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-950/40 dark:text-purple-200">
-                <NibrasAnimatedMark className="h-7 w-7 text-blue-600 dark:text-blue-400" />
-                <span>
-                  {isAskingFollowUp
-                    ? 'Nibras is answering your follow-up…'
-                    : 'Preparing your explanation…'}
-                </span>
-              </div>
-            )}
-            {currentExplanationError && (
-              <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-                {currentExplanationError}
-              </p>
-            )}
-            {currentExplanation && explanationSections && (
-              <div>
-                {currentExplanation.warning && (
-                  <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-                    {currentExplanation.warning}
-                  </p>
-                )}
-                {!explanationSections.isStructured && (
-                  <p role="status" className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-                    The tutor response did not use the requested section format, so it is shown as one expandable section.
-                  </p>
-                )}
-                <TopicalExplanationSections
-                  key={`${currentQ.id}-${currentExplanation.answer}`}
-                  sections={explanationSections.sections}
-                  isMcq={currentQ.isMcq ?? Boolean(currentQ.mcqAnswer)}
-                  correctOption={currentQ.mcqAnswer}
-                  selectedOption={selectedMcqOption}
-                />
-                {canExplainTopical && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveExplanationTool(activeExplanationTool === 'followup' ? null : 'followup')}
-                      className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-gray-900 dark:text-blue-300 dark:hover:bg-gray-800"
-                    >
-                      Ask follow-up
-                    </button>
-                  </div>
-                )}
-                {activeExplanationTool === 'followup' && canExplainTopical && (
-                  <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
-                    <label htmlFor="topical-follow-up" className="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-100">
-                      What would you like to ask?
-                    </label>
-                    <textarea
-                      id="topical-follow-up"
-                      value={followUpInput}
-                      onChange={event => setFollowUpInput(event.target.value)}
-                      rows={3}
-                      maxLength={2000}
-                      placeholder="Ask about a step, idea, or alternative method…"
-                      className="w-full resize-y rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100"
-                    />
-                    {followUpError && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-300">{followUpError}</p>}
-                    <button
-                      type="button"
-                      disabled={!followUpInput.trim() || isAskingFollowUp || explainingQuestionId !== null}
-                      onClick={() => void handleAskFollowUp(currentQ, currentExplanation.answer)}
-                      className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isAskingFollowUp ? 'Sending…' : 'Send follow-up'}
-                    </button>
-                    {followUpAnswer && (
-                      <div className="mt-3">
-                        <TopicalExplanationSections
-                          sections={[{ kind: 'answer', label: 'Follow-up answer', content: followUpAnswer }]}
-                          isMcq={false}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            {renderExplanationContent('inline')}
           </div>
         </div>
       </div>
@@ -1775,6 +1813,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       </div>
         </>
       )}
+      {renderExplanationSheet()}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} question={currentQ} />
       <PeriodicTablePopup
         open={showPeriodicTablePopup && isIgcseChemistry}
@@ -1795,6 +1834,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               <h2 className="text-base sm:text-lg font-semibold text-gray-100 hidden sm:block truncate max-w-[200px] md:max-w-xs">
                 {currentQ.title || `Paper ${currentQuestion + 1}`}
               </h2>
+              {timerEnabled && renderTimerControl(true)}
             </div>
 
 
@@ -1843,7 +1883,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               <span className="text-gray-400 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap">
                 {currentQuestion + 1} of {questions.length}
               </span>
-              {timerEnabled && renderTimerControl(true)}
               <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   onClick={() => {
@@ -1919,6 +1958,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
                 <div className="w-full h-px bg-[#1a2d47] shrink-0" />
 
+                {canExplainTopical && canExplainCurrentQuestion && renderExplainButton(true)}
+
                 {/* Question navigation */}
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
@@ -1987,6 +2028,9 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {/* Sidebar (MCQ Options & Navigation) */}
             {currentQ.mcqAnswer && (
               <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
+                {canExplainTopical && canExplainCurrentQuestion && (
+                  <div className="shrink-0">{renderExplainButton(true)}</div>
+                )}
                 {/* Topics and Report - hidden on small screens */}
                 <div className="hidden lg:flex flex-col lg:flex-row items-start justify-between bg-transparent shrink-0 lg:min-w-0">
                   <div className="flex flex-col gap-2 mb-3 lg:mb-0">

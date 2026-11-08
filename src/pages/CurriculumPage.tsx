@@ -7,6 +7,7 @@ import { useUser } from '../context/UserContext';
 import { curriculumData, type Topic, type BoardKey, getTopicSlug } from '../utils/curriculumData';
 import TopicGroupList from '../components/TopicGroupList';
 import { topicData } from '../data/topicData';
+import { getSubjectQualificationCode } from '../data/examTimings';
 import { useEngagementRevision } from '../hooks/useEngagementRevision';
 import {
   getSubjectProgress,
@@ -38,6 +39,9 @@ const CurriculumPage: React.FC = () => {
 
   const availableLevels = Object.keys(curriculumData);
   const selectedLevel = typeParam && availableLevels.includes(typeParam) ? typeParam : 'igcse';
+  const selectedSubjectCode = selectedSubject && selectedBoard
+    ? getSubjectQualificationCode(selectedLevel, selectedBoard, selectedSubject)
+    : null;
   const curriculum = curriculumData[selectedLevel as keyof typeof curriculumData];
   const navigate = useNavigate();
 
@@ -188,24 +192,32 @@ const CurriculumPage: React.FC = () => {
                 : "w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 justify-center"
           }
         >
-          {subjects.map((subject: string) => (
-            <motion.button
-              key={subject}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex flex-col items-start rounded-2xl shadow-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-6 py-8 sm:px-8 sm:py-10 lg:px-8 lg:py-10 transform hover:-translate-y-1 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 group"
-              onClick={() => navigate(curriculumPath(selectedLevel, selectedBoard!, encodeURIComponent(subject)))}
-            >
-              <div className="flex items-center mb-4">
-                <div className="bg-blue-100 dark:bg-blue-900 w-12 h-12 p-2 rounded-md mr-2 transform transition-transform group-hover:scale-103">
-                  {getSubjectIcon(subject)}
+          {subjects.map((subject: string) => {
+            const subjectCode = getSubjectQualificationCode(selectedLevel, selectedBoard!, subject);
+            return (
+              <motion.button
+                key={subject}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="flex flex-col items-start rounded-2xl shadow-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-6 py-8 sm:px-8 sm:py-10 lg:px-8 lg:py-10 transform hover:-translate-y-1 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900 group"
+                onClick={() => navigate(curriculumPath(selectedLevel, selectedBoard!, encodeURIComponent(subject)))}
+              >
+                <div className="flex items-center mb-4">
+                  <div className="bg-blue-100 dark:bg-blue-900 w-12 h-12 p-2 rounded-md mr-2 transform transition-transform group-hover:scale-103">
+                    {getSubjectIcon(subject)}
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className="font-semibold text-lg text-slate-900 dark:text-white">{subject}</span>
+                    {subjectCode && (
+                      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{subjectCode}</span>
+                    )}
+                  </div>
                 </div>
-                <span className="font-semibold text-lg text-slate-900 dark:text-white">{subject}</span>
-              </div>
-              <span className="text-xs text-slate-600 dark:text-slate-400">Explore topics and resources</span>
-            </motion.button>
-          ))}
+                <span className="text-xs text-slate-600 dark:text-slate-400">Explore topics and resources</span>
+              </motion.button>
+            );
+          })}
         </div>
         <div className="mt-12">
           <Button variant="ghost" onClick={() => navigate(curriculumPath(selectedLevel))} leftIcon={<ArrowRight className="w-5 h-5" />}>
@@ -240,7 +252,13 @@ const CurriculumPage: React.FC = () => {
           </Button>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-3">
-          {curriculum.title} — {selectedSubject} Topics
+          {curriculum.title} — {selectedSubject}
+          {selectedSubjectCode && (
+            <span className="ml-2">
+              ({selectedSubjectCode})
+            </span>
+          )}
+          {' '}Topics
         </h1>
         <p className="text-base text-neutral-600 dark:text-neutral-300 max-w-3xl mx-auto leading-relaxed">
           {curriculum.description}

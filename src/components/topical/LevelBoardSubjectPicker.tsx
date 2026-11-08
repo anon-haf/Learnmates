@@ -1,5 +1,6 @@
 import React from 'react';
 import Dropdown from './Dropdown';
+import { getSubjectQualificationCode } from '../../data/examTimings';
 
 interface LevelBoardSubjectPickerProps {
   levels: string[];
@@ -28,6 +29,10 @@ const LevelBoardSubjectPicker: React.FC<LevelBoardSubjectPickerProps> = ({
 }) => {
   const hasLevel = !!selectedLevel;
   const hasBoard = !!selectedBoard;
+  const subjectLabel = (subject: string) => {
+    const code = getSubjectQualificationCode(selectedLevel, selectedBoard, subject);
+    return code ? `${subject} · ${code}` : subject;
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -58,8 +63,8 @@ const LevelBoardSubjectPicker: React.FC<LevelBoardSubjectPickerProps> = ({
         <Dropdown
           label="Subject"
           fullWidth
-          buttonLabel={selectedSubject || 'Select Subject'}
-          options={subjectsForLevelBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: s }))}
+          buttonLabel={selectedSubject ? subjectLabel(selectedSubject) : 'Select Subject'}
+          options={subjectsForLevelBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: subjectLabel(s) }))}
           selectedValue={selectedSubject}
           onSelect={onSubjectChange}
           disabled={!hasLevel || !hasBoard}

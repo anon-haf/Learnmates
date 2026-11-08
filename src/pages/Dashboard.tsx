@@ -28,6 +28,7 @@ import SubjectProgressBars from '../components/SubjectProgressBars';
 import { useEngagementRevision } from '../hooks/useEngagementRevision';
 import { getGroupedSubjectProgress } from '../utils/subjectProgressGroups';
 import { topicData } from '../data/topicData';
+import { getSubjectQualificationCode } from '../data/examTimings';
 import { fetchProfile, loadFavoriteSubjectsForUser, syncFavoriteSubjectsToDb } from '../utils/profileSync';
 import { useRouteBase } from '../utils/routeBase';
 import { Card, Button, Badge } from '@/components/ui';
@@ -278,6 +279,7 @@ const Dashboard: React.FC = () => {
                     const showTopicals = hasTopicalsForSubject(fav);
                     const progressKey = `${fav.level}|${fav.board}|${fav.subject}`;
                     const progressGroups = subjectProgressByKey.get(progressKey) ?? [];
+                    const subjectCode = getSubjectQualificationCode(fav.level, fav.board, fav.subject);
 
                     return (
                       <motion.div
@@ -301,6 +303,7 @@ const Dashboard: React.FC = () => {
                                 <div className="flex items-baseline gap-3 mb-2 flex-wrap">
                                   <span className="font-semibold text-neutral-900 dark:text-white text-2xl">
                                     {fav.subject}
+                                    {subjectCode && ` (${subjectCode})`}
                                   </span>
                                   <Badge variant="outline" size="sm">
                                     {fav.level}

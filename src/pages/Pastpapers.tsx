@@ -12,6 +12,7 @@ import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
 
 import Dropdown from '../components/topical/Dropdown';
+import { getSubjectQualificationCode } from '../data/examTimings';
 
 interface PaperEntry {
   fileName: string;
@@ -356,6 +357,10 @@ const PastpapersPage: React.FC = () => {
   const boardsForLevel = (lvl: string) => Array.from(new Set(configs.filter(c => c.level === lvl).map(c => c.board)));
   const subjectsForLvlBoard = (lvl: string, bd: string) =>
     Array.from(new Set(configs.filter(c => c.level === lvl && c.board === bd).map(c => c.subject)));
+  const subjectLabel = (subject: string) => {
+    const code = getSubjectQualificationCode(selectedLevel, selectedBoard, subject);
+    return code ? `${subject} · ${code}` : subject;
+  };
 
   const [selectedLevel, setSelectedLevel] = useState<string>(urlLevel || '');
   const [selectedBoard, setSelectedBoard] = useState<string>(urlBoard || '');
@@ -767,8 +772,8 @@ const PastpapersPage: React.FC = () => {
             <Dropdown
               label="Subject"
               fullWidth
-              buttonLabel={selectedSubject || 'Select Subject'}
-              options={subjectsForLvlBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: s }))}
+              buttonLabel={selectedSubject ? subjectLabel(selectedSubject) : 'Select Subject'}
+              options={subjectsForLvlBoard(selectedLevel, selectedBoard).map(s => ({ value: s, label: subjectLabel(s) }))}
               selectedValue={selectedSubject}
               onSelect={setSelectedSubject as any}
               disabled={!selectedLevel || !selectedBoard}

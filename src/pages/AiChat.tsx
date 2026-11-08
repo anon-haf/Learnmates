@@ -31,6 +31,7 @@ import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import NibrasAnimatedMark from '../components/NibrasAnimatedMark';
 import NibrasUsageIndicator from '../components/NibrasUsageIndicator';
 import { useNibrasUsage } from '../hooks/useNibrasUsage';
+import { getSubjectQualificationCode } from '../data/examTimings';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import './AiChat.css';
@@ -822,6 +823,7 @@ const AiChat: React.FC = () => {
     if (fetchingSessions) return;
 
     if (!chatId) {
+      if (currentSessionId && currentSessionId === newlyCreatedSessionIdRef.current) return;
       newlyCreatedSessionIdRef.current = null;
       if (currentSessionId) {
         setCurrentSessionId(null);
@@ -2178,6 +2180,11 @@ const AiChat: React.FC = () => {
                       ).map((s, idx) => {
                         const isAdded = activeSections.includes(s.value);
                         const Icon = s.icon;
+                        const subjectCode = getSubjectQualificationCode(
+                          s.level === 'IGCSE' ? 'igcse' : 'a-level',
+                          selectedBoard,
+                          s.subjectName,
+                        );
                         return (
                           <motion.button
                             key={s.value}
@@ -2201,7 +2208,10 @@ const AiChat: React.FC = () => {
                             >
                               <Icon size={20} />
                             </motion.div>
-                            <span className="font-semibold text-gray-900 dark:text-white">{s.subjectName}</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {s.subjectName}
+                              {subjectCode && ` (${subjectCode})`}
+                            </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">{s.level}</span>
                             
                             {isAdded && (

@@ -18,6 +18,8 @@ import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, 
 import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { ShortcutKey } from '../components/ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
+import ExamCountdownTimer from '../components/ExamCountdownTimer';
+import { getExamTiming } from '../data/examTimings';
 
 interface PaperEntry {
   fileName: string;
@@ -229,6 +231,7 @@ const PaperViewerPage: React.FC = () => {
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
   const [explainButtonTarget, setExplainButtonTarget] = useState<HTMLDivElement | null>(null);
+  const [largeViewExplainButtonTarget, setLargeViewExplainButtonTarget] = useState<HTMLDivElement | null>(null);
 
   useBodyScrollLock(showLargeView);
 
@@ -570,6 +573,36 @@ const PaperViewerPage: React.FC = () => {
   // Reconstruct display name from loaded papers
   const firstPaper = papers[0];
   const paperDisplayName = firstPaper ? `${firstPaper.month} ${firstPaper.year} ${firstPaper.paperNumber ? `P${firstPaper.paperNumber}${firstPaper.variant !== null ? firstPaper.variant : ''}` : ''}`.trim() : paperKey.replace(/_/g, ' ');
+  const examTiming = getExamTiming(
+    level || '',
+    board || '',
+    subject || '',
+    unit || '',
+    firstPaper?.paperNumber ?? null,
+    firstPaper?.variant ?? null,
+  );
+  const examTimerStorageKey = examTiming
+    ? `past_paper_exam_timer_v1_${encodeURIComponent([level, board, subject, paperKey, unit, examTiming.componentCode].join('|'))}`
+    : null;
+  const renderExamTimer = (largeView = false) => {
+    if (papers.length === 0) return null;
+    if (!examTiming || !examTimerStorageKey) {
+      return (
+        <span role="alert" className="text-xs font-medium text-amber-700 dark:text-amber-300">
+          Exam timing is not configured for this paper.
+        </span>
+      );
+    }
+
+    return (
+      <ExamCountdownTimer
+        key={`${examTimerStorageKey}_${examTiming.durationSeconds}`}
+        durationSeconds={examTiming.durationSeconds}
+        storageKey={examTimerStorageKey}
+        largeView={largeView}
+      />
+    );
+  };
 
   const hasFullMarkScheme = papers.some(p => p.msUrl || p.mcqAnswer);
   const isCurrentQuestionCompleted = Boolean(currentPdf && completedQuestionPaths.has(currentPdf.pdfUrl));
@@ -600,8 +633,7 @@ const PaperViewerPage: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      {!showLargeView && (
-        <>
+      <div className={showLargeView ? 'hidden' : undefined}>
       <div className="mb-6">
         <button
           onClick={() => navigate(backUrl, { state: location.state })}
@@ -655,28 +687,33 @@ const PaperViewerPage: React.FC = () => {
         </div>
       ) : viewMode === 'single' && currentPdf ? (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg flex flex-col w-full border border-gray-200 dark:border-gray-700 relative">
-          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
-            <button
-              onClick={goToPrev}
-              disabled={questionIndex === 0}
-              className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="hidden sm:inline">Previous</span>
-              <span className="sm:hidden">Prev</span>
-            </button>
-            <QuestionNumberJump
-              value={questionJumpInput}
-              total={papers.length}
-              onChange={setQuestionJumpInput}
-              onSubmit={jumpToQuestion}
-            />
-            <button
-              onClick={goToNext}
-              disabled={questionIndex === papers.length - 1}
-              className="px-3 sm:px-6 py-2 text-base bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-600 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
+          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-wrap justify-between items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={goToPrev}
+                disabled={questionIndex === 0}
+                className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </button>
+              {renderExamTimer()}
+            </div>
+            <div className="flex items-center gap-2">
+              <QuestionNumberJump
+                value={questionJumpInput}
+                total={papers.length}
+                onChange={setQuestionJumpInput}
+                onSubmit={jumpToQuestion}
+              />
+              <button
+                onClick={goToNext}
+                disabled={questionIndex === papers.length - 1}
+                className="px-3 sm:px-6 py-2 text-base bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-600 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 p-4 bg-gray-50 dark:bg-gray-900">
@@ -809,6 +846,7 @@ const PaperViewerPage: React.FC = () => {
 
               <TopicalQuiz
                 explanationOnly
+                largeViewActive={showLargeView}
                 title={`${paperDisplayName} Question ${currentPdf.questionNumber || questionIndex + 1}`}
                 questions={[{
                   id: currentPdf.pdfUrl,
@@ -823,18 +861,20 @@ const PaperViewerPage: React.FC = () => {
                   mcqAnswer: currentPdf.mcqAnswer,
                 } satisfies Question]}
                 explainButtonTarget={explainButtonTarget}
+                largeViewExplainButtonTarget={largeViewExplainButtonTarget}
               />
             </div>
           </div>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg flex flex-col w-full border border-gray-200 dark:border-gray-700 relative">
-          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
+          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-wrap justify-between items-center gap-2">
             <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
 
               Full Paper Viewer
             </div>
             <div className="flex gap-2 items-center flex-wrap">
+              {renderExamTimer()}
               <button
                 type="button"
                 onClick={() => setShowLargeView(true)}
@@ -1008,13 +1048,12 @@ const PaperViewerPage: React.FC = () => {
           </div>
         </div>
       )}
-        </>
-      )}
+      </div>
 
       {showLargeView && createPortal(
         <div className="fixed inset-0 z-[100] h-[100dvh] overflow-hidden overscroll-none bg-[#0d1520] flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowLargeView(false)}
                 className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
@@ -1025,9 +1064,21 @@ const PaperViewerPage: React.FC = () => {
               <h2 className="text-base sm:text-lg font-semibold text-gray-100 hidden sm:block truncate max-w-[200px] md:max-w-xs">
                 {paperDisplayName} {viewMode === 'single' && currentPdf ? `- Question ${currentPdf.questionNumber || questionIndex + 1}` : ''}
               </h2>
+              {renderExamTimer(true)}
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            {viewMode === 'single' && (
+              <div className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1">
+                <QuestionNumberJump
+                  value={questionJumpInput}
+                  total={papers.length}
+                  onChange={setQuestionJumpInput}
+                  onSubmit={jumpToQuestion}
+                />
+              </div>
+            )}
+
+            <div className="col-start-2 row-start-1 ml-auto flex flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:row-start-1 sm:gap-4">
               {viewMode === 'single' && currentPdf?.msUrl && !currentPdf?.mcqAnswer && (
                 <button
                   type="button"
@@ -1077,32 +1128,24 @@ const PaperViewerPage: React.FC = () => {
               )}
 
               {viewMode === 'single' && (
-                <>
-                  <QuestionNumberJump
-                    value={questionJumpInput}
-                    total={papers.length}
-                    onChange={setQuestionJumpInput}
-                    onSubmit={jumpToQuestion}
-                  />
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <button
-                      onClick={goToPrev}
-                      disabled={questionIndex === 0}
-                      className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Previous"
-                    >
-                      <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                    <button
-                      onClick={goToNext}
-                      disabled={questionIndex === papers.length - 1}
-                      className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      title="Next"
-                    >
-                      <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                  </div>
-                </>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onClick={goToPrev}
+                    disabled={questionIndex === 0}
+                    className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Previous"
+                  >
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                  <button
+                    onClick={goToNext}
+                    disabled={questionIndex === papers.length - 1}
+                    className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Next"
+                  >
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1223,6 +1266,8 @@ const PaperViewerPage: React.FC = () => {
 
                 <div className="w-full h-px bg-[#1a2d47] shrink-0" />
 
+                <div ref={setLargeViewExplainButtonTarget} className="shrink-0" />
+
                 {/* Question navigation */}
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider shrink-0">Jump to Question</h3>
@@ -1289,6 +1334,8 @@ const PaperViewerPage: React.FC = () => {
                 </div>
 
                 <div className="hidden lg:block w-full h-px bg-gray-700/50 shrink-0" />
+
+                <div ref={setLargeViewExplainButtonTarget} className="shrink-0" />
 
                 {/* MCQ Checker - grows on small screens to fill 50% */}
                 <div className="shrink-0 flex flex-col flex-1 lg:flex-none lg:w-auto min-w-0">

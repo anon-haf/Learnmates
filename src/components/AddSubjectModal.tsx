@@ -4,6 +4,7 @@ import { CheckCircle, ArrowLeft } from 'lucide-react';
 import { getAvailableLevels, getAvailableBoardsForLevel, getAvailableSubjectsForLevelAndBoard, BoardKey } from '../utils/curriculumData';
 import { FavoriteSubject, saveFavoriteSubjects } from '../utils/favoriteSubjects';
 import { getSubjectIcon } from '../utils/subjectIcons';
+import { getSubjectQualificationCode } from '../data/examTimings';
 import { Drawer, Button, CardFooter } from '@/components/ui';
 
 interface AddSubjectModalProps {
@@ -148,6 +149,9 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({
     <>
       <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
         {availableSubjects.map((subject) => {
+          const subjectCode = modalLevel && modalBoard
+            ? getSubjectQualificationCode(modalLevel, modalBoard, subject)
+            : null;
           const isAdded = favoriteSubjects.some(
             (fav) => fav.subject === subject && fav.level === modalLevel && fav.board === modalBoard
           );
@@ -170,7 +174,10 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({
                 <div className={`text-lg ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>
                   {getSubjectIcon(subject)}
                 </div>
-                <span>{subject}</span>
+                <span>
+                  {subject}
+                  {subjectCode && ` (${subjectCode})`}
+                </span>
               </div>
               {isSelected && <CheckCircle className="w-5 h-5 flex-shrink-0 text-blue-700 dark:text-blue-300" />}
               {isAdded && !isSelected && <CheckCircle className="w-5 h-5 flex-shrink-0 opacity-50 text-slate-400 dark:text-slate-500" />}
