@@ -12,6 +12,9 @@ const normalizeSubject = (subject: string) => subject.trim().toLowerCase();
 export const PAPER_FILTER_SUBJECTS = ['Biology', 'Physics', 'Chemistry', 'Math', 'Additional Mathematics', 'Mathematics', 'Further Mathematics', 'Computer Science'];
 export const CAMBRIDGE_SCIENCE_MCQ_SUBJECTS = ['Biology', 'Physics', 'Chemistry'];
 
+export const formatLevelLabel = (level: string) =>
+  level.trim().toLowerCase() === 'a-level' ? 'A-level' : level.toUpperCase();
+
 export const isPaperFilterSubject = (level: string, board: string, subject: string) =>
   ['igcse', 'a-level'].includes(level) && board === 'cambridge' &&
   PAPER_FILTER_SUBJECTS.some(candidate => normalizeSubject(candidate) === normalizeSubject(subject));
@@ -28,11 +31,11 @@ export const isEdexcelIALPureMathOrMechanics = (level?: string, board?: string, 
   const normSubject = (subject || '').trim().toLowerCase();
   const normUnit = (unit || '').trim().toLowerCase();
 
-  const isPureOrMechSubject = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(
+  const isPureOrMechSubject = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics', 'statistics'].some(
     candidate => normSubject === candidate || normSubject.includes(candidate)
   );
 
-  const isPureOrMechUnit = normUnit.startsWith('pure') || /^p[1-4]\b/.test(normUnit) || normUnit.startsWith('mechanics') || /^m[1-3]\b/.test(normUnit);
+  const isPureOrMechUnit = normUnit.startsWith('pure') || /^p[1-4]\b/.test(normUnit) || normUnit.startsWith('mechanics') || /^m[1-3]\b/.test(normUnit) || normUnit.startsWith('statistics') || /^s\d+\b/.test(normUnit);
 
   return (isPureOrMechSubject || isPureOrMechUnit) && (normLevel === '' || ['a-level', 'ial', 'as-level', 'a2-level', 'as', 'a2', 'igcse', 'o-level'].includes(normLevel));
 };
@@ -42,7 +45,7 @@ export const isEdexcelALevelPureMathSubject = (level: string, board: string, sub
   const normBoard = (board || '').trim().toLowerCase();
   if (normBoard !== 'edexcel') return false;
   const normSubject = (subject || '').trim().toLowerCase();
-  const isPureOrMech = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics'].some(
+  const isPureOrMech = ['pure mathematics', 'pure maths', 'math', 'mathematics', 'mechanics', 'statistics'].some(
     candidate => normSubject === candidate || normSubject.includes(candidate)
   );
   return isPureOrMech && (normLevel === '' || ['a-level', 'ial', 'as-level', 'a2-level', 'as', 'a2', 'igcse', 'o-level'].includes(normLevel));

@@ -10,7 +10,6 @@ interface ExamCountdownState {
 interface ExamCountdownTimerProps {
   durationSeconds: number;
   storageKey: string;
-  largeView?: boolean;
 }
 
 const readExamCountdown = (storageKey: string, durationSeconds: number): ExamCountdownState => {
@@ -59,20 +58,16 @@ const readExamCountdown = (storageKey: string, durationSeconds: number): ExamCou
 };
 
 const formatCountdown = (milliseconds: number): string => {
-  const totalTenths = Math.ceil(milliseconds / 100);
-  const totalSeconds = Math.floor(totalTenths / 10);
-  const tenths = totalTenths % 10;
+  const totalSeconds = Math.ceil(milliseconds / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  const time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  return `${time}.${tenths}`;
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
 const ExamCountdownTimer: React.FC<ExamCountdownTimerProps> = ({
   durationSeconds,
   storageKey,
-  largeView = false,
 }) => {
   const [timerState, setTimerState] = useState<ExamCountdownState>(
     () => readExamCountdown(storageKey, durationSeconds)
@@ -145,54 +140,45 @@ const ExamCountdownTimer: React.FC<ExamCountdownTimerProps> = ({
   };
 
   const isRunning = timerState.startedAt !== null && displayedRemainingMs > 0;
-  const timerSurface = largeView
-    ? 'border-gray-600 bg-gray-800 text-gray-100'
-    : 'border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
-
   return (
     <div
       role="group"
-      className={`inline-flex max-w-full items-center gap-1 rounded-lg border px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2 ${timerSurface}`}
+      className="inline-flex h-9 max-w-full items-center gap-0.5 rounded-full border border-gray-300 bg-gray-100 px-2.5 text-gray-800 dark:border-[#3b465b] dark:bg-[#1b2230] dark:text-gray-100"
       aria-label="Exam countdown"
       title="Preset uses the current official syllabus duration; older paper formats may differ."
     >
-      <Timer className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-300 sm:h-5 sm:w-5" aria-hidden="true" />
-      <div className="flex flex-col leading-tight">
-        <span
-          className={`font-mono text-sm font-bold tabular-nums sm:text-lg ${
-            displayedRemainingMs === 0 ? 'text-red-600 dark:text-red-400' : ''
-          }`}
-          aria-label={`Time remaining ${formatCountdown(displayedRemainingMs)}`}
-        >
-          {formatCountdown(displayedRemainingMs)}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={toggleTimer}
-        disabled={displayedRemainingMs === 0 && !isRunning}
-        aria-label={isRunning ? 'Pause exam timer' : 'Start exam timer'}
-        title={isRunning ? 'Pause timer' : 'Start timer'}
-        className={`inline-flex items-center gap-1 rounded-md px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-          isRunning
-            ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60'
-            : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60'
+      <Timer className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
+      <span
+        className={`relative top-[2px] inline-flex h-full items-center font-mono text-base font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100 ${
+          displayedRemainingMs === 0 ? 'text-red-600 dark:text-red-400' : ''
         }`}
+        aria-label={`Time remaining ${formatCountdown(displayedRemainingMs)}`}
       >
-        {isRunning
-          ? <Pause className="h-4 w-4" aria-hidden="true" />
-          : <Play className="h-4 w-4" aria-hidden="true" />}
-        <span className="hidden sm:inline">{isRunning ? 'Pause' : 'Start'}</span>
-      </button>
-      <button
-        type="button"
-        onClick={resetTimer}
-        aria-label="Reset exam timer"
-        title="Reset timer"
-        className="inline-flex items-center justify-center rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-      >
-        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-      </button>
+        {formatCountdown(displayedRemainingMs)}
+      </span>
+      <div className="flex items-center gap-0">
+        <button
+          type="button"
+          onClick={toggleTimer}
+          disabled={displayedRemainingMs === 0 && !isRunning}
+          aria-label={isRunning ? 'Pause exam timer' : 'Start exam timer'}
+          title={isRunning ? 'Pause timer' : 'Start timer'}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isRunning
+            ? <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+            : <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          onClick={resetTimer}
+          aria-label="Reset exam timer"
+          title="Reset timer"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
       {timerState.error && (
         <span role="alert" title={timerState.error} className="text-[10px] font-medium text-red-600 dark:text-red-400">
           Not saved

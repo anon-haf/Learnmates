@@ -68,26 +68,6 @@ export const stripTrackingParams = (url: string): string => {
 };
 
 /**
- * Creates a safe YouTube embed URL without tracking
- */
-export const getPrivacyYouTubeEmbedUrl = (videoId: string, params?: Record<string, string>): string => {
-  const url = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
-  
-  // Set privacy-respecting parameters
-  url.searchParams.set('modestbranding', '1'); // Minimal YouTube branding
-  url.searchParams.set('rel', '0'); // Don't show related videos
-  
-  // Add any additional custom parameters
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
-  }
-  
-  return url.toString();
-};
-
-/**
  * Extracts video ID from various YouTube URL formats
  */
 export const extractYouTubeVideoId = (url: string): string | null => {
@@ -133,13 +113,6 @@ export const extractYouTubeVideoId = (url: string): string | null => {
 };
 
 /**
- * Checks if a URL needs privacy warning
- */
-export const shouldShowPrivacyWarning = (url: string): boolean => {
-  return detectThirdPartyService(url) !== null;
-};
-
-/**
  * Gets a human-readable description of the third-party service
  */
 export const getServiceDescription = (service: string): string => {
@@ -155,43 +128,6 @@ export const getServiceDescription = (service: string): string => {
   };
   
   return descriptions[service] || service;
-};
-
-/**
- * Generates a privacy-safe iframe sandbox attribute for embedded content
- * Restricts what the embedded content can do
- */
-export const getRestrictiveSandboxAttributes = (): string => {
-  return [
-    'allow-same-origin',
-    'allow-scripts',
-    'allow-popups',
-    'allow-presentation',
-    'allow-popups-to-escape-sandbox',
-  ].join(' ');
-};
-
-/**
- * Checks if user has consented to load external content
- */
-export const hasExternalContentConsent = (): boolean => {
-  try {
-    const consent = localStorage.getItem('externalContentConsent');
-    return consent === 'true';
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Sets external content consent preference
- */
-export const setExternalContentConsent = (consent: boolean): void => {
-  try {
-    localStorage.setItem('externalContentConsent', consent ? 'true' : 'false');
-  } catch {
-    console.warn('Could not save consent preference');
-  }
 };
 
 /**
@@ -215,16 +151,6 @@ export const setServiceConsent = (service: string, consent: boolean): void => {
   } catch {
     console.warn(`Could not save consent for ${service}`);
   }
-};
-
-/**
- * Creates a proxy URL for safer link traversal (for future implementation)
- * This could route through a proxy server that strips referrer and other tracking data
- */
-export const createProxyUrl = (targetUrl: string): string => {
-  // This is a placeholder for future proxy implementation
-  // Could be implemented with a backend proxy service
-  return stripTrackingParams(targetUrl);
 };
 
 /**

@@ -19,8 +19,11 @@ export function pdfStrokeWidthInCanvasPixels(
 /** Baseline density; narrower pages increase DPR to preserve raster detail. */
 export const PDF_OUTPUT_DEVICE_PIXEL_RATIO = 2;
 
-const PDF_MIN_RENDER_WIDTH_PX = 1280;
-const PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO = 5;
+// Narrow (e.g. side-by-side mark scheme) panels previously oversampled up to a
+// 1280px-wide / 5x-DPR canvas, which inflated memory and annotation cost. 1024px
+// still stays >= 2x the panel width while cutting that overhead.
+const PDF_MIN_RENDER_WIDTH_PX = 1024;
+const PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO = 3;
 
 export function getPdfOutputDevicePixelRatio(displayWidth: number): number {
   if (!Number.isFinite(displayWidth) || displayWidth <= 0) {

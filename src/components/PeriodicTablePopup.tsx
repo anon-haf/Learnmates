@@ -13,6 +13,8 @@ interface PeriodicTablePopupProps {
   url: string;
 }
 
+export const PERIODIC_TABLE_URL = '/documents/Periodic table.pdf';
+
 /**
  * Full-screen popup that shows the periodic table PDF rotated 90° clockwise.
  * Used by IGCSE Chemistry topics in the zoomed-in (large) viewer.

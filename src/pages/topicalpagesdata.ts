@@ -591,7 +591,9 @@ export const topicalConfigs: SubjectConfig[] = [
             ]
           }
         ]
-      }]
+      },
+      { "unit": "Practical", "topics": [], "pastPapersOnly": true }
+    ]
   },
 
 
@@ -772,7 +774,9 @@ export const topicalConfigs: SubjectConfig[] = [
             ]
           }
         ]
-      }]
+      },
+      { "unit": "Practical", "topics": [], "pastPapersOnly": true }
+    ]
   }
   ,
 
@@ -897,7 +901,9 @@ export const topicalConfigs: SubjectConfig[] = [
             ]
           }
         ]
-      }]
+      },
+      { "unit": "Practical", "topics": [], "pastPapersOnly": true }
+    ]
   },
 
   {
@@ -1191,7 +1197,10 @@ export const topicalConfigs: SubjectConfig[] = [
             ]
           }
         ]
-      }]
+      },
+      { "unit": "A2_Practical", "topics": [], "pastPapersOnly": true },
+      { "unit": "AS_Practical", "topics": [], "pastPapersOnly": true }
+    ]
   },
 
 
@@ -1410,6 +1419,9 @@ export const topicalConfigs: SubjectConfig[] = [
           }
         ]
       }
+      ,
+      { "unit": "A2_Practical", "topics": [], "pastPapersOnly": true },
+      { "unit": "AS_Practical", "topics": [], "pastPapersOnly": true }
     ]
   },
   {
@@ -1565,6 +1577,9 @@ export const topicalConfigs: SubjectConfig[] = [
           }
         ]
       }
+      ,
+      { "unit": "A2_Practical", "topics": [], "pastPapersOnly": true },
+      { "unit": "AS_Practical", "topics": [], "pastPapersOnly": true }
     ]
   },
 
@@ -2581,6 +2596,147 @@ export const topicalConfigs: SubjectConfig[] = [
             "subtopics": [
               { "subtopic": "5.1 Moments", "search": "5.1 Moments" },
               { "subtopic": "5.2 Equilibrium of rigid bodies", "search": "5.2 Equilibrium of rigid bodies" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "subject": "Statistics",
+    "board": "edexcel",
+    "level": "a-level",
+    "units": [
+      {
+        "unit": "Statistics 1",
+        "topics": [
+          {
+            "topic": "1. Mathematical models in probability and statistics",
+            "subtopics": [
+              { "subtopic": "1.1 Modelling basics", "search": "1.1 Modelling basics" }
+            ]
+          },
+          {
+            "topic": "2. Representation and summary of data",
+            "subtopics": [
+              { "subtopic": "2.1 Histograms, stem and leaf, box plots", "search": "2.1 Histograms, stem and leaf, box plots" },
+              { "subtopic": "2.2 Measures of location", "search": "2.2 Measures of location" },
+              { "subtopic": "2.3 Measures of dispersion", "search": "2.3 Measures of dispersion" },
+              { "subtopic": "2.4 Skewness and outliers", "search": "2.4 Skewness and outliers" }
+            ]
+          },
+          {
+            "topic": "3. Probability",
+            "subtopics": [
+              { "subtopic": "3.1 Basic probability rules", "search": "3.1 Basic probability rules" },
+              { "subtopic": "3.2 Conditional probability", "search": "3.2 Conditional probability" },
+              { "subtopic": "3.3 Independent events", "search": "3.3 Independent events" },
+              { "subtopic": "3.4 Tree and Venn diagrams", "search": "3.4 Tree and Venn diagrams" }
+            ]
+          },
+          {
+            "topic": "4. Correlation and regression",
+            "subtopics": [
+              { "subtopic": "4.1 Scatter diagrams and linear regression", "search": "4.1 Scatter diagrams and linear regression" },
+              { "subtopic": "4.2 Explanatory and response variables", "search": "4.2 Explanatory and response variables" },
+              { "subtopic": "4.3 Product moment correlation coefficient", "search": "4.3 Product moment correlation coefficient" }
+            ]
+          },
+          {
+            "topic": "5. Discrete random variables",
+            "subtopics": [
+              { "subtopic": "5.1 Probability and cumulative distribution functions", "search": "5.1 Probability and cumulative distribution functions" },
+              { "subtopic": "5.2 Mean and variance", "search": "5.2 Mean and variance" },
+              { "subtopic": "5.3 Discrete uniform distribution", "search": "5.3 Discrete uniform distribution" }
+            ]
+          },
+          {
+            "topic": "6. The Normal distribution",
+            "subtopics": [
+              { "subtopic": "6.1 Normal distribution and standardisation", "search": "6.1 Normal distribution and standardisation" }
+            ]
+          }
+        ]
+      },
+      {
+        "unit": "Statistics 2",
+        "topics": [
+          {
+            "topic": "1. The Binomial and Poisson distributions",
+            "subtopics": [
+              { "subtopic": "1.1 Binomial distribution", "search": "1.1 Binomial distribution" },
+              { "subtopic": "1.2 Poisson distribution", "search": "1.2 Poisson distribution" },
+              { "subtopic": "1.3 Mean and variance", "search": "1.3 Mean and variance" },
+              { "subtopic": "1.4 Poisson approximation to binomial", "search": "1.4 Poisson approximation to binomial" }
+            ]
+          },
+          {
+            "topic": "2. Continuous random variables",
+            "subtopics": [
+              { "subtopic": "2.1 Probability density function", "search": "2.1 Probability density function" },
+              { "subtopic": "2.2 Cumulative distribution function", "search": "2.2 Cumulative distribution function" },
+              { "subtopic": "2.3 Mean and variance", "search": "2.3 Mean and variance" },
+              { "subtopic": "2.4 Mode, median and quartiles", "search": "2.4 Mode, median and quartiles" }
+            ]
+          },
+          {
+            "topic": "3. Continuous distributions",
+            "subtopics": [
+              { "subtopic": "3.1 Continuous uniform distribution", "search": "3.1 Continuous uniform distribution" },
+              { "subtopic": "3.2 Normal approximation to binomial and Poisson", "search": "3.2 Normal approximation to binomial and Poisson" }
+            ]
+          },
+          {
+            "topic": "4. Hypothesis tests",
+            "subtopics": [
+              { "subtopic": "4.1 Sampling and populations", "search": "4.1 Sampling and populations" },
+              { "subtopic": "4.2 Null and alternative hypotheses", "search": "4.2 Null and alternative hypotheses" },
+              { "subtopic": "4.3 Critical region and test statistic", "search": "4.3 Critical region and test statistic" },
+              { "subtopic": "4.4 One-tailed and two-tailed tests", "search": "4.4 One-tailed and two-tailed tests" },
+              { "subtopic": "4.5 Binomial and Poisson tests", "search": "4.5 Binomial and Poisson tests" }
+            ]
+          }
+        ]
+      },
+      {
+        "unit": "Statistics 3",
+        "topics": [
+          {
+            "topic": "1. Combinations of random variables",
+            "subtopics": [
+              { "subtopic": "1.1 Linear combinations of Normal variables", "search": "1.1 Linear combinations of Normal variables" }
+            ]
+          },
+          {
+            "topic": "2. Sampling",
+            "subtopics": [
+              { "subtopic": "2.1 Simple random sampling", "search": "2.1 Simple random sampling" },
+              { "subtopic": "2.2 Stratified, systematic and quota sampling", "search": "2.2 Stratified, systematic and quota sampling" }
+            ]
+          },
+          {
+            "topic": "3. Estimation, confidence intervals and tests",
+            "subtopics": [
+              { "subtopic": "3.1 Estimators and bias", "search": "3.1 Estimators and bias" },
+              { "subtopic": "3.2 Sampling distribution of the mean", "search": "3.2 Sampling distribution of the mean" },
+              { "subtopic": "3.3 Confidence intervals for a mean", "search": "3.3 Confidence intervals for a mean" },
+              { "subtopic": "3.4 Hypothesis tests for a mean", "search": "3.4 Hypothesis tests for a mean" },
+              { "subtopic": "3.5 Central Limit Theorem", "search": "3.5 Central Limit Theorem" },
+              { "subtopic": "3.6 Comparing two means", "search": "3.6 Comparing two means" }
+            ]
+          },
+          {
+            "topic": "4. Goodness of fit and contingency tables",
+            "subtopics": [
+              { "subtopic": "4.1 Chi-squared goodness of fit", "search": "4.1 Chi-squared goodness of fit" },
+              { "subtopic": "4.2 Contingency tables and degrees of freedom", "search": "4.2 Contingency tables and degrees of freedom" }
+            ]
+          },
+          {
+            "topic": "5. Regression and correlation",
+            "subtopics": [
+              { "subtopic": "5.1 Spearman's rank correlation", "search": "5.1 Spearman's rank correlation" },
+              { "subtopic": "5.2 Testing significance of correlation", "search": "5.2 Testing significance of correlation" }
             ]
           }
         ]

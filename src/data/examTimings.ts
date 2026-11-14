@@ -105,6 +105,17 @@ const examTimingDefinitions: ExamTimingDefinition[] = [
     "YMA01",
   ),
   edexcelIALUnits(
+    'Statistics',
+    'WST01-3',
+    'https://qualifications.pearson.com/content/dam/pdf/International%20Advanced%20Level/Mathematics/2018/Specification-and-Sample-Assessment/international-a-level-maths-spec.pdf',
+    {
+      statistics1: { componentCode: 'WST01/01', title: 'Statistics 1', durationMinutes: 90 },
+      statistics2: { componentCode: 'WST02/01', title: 'Statistics 2', durationMinutes: 90 },
+      statistics3: { componentCode: 'WST03/01', title: 'Statistics 3', durationMinutes: 90 },
+    },
+    "YMA01",
+  ),
+  edexcelIALUnits(
     'Chemistry',
     'YCH11',
     

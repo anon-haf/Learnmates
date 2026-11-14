@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { logTopicalSearch } from '../utils/logTopicalSearch';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -31,6 +31,13 @@ const itemVariants = {
   visible: { y: 0, opacity: 1, transition: { duration: 0.6 } },
 };
 
+const topicalOnlyConfigs: SubjectConfig[] = topicalConfigs
+  .map(config => ({
+    ...config,
+    units: config.units.filter(unit => !unit.pastPapersOnly),
+  }))
+  .filter(config => config.units.length > 0);
+
 const TopicalPages: React.FC = () => {
   const base = useRouteBase();
   const topicalsPath = (...parts: string[]) => withBase(base, `/topicals/${parts.join('/')}`);
@@ -41,15 +48,17 @@ const TopicalPages: React.FC = () => {
   // ---------------------------------------------------------------------
   // Level / board / subject selection
   // ---------------------------------------------------------------------
-  const configs = topicalConfigs;
+  const configs = topicalOnlyConfigs;
   const levels = Array.from(new Set(configs.map(c => c.level)));
   const boardsForLevel = (lvl: string) => Array.from(new Set(configs.filter(c => c.level === lvl).map(c => c.board)));
   const subjectsForLvlBoard = (lvl: string, bd: string) =>
-    Array.from(new Set(configs.filter(c => c.level === lvl && c.board === bd).map(c => c.subject)));
+    Array.from(new Set(configs.filter(c => c.level === lvl && c.board === bd).map(c => c.subject)))
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
   const [selectedLevel, setSelectedLevel] = useState<string>(urlLevel || '');
   const [selectedBoard, setSelectedBoard] = useState<string>(urlBoard || '');
   const [selectedSubject, setSelectedSubject] = useState<string>(urlSubject || '');
+  const previousSelection = useRef({ level: selectedLevel, board: selectedBoard, subject: selectedSubject });
 
   useEffect(() => {
     setSelectedLevel(urlLevel || '');
@@ -187,7 +196,7 @@ const TopicalPages: React.FC = () => {
   const getMonthFilterFromQuery = useCallback((): Set<string> => {
     const str = new URLSearchParams(location.search).get('months');
     if (!str || str === 'all') return new Set();
-    return new Set(str.split(','));
+    return new Set(str.split(',').map(month => month.trim().slice(0, 3)));
   }, [location.search]);
 
   const getVariantFilterFromQuery = useCallback((): Set<number> => {
@@ -317,6 +326,14 @@ const TopicalPages: React.FC = () => {
 
   // Reset everything when the subject (or higher) changes
   useEffect(() => {
+    const previous = previousSelection.current;
+    previousSelection.current = { level: selectedLevel, board: selectedBoard, subject: selectedSubject };
+    if (
+      previous.level === selectedLevel &&
+      previous.board === selectedBoard &&
+      previous.subject === selectedSubject
+    ) return;
+
     setChecked(new Set());
     setExpanded(new Set());
     setExpandedUnits(new Set());
@@ -730,7 +747,7 @@ const TopicalPages: React.FC = () => {
   }, [availableFilters, mcqFilter]);
 
   useEffect(() => {
-    if (!isPaperMode || paperFilter.size === 0) return;
+    if (!isPaperMode || checked.size === 0 || availablePapers.size === 0 || paperFilter.size === 0) return;
     const stillValid = Array.from(paperFilter).filter(p => availablePapers.has(p));
     if (stillValid.length !== paperFilter.size) {
       const newSet = new Set(stillValid);
@@ -975,27 +992,45 @@ const TopicalPages: React.FC = () => {
 
       {isExporting && exportProgress && (
         <div
-          className="fixed bottom-5 right-5 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 max-w-sm"
-          style={{ animation: 'slideIn 0.3s ease-out' }}
+          className="fixed bottom-5 right-5 z-50 w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800 sm:p-5"
+          role="status"
+          aria-live="polite"
+          style={{ animation: 'export-toast-enter 300ms ease-out both' }}
         >
           <style>{`
-            @keyframes slideIn {
-              from { transform: translateX(400px); opacity: 0; }
-              to { transform: translateX(0); opacity: 1; }
+            @keyframes export-toast-enter {
+              from { transform: translateY(10px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
             }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
+            @keyframes export-spin {
+              to { transform: rotate(360deg); }
+            }
+            @keyframes export-sweep {
+              from { transform: translateX(-100%); }
+              to { transform: translateX(280%); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .export-motion { animation: none !important; }
             }
           `}</style>
           <div className="flex items-center gap-3">
-            <div className="w-6 h-6 border-3 border-gray-300 border-t-blue-500 rounded-full flex-shrink-0" style={{ animation: 'spin 0.8s linear infinite' }} />
-            <div className="flex-1">
-              <div className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Creating PDF</div>
-              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+            <div
+              className="export-motion h-6 w-6 shrink-0 rounded-full border-[3px] border-gray-200 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400"
+              style={{ animation: 'export-spin 850ms linear infinite' }}
+              aria-hidden="true"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-100 sm:text-base">Creating PDF</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 sm:text-sm">
                 Merging {exportProgress.current} / {exportProgress.total}...
               </div>
             </div>
+          </div>
+          <div className="mt-4 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
+            <div
+              className="export-motion h-full w-1/3 rounded-full bg-blue-600 dark:bg-blue-400"
+              style={{ animation: 'export-sweep 1.5s ease-in-out infinite' }}
+            />
           </div>
         </div>
       )}

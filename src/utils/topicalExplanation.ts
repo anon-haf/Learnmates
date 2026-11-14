@@ -169,45 +169,6 @@ export function parseTopicalExplanation(
   };
 }
 
-export function parseMarkedTopicalExplanation(answer: string): TopicalExplanationSection[] {
-  const sections: TopicalExplanationSection[] = [];
-  const headerPattern = /^:::part\s+(.+?)\s+(\d+\s*\/\s*\d+|\?\/\?)\s*$/gm;
-  let match: RegExpExecArray | null;
-  let previousMatch: RegExpExecArray | null = null;
-
-  while ((match = headerPattern.exec(answer)) !== null) {
-    if (previousMatch) {
-      const content = answer
-        .slice(previousMatch.index + previousMatch[0].length, match.index)
-        .replace(/^\r?\n/, '')
-        .replace(/(?:^|\r?\n)[ \t]*:::[ \t]*(?=\r?\n|$)/g, '\n')
-        .trim();
-      sections.push({
-        kind: 'part',
-        label: previousMatch[1].trim(),
-        mark: previousMatch[2].replace(/\s/g, ''),
-        content,
-      });
-    }
-    previousMatch = match;
-  }
-
-  if (previousMatch) {
-    const content = answer
-      .slice(previousMatch.index + previousMatch[0].length)
-      .replace(/^\r?\n/, '')
-      .replace(/(?:^|\r?\n)[ \t]*:::[ \t]*(?=\r?\n|$)/g, '\n')
-      .trim();
-    sections.push({
-      kind: 'part',
-      label: previousMatch[1].trim(),
-      mark: previousMatch[2].replace(/\s/g, ''),
-      content,
-    });
-  }
-  return sections;
-}
-
 function blobToFile(blob: Blob, filename: string): File {
   return new File([blob], filename, { type: blob.type });
 }

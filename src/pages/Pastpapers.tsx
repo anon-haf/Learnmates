@@ -6,7 +6,7 @@ import { Download, Eye, Search, X } from 'lucide-react';
 import { topicalConfigs } from './topicalpagesdata';
 import { useRouteBase, withBase } from '../utils/routeBase';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
-import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, isCambridgeScienceMcqSubject, getPaperKeyFromFileName } from '../utils/topicalHelpers';
+import { getYearFromFileName, getMonthFromFileName, getPaperNumberFromFileName, getVariantFromFileName, isCambridgeScienceMcqSubject, getPaperKeyFromFileName, formatLevelLabel } from '../utils/topicalHelpers';
 import { deriveMarkSchemeUrl } from '../utils/quizLoader';
 import { generateMergedPDF, MergeItem } from '../utils/pdfMerger';
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from '../utils/awardDownloadXP';
@@ -356,7 +356,8 @@ const PastpapersPage: React.FC = () => {
   const levels = Array.from(new Set(configs.map(c => c.level)));
   const boardsForLevel = (lvl: string) => Array.from(new Set(configs.filter(c => c.level === lvl).map(c => c.board)));
   const subjectsForLvlBoard = (lvl: string, bd: string) =>
-    Array.from(new Set(configs.filter(c => c.level === lvl && c.board === bd).map(c => c.subject)));
+    Array.from(new Set(configs.filter(c => c.level === lvl && c.board === bd).map(c => c.subject)))
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
   const subjectLabel = (subject: string) => {
     const code = getSubjectQualificationCode(selectedLevel, selectedBoard, subject);
     return code ? `${subject} · ${code}` : subject;
@@ -751,8 +752,8 @@ const PastpapersPage: React.FC = () => {
             <Dropdown
               label="Level"
               fullWidth
-              buttonLabel={selectedLevel ? selectedLevel.toUpperCase() : 'Select Level'}
-              options={levels.map(l => ({ value: l, label: l.toUpperCase() }))}
+              buttonLabel={selectedLevel ? formatLevelLabel(selectedLevel) : 'Select Level'}
+              options={levels.map(level => ({ value: level, label: formatLevelLabel(level) }))}
               selectedValue={selectedLevel}
               onSelect={setSelectedLevel as any}
             />

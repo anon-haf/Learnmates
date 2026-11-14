@@ -184,7 +184,7 @@ export function useTopicalMatches() {
               if (year !== null) yearsFound.add(year);
 
               const month = getMonthFromFileName(entry.file_name);
-              if (month !== null) monthsFound.add(month);
+              if (month !== null) monthsFound.add(month.slice(0, 3));
 
               const variant = getVariantFromFileName(entry.file_name);
               if (variant !== null) variantsFound.add(variant);
@@ -317,7 +317,7 @@ export function useTopicalMatches() {
             }
             if (passFilter && monthFilter.size > 0) {
               const month = getMonthFromFileName(entry.file_name);
-              passFilter = month !== null && monthFilter.has(month);
+              passFilter = month !== null && monthFilter.has(month.slice(0, 3));
             }
             if (passFilter && variantFilter.size > 0) {
               const variant = getVariantFromFileName(entry.file_name);

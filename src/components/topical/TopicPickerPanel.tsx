@@ -51,7 +51,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 dark:text-gray-400">
             Topics
@@ -60,7 +60,7 @@ const TopicPickerPanel: React.FC<TopicPickerPanelProps> = ({
             <button
               type="button"
               onClick={onToggleAllTopics}
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-colors border border-slate-200 dark:border-slate-700"
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 text-[11px] font-semibold uppercase text-blue-600 transition-colors hover:bg-blue-500/20 dark:text-blue-300 dark:hover:bg-blue-500/25"
             >
               {isAllTopicsSelected ? 'Deselect All' : 'Select All'}
             </button>

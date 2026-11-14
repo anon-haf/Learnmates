@@ -31,18 +31,3 @@ export const XP_RULES = {
   }
 };
 
-export function calculateLevel(xp: number): number {
-  return Math.floor(xp / 100) + 1;
-}
-
-export function calculateNextLevelXP(xp: number): number {
-  const level = Math.floor(xp / 100) + 1;
-  return level * 100;
-}
-
-export function calculateProgress(xp: number): number {
-  const currentLevel = Math.floor(xp / 100);
-  const currentLevelXP = currentLevel * 100;
-  const nextLevelXP = (currentLevel + 1) * 100;
-  return ((xp - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
-}

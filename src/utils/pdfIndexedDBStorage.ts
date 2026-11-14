@@ -33,15 +33,6 @@ function getDB(): Promise<IDBDatabase> {
   });
 }
 
-function hashPdfUrl(url: string): string {
-  let hash = 0;
-  for (let i = 0; i < url.length; i++) {
-    hash = (hash << 5) - hash + url.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(36);
-}
-
 
 const temporaryStorage = new Map<string, StoredVectorAnnotations>();
 
@@ -131,36 +122,6 @@ export async function clearStoredAnnotations(pdfUrl: string, storageMode: 'perma
     });
   } catch (error) {
     console.error('Failed to clear annotations from IndexedDB:', error);
-  }
-}
-
-export async function getAllStorageInfo(): Promise<Record<string, { size: number; pages: number; savedAt: number }>> {
-  try {
-    const db = await getDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-
-    return new Promise((resolve) => {
-      const request = store.getAll();
-      request.onsuccess = () => {
-        const results = request.result as StoredVectorAnnotations[];
-        const info: Record<string, { size: number; pages: number; savedAt: number }> = {};
-
-        results.forEach((annotation) => {
-          const size = new Blob([JSON.stringify(annotation)]).size;
-          info[annotation.pdfUrl] = {
-            size,
-            pages: Object.keys(annotation.pages).length,
-            savedAt: annotation.savedAt,
-          };
-        });
-
-        resolve(info);
-      };
-      request.onerror = () => resolve({});
-    });
-  } catch {
-    return {};
   }
 }
 

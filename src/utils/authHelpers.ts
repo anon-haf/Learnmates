@@ -117,7 +117,3 @@ export async function isUsernameAvailable(username: string, userId?: string): Pr
 
   return ownProfile?.username?.toLowerCase() === username.toLowerCase();
 }
-
-export function isUsernameUniqueViolation(error: PostgrestError | null): boolean {
-  return error?.code === '23505' && (error.message.includes('username') || error.details?.includes('username'));
-}

@@ -370,11 +370,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const handleActionComplete = useCallback(
     (
       pageNumber: number,
-      beforeSnapshot: ImageData | null,
       vectorAction: VectorAction,
       pdfPageWidthAtScale1: number
     ) => {
-      pushAction(pageNumber, beforeSnapshot, vectorAction, pdfPageWidthAtScale1);
+      pushAction(pageNumber, vectorAction, pdfPageWidthAtScale1);
     },
     [pushAction]
   );
@@ -566,10 +565,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
           pages[Number(page)] = data;
         });
       } else if (savedAnnotation) {
+        const fallbackWidth = pageWidthRef.current;
         pages = {
           1: {
-            width: pageWidth,
-            height: pageWidth * A4_ASPECT,
+            width: fallbackWidth,
+            height: fallbackWidth * A4_ASPECT,
             actions: [],
             rasterFallback: savedAnnotation,
           },
@@ -586,7 +586,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [pdfUrl, mode, savedAnnotation, pageWidth, readOnly, resetAnnotationHistory, resetCache, markSaved]);
+  }, [pdfUrl, mode, savedAnnotation, readOnly, resetAnnotationHistory, resetCache, markSaved]);
 
   useEffect(() => {
     if (!isDirty) return;

@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { Page } from 'react-pdf';
+import React from 'react';
 
 const SKELETON_STYLE_ID = 'pdf-page-skeleton-styles';
 
@@ -56,41 +55,3 @@ export const PdfDocumentSkeleton: React.FC<PdfDocumentSkeletonProps> = ({ pageCo
     ))}
   </div>
 );
-
-interface PdfViewerPageProps {
-  pageNumber: number;
-  scale: number;
-}
-
-/** Renders a PDF page with a shimmer overlay until the canvas has finished painting. */
-export const PdfViewerPage: React.FC<PdfViewerPageProps> = ({ pageNumber, scale }) => {
-  const [rendered, setRendered] = useState(false);
-
-  useEffect(() => {
-    setRendered(false);
-  }, [pageNumber, scale]);
-
-  return (
-    <div
-      className={`relative w-full max-w-3xl scroll-mt-4 rounded overflow-hidden ${
-        rendered ? 'bg-white' : 'bg-gray-200 dark:bg-gray-800'
-      }`}
-    >
-      {!rendered && (
-        <div className="absolute inset-0 z-10 flex items-stretch pointer-events-none">
-          <div className="w-full min-h-[60vh] sm:min-h-0 sm:aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
-        </div>
-      )}
-      <Page
-        pageNumber={pageNumber}
-        scale={scale}
-        renderMode="canvas"
-        loading={
-          <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
-        }
-        onRenderSuccess={() => setRendered(true)}
-        onRenderError={() => setRendered(true)}
-      />
-    </div>
-  );
-};

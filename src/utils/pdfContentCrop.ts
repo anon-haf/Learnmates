@@ -41,9 +41,15 @@ export interface VisiblePage {
 type Window = [number, number, number, number]; // left, bottom, right, top
 
 const DELIM = new Set<number>();
-for (const ch of ' \t\r\n\x0c\x00/[]<>(){}%#') DELIM.add(ch.charCodeAt(0));
+for (const ch of ' \t\r\n\x0c\x00/[]<>(){}%') DELIM.add(ch.charCodeAt(0));
 
 const NUM_RE = /[+-]?(?:\d+\.?\d*|\.\d+)/y;
+const HARD_CROP_TIME_LIMIT_MS = 1000;
+const HARD_CROP_MAX_STREAM_BYTES = 16 * 1024 * 1024;
+
+const checkProcessingDeadline = (deadline: number) => {
+  if (Date.now() > deadline) throw new Error('PDF text crop processing limit exceeded');
+};
 
 interface Token {
   kind: 'num' | 'name' | 'str' | 'op' | 'arropen' | 'arrclose' | 'dictopen' | 'dictclose' | 'braceopen' | 'braceclose';
@@ -52,10 +58,12 @@ interface Token {
   value: number | string | null;
 }
 
-function bytesToLatin1(data: Uint8Array): string {
+function bytesToLatin1(data: Uint8Array, deadline: number): string {
+  if (data.length > HARD_CROP_MAX_STREAM_BYTES) throw new Error('PDF content stream exceeds crop processing limit');
   const CHUNK = 8192;
   let out = '';
   for (let i = 0; i < data.length; i += CHUNK) {
+    checkProcessingDeadline(deadline);
     const end = Math.min(i + CHUNK, data.length);
     const arr: string[] = [];
     for (let j = i; j < end; j++) arr.push(String.fromCharCode(data[j]));
@@ -64,12 +72,13 @@ function bytesToLatin1(data: Uint8Array): string {
   return out;
 }
 
-function tokenize(s: string): Token[] {
+function tokenize(s: string, deadline: number): Token[] {
   const toks: Token[] = [];
   const n = s.length;
   let i = 0;
 
   while (i < n) {
+    if ((i & 0x3fff) === 0) checkProcessingDeadline(deadline);
     const c = s.charCodeAt(i);
     if (c === 32 || c === 9 || c === 13 || c === 10 || c === 12 || c === 0) {
       i++;
@@ -94,6 +103,7 @@ function tokenize(s: string): Token[] {
       let depth = 0;
       let j = i;
       while (j < n) {
+        if ((j & 0x3fff) === 0) checkProcessingDeadline(deadline);
         const ch = s.charCodeAt(j);
         if (ch === 92) {
           j += 2;
@@ -167,6 +177,7 @@ function tokenize(s: string): Token[] {
 
     let j = i;
     while (j < n && !DELIM.has(s.charCodeAt(j))) j++;
+    if (j === i) j++;
     toks.push({ kind: 'op', start: i, end: j, value: s.slice(i, j) });
     i = j;
   }
@@ -211,8 +222,8 @@ function boxIntersects(bx: number[], win: Window): boolean {
  * The window is expressed in the content stream's own user space (the page's
  * unrotated coordinate system), i.e. the /CropBox rectangle.
  */
-export function filterContentString(s: string, win: Window): string {
-  const toks = tokenize(s);
+export function filterContentString(s: string, win: Window, deadline = Date.now() + HARD_CROP_TIME_LIMIT_MS): string {
+  const toks = tokenize(s, deadline);
   const out: string[] = [];
   let pos = 0;
 
@@ -234,6 +245,7 @@ export function filterContentString(s: string, win: Window): string {
   };
 
   for (const tok of toks) {
+    checkProcessingDeadline(deadline);
     const { kind, start, end } = tok;
 
     if (kind === 'num' || kind === 'name' || kind === 'str') {
@@ -339,9 +351,15 @@ export function filterContentString(s: string, win: Window): string {
   return out.join('');
 }
 
-function decodeStreamToString(stream: PDFStream): string {
-  if (stream instanceof PDFRawStream) return bytesToLatin1(decodePDFRawStream(stream).decode());
-  if (stream instanceof PDFContentStream) return bytesToLatin1(stream.getUnencodedContents());
+function decodeStreamToString(stream: PDFStream, deadline: number): string {
+  checkProcessingDeadline(deadline);
+  if (stream instanceof PDFRawStream) {
+    if (stream.contents.length > HARD_CROP_MAX_STREAM_BYTES) throw new Error('PDF content stream exceeds crop processing limit');
+    const decoded = decodePDFRawStream(stream).decode();
+    checkProcessingDeadline(deadline);
+    return bytesToLatin1(decoded, deadline);
+  }
+  if (stream instanceof PDFContentStream) return bytesToLatin1(stream.getUnencodedContents(), deadline);
   throw new Error('Unrecognized content stream type');
 }
 
@@ -349,7 +367,7 @@ function decodeStreamToString(stream: PDFStream): string {
  * Hard-crop a source page's content stream in place: drop text that lies
  * outside `win` so it can never leak into the merged document's text layer.
  */
-function hardCropPageContents(page: PDFPage, win: Window): void {
+function hardCropPageContents(page: PDFPage, win: Window, deadline: number): void {
   const node = page.node;
   const contents = node.Contents();
   if (!contents) return;
@@ -358,19 +376,22 @@ function hardCropPageContents(page: PDFPage, win: Window): void {
   if (contents instanceof PDFArray) {
     const parts: string[] = [];
     for (let idx = 0; idx < contents.size(); idx++) {
-      parts.push(decodeStreamToString(contents.lookup(idx, PDFStream)));
+      checkProcessingDeadline(deadline);
+      parts.push(decodeStreamToString(contents.lookup(idx, PDFStream), deadline));
       parts.push('\n');
     }
     full = parts.join('');
   } else if (contents instanceof PDFStream) {
-    full = decodeStreamToString(contents);
+    full = decodeStreamToString(contents, deadline);
   } else {
     return;
   }
 
-  const filtered = filterContentString(full, win);
+  if (full.length > HARD_CROP_MAX_STREAM_BYTES) throw new Error('PDF page content exceeds crop processing limit');
+  const filtered = filterContentString(full, win, deadline);
   if (filtered === full) return;
 
+  checkProcessingDeadline(deadline);
   const ctx = node.context;
   const stream = ctx.flateStream(filtered);
   node.set(PDFName.of('Contents'), ctx.register(stream));
@@ -416,10 +437,11 @@ export const embedVisiblePage = async (
       matrix = [1, 0, 0, 1, -left, -bottom];
   }
 
+  const cropDeadline = Date.now() + HARD_CROP_TIME_LIMIT_MS;
   try {
-    hardCropPageContents(page, [left, bottom, left + cropWidth, bottom + cropHeight]);
+    hardCropPageContents(page, [left, bottom, left + cropWidth, bottom + cropHeight], cropDeadline);
   } catch (err) {
-    console.warn('[PDF Merge] Content hard-crop failed, embedding page as-is:', err);
+    console.warn('[PDF Merge] Content hard-crop failed or exceeded its time limit; embedding page as-is:', err);
   }
 
   // The bounding box is expressed in the content's own (page) coordinate

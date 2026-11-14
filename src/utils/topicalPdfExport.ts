@@ -283,36 +283,6 @@ const formatTopicHeaderText = (topicMatches: string[] = []): string => {
   return topicCodes.join(', ');
 };
 
-// Add a source page to the merged document showing only what is actually
-// visible (its /CropBox). Pages without a crop box are added as-is.
-const addVisiblePage = async (
-  targetDoc: PDFDocument,
-  page: PDFPage
-): Promise<void> => {
-  const mediaBox = page.getMediaBox();
-  const cropBox = page.getCropBox();
-
-  const isCropped =
-    cropBox.x !== mediaBox.x ||
-    cropBox.y !== mediaBox.y ||
-    cropBox.width !== mediaBox.width ||
-    cropBox.height !== mediaBox.height;
-
-  if (!isCropped) {
-    targetDoc.addPage(page);
-    return;
-  }
-
-  try {
-    const { embedded, width, height } = await embedVisiblePage(targetDoc, page);
-    const cropPage = targetDoc.addPage([width, height]);
-    cropPage.drawPage(embedded, { x: 0, y: 0, xScale: 1, yScale: 1 });
-  } catch (error) {
-    console.warn('Failed to hard-crop page, adding it as-is:', error);
-    targetDoc.addPage(page);
-  }
-};
-
 export const createCoverPage = async (
   pdf: PDFDocument,
   type: ExportType,
@@ -658,57 +628,6 @@ const drawRoundedHeaderBackground = (
   page.drawSvgPath(pathData, { x, y: y + height, color: fillColor });
 };
 
-export const createHeaderPage = async (
-  pdf: PDFDocument,
-  question: Question,
-  questionNumber: number,
-  _type: ExportType,
-  width: number,
-  boldFont: PDFFont,
-  regularFont: PDFFont,
-  headerHeight: number = 25
-) => {
-  const page = pdf.addPage([width, headerHeight]);
-
-  drawRoundedHeaderBackground(page, 0, 0, width, headerHeight, 5, rgb(0.92, 0.92, 0.94));
-
-  const titleText = question.title || `Question ${questionNumber}`;
-  const questionRefText = `Question ${questionNumber}`;
-  const topicsText = question.topicMatches && question.topicMatches.length > 0
-    ? formatTopicHeaderText(question.topicMatches)
-    : '';
-
-  const titleSize = 8 + (headerHeight * 0.15);
-  const topicSize = 7 + (headerHeight * 0.1);
-  const safeTitle = sanitizeForPdf(titleText);
-  const safeQuestionRef = sanitizeForPdf(questionRefText);
-
-  const titleWidth = boldFont.widthOfTextAtSize(safeTitle, titleSize);
-
-  page.drawText(safeQuestionRef, { x: 10, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-
-  const centerX = (width - titleWidth) / 2;
-  page.drawText(safeTitle, { x: centerX, y: (headerHeight / 2) - (titleSize / 3), size: titleSize, font: boldFont, color: rgb(0.1, 0.15, 0.25) });
-
-  if (topicsText) {
-    const maxWidth = width - 20 - 170;
-    let rendered = sanitizeForPdf(topicsText);
-    while (regularFont.widthOfTextAtSize(rendered, topicSize) > maxWidth && rendered.length > 0) {
-      rendered = rendered.slice(0, -1);
-    }
-    if (rendered !== topicsText) rendered = `${rendered.trimEnd()}…`;
-
-    const renderedWidth = regularFont.widthOfTextAtSize(rendered, topicSize);
-    page.drawText(rendered, {
-      x: width - renderedWidth - 10,
-      y: (headerHeight / 2) - (topicSize / 3),
-      size: topicSize,
-      font: regularFont,
-      color: rgb(0.35, 0.4, 0.45),
-    });
-  }
-};
-
 // ---------------------------------------------------------------------------
 // Merge
 // ---------------------------------------------------------------------------
@@ -837,31 +756,26 @@ export const mergeTopicalPDFs = async (
   const allResults: FetchResult[] = await Promise.all(
     fetchTasks.map(async task => {
       if (task.fileType === 'mcqAnswer') {
-        // No file to fetch — we just need the question data to draw an "Answer: X" page.
         completedCount++;
         onProgress?.({ current: completedCount, total: fetchTasks.length });
         return { task, arrayBuffer: new ArrayBuffer(0), contentType: 'mcq-answer', error: null };
       }
       try {
-        // Use the R2-aware fetch function
         const arrayBuffer = await fetchFileAsArrayBuffer(task.url);
-
         if (!arrayBuffer) {
           return { task, arrayBuffer: null, contentType: '', error: 'Failed to fetch file' };
         }
 
-        // Try to detect content type from the URL or file extension
         let contentType = '';
         if (task.fileType === 'pdf') {
           contentType = 'application/pdf';
         } else if (task.fileType === 'image') {
-          // Try to detect from URL extension
           const ext = task.url.split('.').pop()?.toLowerCase();
           if (ext === 'png') contentType = 'image/png';
           else if (ext === 'jpg' || ext === 'jpeg') contentType = 'image/jpeg';
           else if (ext === 'gif') contentType = 'image/gif';
           else if (ext === 'webp') contentType = 'image/webp';
-          else contentType = 'image/png'; // Default
+          else contentType = 'image/png';
         }
 
         return { task, arrayBuffer, contentType, error: null };

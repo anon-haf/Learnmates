@@ -29,6 +29,11 @@ declare global {
 
 const A4_ASPECT = 297 / 210;
 
+// Each page's full-resolution canvas is encoded to a JPEG preview only once per
+// session. Without this, every re-render caused by resizing/scrolling would
+// re-encode the whole canvas, which is a major source of jank.
+const encodedPreviewKeys = new Set<string>();
+
 export type DrawTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'ellipse' | 'text';
 
 interface PdfDrawablePageProps {
@@ -53,7 +58,6 @@ interface PdfDrawablePageProps {
   onCanvasMount?: (pageNumber: number, canvas: HTMLCanvasElement | null) => void;
   onActionComplete?: (
     pageNumber: number,
-    beforeSnapshot: ImageData | null,
     vectorAction: VectorAction,
     pdfPageWidthAtScale1: number
   ) => void;
@@ -557,6 +561,11 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       ) as HTMLCanvasElement | null;
       if (!canvas || !pageRenderCacheKey || !pdfCacheKey) return;
 
+      const previewKey = `${pdfCacheKey}|${pageNumber}`;
+      if (encodedPreviewKeys.has(previewKey)) return;
+      if (encodedPreviewKeys.size > 400) encodedPreviewKeys.clear();
+      encodedPreviewKeys.add(previewKey);
+
       canvas.toBlob((blob) => {
         if (!blob) {
           console.warn(`Failed to cache PDF render for page ${pageNumber}`);
@@ -603,14 +612,11 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
   const commitAction = useCallback((vectorAction?: VectorAction) => {
     if (!didModify.current || !vectorAction) return;
-    if (vectorAction) {
-      onActionCompleteRef.current?.(
-        pageNumber,
-        beforeAction.current,
-        vectorAction,
-        pdfPageWidthAtScale1()
-      );
-    }
+    onActionCompleteRef.current?.(
+      pageNumber,
+      vectorAction,
+      pdfPageWidthAtScale1()
+    );
     beforeAction.current = null;
     didModify.current = false;
   }, [pageNumber, pdfPageWidthAtScale1]);
@@ -672,7 +678,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       };
       if (currentEditor.actionIndex === null) {
         drawVectorText(ctx, action, action.position, canvas.width, pdfPageWidthAtScale1());
-        onActionCompleteRef.current?.(pageNumber, null, action, pdfPageWidthAtScale1());
+        onActionCompleteRef.current?.(pageNumber, action, pdfPageWidthAtScale1());
       } else {
         onTextActionUpdateRef.current?.(
           pageNumber,
@@ -1258,10 +1264,10 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       onDrawingActiveChangeRef.current?.(pageNumber, true);
 
       const ctx = getDrawContext(canvas);
-      const stored =
-        getRestoredAnnotationRef.current?.() ?? restoredAnnotationRef.current;
       const tool = drawToolRef.current;
-      if (ctx && (stored?.rasterFallback || isShapeTool(tool))) {
+      // Snapshot the page only for shape tools, where it is used to restore the
+      // canvas before each live preview frame. Freehand eraser redraws from vectors.
+      if (ctx && isShapeTool(tool)) {
         beforeAction.current = captureSnapshot(ctx, canvas);
       } else {
         beforeAction.current = null;

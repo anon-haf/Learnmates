@@ -1,6 +1,7 @@
 import React from 'react';
 import Dropdown from './Dropdown';
 import { getSubjectQualificationCode } from '../../data/examTimings';
+import { formatLevelLabel } from '../../utils/topicalHelpers';
 
 interface LevelBoardSubjectPickerProps {
   levels: string[];
@@ -40,8 +41,8 @@ const LevelBoardSubjectPicker: React.FC<LevelBoardSubjectPickerProps> = ({
         <Dropdown
           label="Level"
           fullWidth
-          buttonLabel={selectedLevel ? selectedLevel.toUpperCase() : 'Select Level'}
-          options={levels.map(l => ({ value: l, label: l.toUpperCase() }))}
+          buttonLabel={selectedLevel ? formatLevelLabel(selectedLevel) : 'Select Level'}
+          options={levels.map(level => ({ value: level, label: formatLevelLabel(level) }))}
           selectedValue={selectedLevel}
           onSelect={onLevelChange}
         />

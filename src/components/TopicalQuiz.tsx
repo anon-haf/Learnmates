@@ -15,7 +15,7 @@ import { ShortcutKey } from './ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import NibrasAnimatedMark from './NibrasAnimatedMark';
 import NibrasUsageIndicator from './NibrasUsageIndicator';
-import { PeriodicTablePopup } from './PeriodicTablePopup';
+import { PERIODIC_TABLE_URL, PeriodicTablePopup } from './PeriodicTablePopup';
 import { useAuth } from '../context/AuthContext';
 import { useNibrasUsage } from '../hooks/useNibrasUsage';
 import NibrasIcon from '../assets/logos/nibras.svg?react';
@@ -47,9 +47,6 @@ export interface Question {
   isMcq?: boolean; // True when the topical paper uses mcq_ans.json for its answer key
   mcqAnswer?: string; // Optional answer for Cambridge IGCSE MCQ practice papers
 }
-
-/** Periodic table reference, shown only for IGCSE Chemistry topics. */
-const PERIODIC_TABLE_URL = '/documents/Periodic table.pdf';
 
 interface SingleQuizProps {
   questions: Question[];
@@ -115,16 +112,11 @@ const readTopicalTimer = (storageKey: string | null): TopicalTimerState => {
 };
 
 const formatTimerDuration = (milliseconds: number): string => {
-  const totalMilliseconds = Math.floor(milliseconds);
-  const totalSeconds = Math.floor(totalMilliseconds / 1000);
-  const tenths = Math.floor((totalMilliseconds % 1000) / 100);
+  const totalSeconds = Math.floor(milliseconds / 1000);
   const seconds = String(totalSeconds % 60).padStart(2, '0');
   const minutes = String(Math.floor(totalSeconds / 60) % 60).padStart(2, '0');
   const hours = Math.floor(totalSeconds / 3600);
-  const time = hours > 0
-    ? `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`
-    : `${minutes}:${seconds}`;
-  return `${time}.${tenths}`;
+  return `${hours}:${minutes}:${seconds}`;
 };
 
 const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
@@ -146,6 +138,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [loadedQuizzes, setLoadedQuizzes] = useState<Map<string, Question[]>>(new Map());
   const [isLoadingMore, setIsLoadingMore] = useState<Map<string, boolean>>(new Map());
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [questionJumpInput, setQuestionJumpInput] = useState('1');
+  const [topicTagsExpanded, setTopicTagsExpanded] = useState(false);
   const [timerState, setTimerState] = useState<TopicalTimerState>(() => readTopicalTimer(timerStorageKey));
   const timerStorageKeyRef = useRef(timerStorageKey);
   const [timerNow, setTimerNow] = useState(() => Date.now());
@@ -153,7 +147,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [showLargeView, setShowLargeView] = useState(false);
   const [explanationSheetOpen, setExplanationSheetOpen] = useState(false);
   const [explanationSheetMinimized, setExplanationSheetMinimized] = useState(false);
-  const [showPeriodicTableInline, setShowPeriodicTableInline] = useState(false);
   const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [annotations, setAnnotations] = useState<Map<string, string>>(new Map());
@@ -241,43 +234,34 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     timerState.startedAt === null ? 0 : Math.max(0, timerNow - timerState.startedAt)
   );
 
-  const renderTimerControl = (largeView: boolean) => (
-    <div className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 ${
-      largeView
-        ? 'border-gray-600 bg-gray-800'
-        : 'border-gray-300 bg-white dark:border-gray-600 dark:bg-gray-800'
-    }`}>
+  const renderTimerControl = () => (
+    <div className="inline-flex h-9 w-fit max-w-full flex-none items-center gap-1 rounded-full border border-gray-300 bg-gray-100 px-2.5 text-gray-800 dark:border-[#3b465b] dark:bg-[#1b2230] dark:text-gray-100">
       <Timer className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
-      <span className="min-w-[7rem] font-mono text-sm font-bold tabular-nums text-gray-700 dark:text-gray-100 sm:text-base" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
+      <span className="relative top-[2px] inline-flex h-full min-w-0 items-center whitespace-nowrap font-mono text-base font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
         {formatTimerDuration(displayedTimerMs)}
       </span>
-      <button
-        type="button"
-        onClick={toggleTopicalTimer}
-        aria-label={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
-        title={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
-        className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-          timerState.startedAt === null
-            ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60'
-            : 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60'
-        }`}
-      >
-        {timerState.startedAt === null
-          ? <Play className="h-4 w-4" aria-hidden="true" />
-          : <Pause className="h-4 w-4" aria-hidden="true" />}
-        <span className={largeView ? 'hidden sm:inline' : ''}>
-          {timerState.startedAt === null ? 'Start' : 'Stop'}
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={resetTopicalTimer}
-        aria-label="Reset timer"
-        title="Reset timer"
-        className="inline-flex items-center justify-center rounded-md p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
-      >
-        <RotateCcw className="h-4 w-4" aria-hidden="true" />
-      </button>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={toggleTopicalTimer}
+          aria-label={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
+          title={timerState.startedAt === null ? 'Start timer' : 'Stop timer'}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-white/10"
+        >
+          {timerState.startedAt === null
+            ? <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+            : <Pause className="h-3.5 w-3.5" aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          onClick={resetTopicalTimer}
+          aria-label="Reset timer"
+          title="Reset timer"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </div>
       {timerState.error && (
         <span
           role="alert"
@@ -459,6 +443,14 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
     setSelectedMcqOption(mcqSelections[currentQuestion] ?? null);
   }, [currentQuestion, mcqSelections]);
 
+  useEffect(() => {
+    setTopicTagsExpanded(false);
+  }, [currentQuestion]);
+
+  useEffect(() => {
+    setQuestionJumpInput(String(currentQuestion + 1));
+  }, [currentQuestion]);
+
   const [jumpCheckedQuestions, setJumpCheckedQuestions] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('topical_jump_checked_questions');
@@ -579,6 +571,45 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       setCurrentQuestion(currentQuestion - 1);
     }
   };
+
+  const handleQuestionJump = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const requestedNumber = Number(questionJumpInput);
+    if (Number.isInteger(requestedNumber) && requestedNumber >= 1 && requestedNumber <= questions.length) {
+      setCurrentQuestion(requestedNumber - 1);
+    } else {
+      setQuestionJumpInput(String(currentQuestion + 1));
+    }
+  };
+
+  const renderQuestionJump = (largeView: boolean) => (
+    <form
+      onSubmit={handleQuestionJump}
+      className={`flex items-center gap-1.5 whitespace-nowrap ${largeView ? 'text-gray-400' : 'text-gray-600 dark:text-gray-400'}`}
+    >
+      <label htmlFor="topical-question-number-jump" className="sr-only">Go to question number</label>
+      <span className="text-xs sm:text-sm">Question</span>
+      <input
+        id="topical-question-number-jump"
+        type="number"
+        min="1"
+        max={questions.length}
+        step="1"
+        required
+        inputMode="numeric"
+        value={questionJumpInput}
+        onChange={event => setQuestionJumpInput(event.target.value)}
+        className={`lm-number-input w-12 rounded-md border px-1.5 py-1 text-center text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 ${largeView
+          ? 'border-gray-600 bg-gray-800 text-gray-100 focus:border-blue-400'
+          : 'border-gray-300 bg-white text-gray-800 focus:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100'
+          }`}
+        aria-label="Go to question number"
+        title="Type a question number and press Enter"
+      />
+      <span className="text-xs sm:text-sm">of {questions.length}</span>
+      <button type="submit" className="sr-only">Go to question</button>
+    </form>
+  );
 
   const toggleCurrentMarkScheme = useCallback(() => {
     setShowMarkScheme(open => {
@@ -1122,21 +1153,11 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   );
 
   if (!isQuizMenu && 'explanationOnly' in props && props.explanationOnly && currentQ) {
-    const isMcq = currentQ.isMcq ?? Boolean(currentQ.mcqAnswer);
     return (
       <div className="w-full">
-        {canExplainTopical && Boolean(
-          currentQ.questionContent &&
-          (isMcq || currentQ.markScheme) &&
-          getTopicalAiSubject(currentQ)
-        ) && (
-          renderExplainButton()
-        )}
         {canExplainTopical &&
           explainButtonTarget &&
-          currentQ.questionContent &&
-          (isMcq || currentQ.markScheme) &&
-          getTopicalAiSubject(currentQ) &&
+          canExplainCurrentQuestion &&
           createPortal(renderExplainButton(), explainButtonTarget)}
         {isLargeViewActive &&
           largeViewExplainButtonTarget &&
@@ -1502,24 +1523,24 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       <div className="flex flex-col flex-1 overflow-hidden min-h-0">
         <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           {/* Navigation at the top (only Previous / Next) */}
-          <div className="flex gap-2 sm:gap-4 justify-between items-center">
-            <button
-              onClick={handlePrevious}
-              disabled={currentQuestion === 0}
-              className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="hidden sm:inline">Previous</span>
-              <span className="sm:hidden">Prev</span>
-            </button>
-
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {currentQuestion + 1} out of {questions.length}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+            <div className="justify-self-start">
+              <button
+                onClick={handlePrevious}
+                disabled={currentQuestion === 0}
+                className="px-3 sm:px-4 py-2 text-base text-gray-700 dark:text-gray-100 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sm:hidden">Prev</span>
+              </button>
             </div>
+
+            <div className="justify-self-center">{renderQuestionJump(false)}</div>
 
             <button
               onClick={handleNext}
               disabled={currentQuestion === questions.length - 1}
-              className="px-3 sm:px-6 py-2 text-base bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-600 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="justify-self-end px-3 sm:px-6 py-2 text-base bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-600 dark:hover:bg-gray-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
             </button>
@@ -1587,6 +1608,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   {currentQ.unit}
                 </span>
               )}
+              {timerEnabled && renderTimerControl()}
             </div>
             {pageCount !== null && (
               <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
@@ -1597,19 +1619,34 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
           {/* Topic tags */}
           {currentQ.topicMatches && currentQ.topicMatches.length > 0 && (
-            <div className="bg-[#0a1628]/80 dark:bg-[#0a1628]/90 px-3 py-2 rounded-lg mb-2 flex items-center gap-2 flex-wrap border border-[#1a2d47]">
+            <div className={`bg-[#0a1628]/80 dark:bg-[#0a1628]/90 px-3 py-2 rounded-lg mb-2 flex gap-2 border border-[#1a2d47] ${topicTagsExpanded ? 'items-start' : 'items-center'}`}>
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider shrink-0">Topics:</span>
-              {currentQ.topicMatches.map((topic, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center px-2 py-1 rounded text-[10px] font-medium bg-gray-700/50 text-gray-200"
+              <div className={`min-w-0 flex-1 gap-2 ${topicTagsExpanded ? 'flex flex-wrap' : 'flex flex-nowrap overflow-hidden'}`}>
+                {currentQ.topicMatches.map((topic, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-gray-700/50 px-2 py-1 text-[10px] font-medium text-gray-200"
+                  >
+                    {topic}
+                  </span>
+                ))}
+              </div>
+              {currentQ.topicMatches.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setTopicTagsExpanded(expanded => !expanded)}
+                  aria-expanded={topicTagsExpanded}
+                  aria-label={topicTagsExpanded ? 'Collapse topics' : 'Expand topics'}
+                  title={topicTagsExpanded ? 'Show fewer topics' : 'Show all topics'}
+                  className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
                 >
-                  {topic}
-                </span>
-              ))}
+                  {topicTagsExpanded
+                    ? <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                    : <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />}
+                </button>
+              )}
             </div>
           )}
-
           {/* External Question / Mark Scheme toggle + Annotate */}
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="inline-flex rounded-lg bg-gray-800/60 p-1">
@@ -1643,27 +1680,22 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
 
             <div className="flex items-center gap-2">
-              {timerEnabled && renderTimerControl(false)}
-
-              {Boolean(canExplainTopical && currentQ.questionContent && (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) && getTopicalAiSubject(currentQ)) && (
-                renderExplainButton()
-              )}
-
               {isIgcseChemistry && (
                 <button
                   type="button"
-                  onClick={() => setShowPeriodicTableInline(prev => !prev)}
-                  aria-pressed={showPeriodicTableInline}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-colors ${showPeriodicTableInline
-                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50'
-                    }`}
-                  title="Show or hide the periodic table"
+                  onClick={() => setShowPeriodicTablePopup(true)}
+                  aria-haspopup="dialog"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-colors bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                  title="Open the periodic table"
                 >
                   <Table className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Periodic Table</span>
                   <span className="sm:hidden">PT</span>
                 </button>
+              )}
+
+              {Boolean(canExplainTopical && currentQ.questionContent && (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) && getTopicalAiSubject(currentQ)) && (
+                renderExplainButton()
               )}
 
               <button
@@ -1711,43 +1743,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             )}
           </div>
 
-          {/* Periodic table (IGCSE Chemistry) — opens under the question / mark scheme */}
-          {!showLargeView && isIgcseChemistry && showPeriodicTableInline && (
-            <div className="@container mt-3 w-full border-2 border-emerald-300 dark:border-emerald-800 rounded-lg p-1 bg-gray-50 dark:bg-gray-900 overflow-hidden">
-              <div className="flex items-center justify-between px-2 py-1">
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-                  Periodic Table
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowPeriodicTableInline(false)}
-                  className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  Hide
-                </button>
-              </div>
-              <div className="w-full overflow-hidden relative flex flex-col min-h-0" style={{ maxHeight: 'min(calc(100cqw * 4 / 3), 85vh)' }}>
-                <UniversalDocumentViewer
-                  key="periodic-table-inline"
-                  mode="inline"
-                  surface="light"
-                  pdfUrl={PERIODIC_TABLE_URL}
-                  type="pdf"
-                />
-              </div>
-            </div>
-          )}
-
           {!showLargeView && mcqBlock}
-          {!showLargeView && canExplainTopical && Boolean(
-            currentQ.questionContent &&
-            (currentQ.isMcq || currentQ.mcqAnswer || currentQ.markScheme) &&
-            getTopicalAiSubject(currentQ)
-          ) && (
-            <div className="mt-3 flex justify-end">
-              {renderExplainButton()}
-            </div>
-          )}
           <div ref={explanationPanelRef} className="scroll-mt-6">
             {renderExplanationContent('inline')}
           </div>
@@ -1822,8 +1818,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       />
       {showLargeView && createPortal(
         <div className="fixed inset-0 z-[100] h-[100dvh] overflow-hidden overscroll-none bg-[#0d1520] flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2">
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center px-4 py-3 bg-[#0a1628] border-b border-[#1a2d47] shadow-sm shrink-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-2 sm:gap-4">
               <button
                 onClick={() => setShowLargeView(false)}
                 className="p-1 sm:p-2 text-gray-300 hover:text-white hover:bg-gray-700 rounded-full transition-colors"
@@ -1834,11 +1830,14 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               <h2 className="text-base sm:text-lg font-semibold text-gray-100 hidden sm:block truncate max-w-[200px] md:max-w-xs">
                 {currentQ.title || `Paper ${currentQuestion + 1}`}
               </h2>
-              {timerEnabled && renderTimerControl(true)}
+              {timerEnabled && renderTimerControl()}
             </div>
 
+            <div className="col-span-2 row-start-2 justify-self-center sm:col-span-1 sm:col-start-2 sm:row-start-1">
+              {renderQuestionJump(true)}
+            </div>
 
-            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+            <div className="col-start-2 row-start-1 ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:row-start-1 sm:gap-4">
               {isIgcseChemistry && (
                 <button
                   type="button"
@@ -1880,9 +1879,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <PanelRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
-              <span className="text-gray-400 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap">
-                {currentQuestion + 1} of {questions.length}
-              </span>
               <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   onClick={() => {
@@ -1927,7 +1923,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {/* Non-MCQ overlay sidebar */}
             {!currentQ.mcqAnswer && (
               <div
-                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
+                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
                   }`}
               >
                 {/* Topics and Report */}
@@ -1958,7 +1954,9 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
                 <div className="w-full h-px bg-[#1a2d47] shrink-0" />
 
-                {canExplainTopical && canExplainCurrentQuestion && renderExplainButton(true)}
+                {canExplainTopical && canExplainCurrentQuestion && (
+                  <div className="shrink-0 self-start">{renderExplainButton(true)}</div>
+                )}
 
                 {/* Question navigation */}
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-3">
@@ -2028,9 +2026,6 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             {/* Sidebar (MCQ Options & Navigation) */}
             {currentQ.mcqAnswer && (
               <div className="w-full lg:w-96 flex flex-row lg:flex-col bg-[#0a1628] border-t lg:border-t-0 lg:border-l border-[#1a2d47] overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden max-h-[30vh] lg:max-h-full shrink-0 p-3 lg:px-5 lg:py-6 gap-4 lg:gap-6 items-stretch">
-                {canExplainTopical && canExplainCurrentQuestion && (
-                  <div className="shrink-0">{renderExplainButton(true)}</div>
-                )}
                 {/* Topics and Report - hidden on small screens */}
                 <div className="hidden lg:flex flex-col lg:flex-row items-start justify-between bg-transparent shrink-0 lg:min-w-0">
                   <div className="flex flex-col gap-2 mb-3 lg:mb-0">
@@ -2058,6 +2053,10 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                 </div>
 
                 <div className="hidden lg:block w-full h-px bg-gray-700/50 shrink-0" />
+
+                {canExplainTopical && canExplainCurrentQuestion && (
+                  <div className="shrink-0 self-start">{renderExplainButton(true)}</div>
+                )}
 
                 {/* MCQ Checker - grows on mobile */}
                 <div className="shrink-0 flex flex-col flex-1 lg:flex-none lg:w-auto min-w-0">

@@ -9,6 +9,7 @@ export interface SearchTopic {
 export interface UnitConfig {
   unit: string;
   topics: SearchTopic[];
+  pastPapersOnly?: boolean;
 }
 
 export interface SubjectConfig {

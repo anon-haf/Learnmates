@@ -3,6 +3,8 @@ import { resolveFromR2, getAssetAuthHeaders, fetchR2AsBlob } from './r2Utils';
 import { isEdexcelIALPureMathOrMechanics } from './topicalHelpers';
 import { embedVisiblePage } from './pdfContentCrop';
 
+const PERIODIC_TABLE_URL = '/documents/Periodic table.pdf';
+
 export interface MergeItem {
   id: string; // Used to identify the question number
   url?: string;
@@ -247,7 +249,7 @@ export const generateMergedPDF = async (
   const isEdexcelPureOrMech = options?.isEdexcelPureOrMech ?? (
     isEdexcelIALPureMathOrMechanics(options?.level, options?.board, options?.subject, options?.unit) ||
     (/edexcel/i.test(`${options?.title || ''} ${options?.subtitle || ''}`) &&
-     /pure|mechanics|\bp[1-4]\b|\bm[1-3]\b/i.test(`${options?.title || ''} ${options?.subtitle || ''} ${options?.subject || ''} ${options?.unit || ''}`))
+     /pure|mechanics|statistics|\bp[1-4]\b|\bm[1-3]\b|\bs\d+\b/i.test(`${options?.title || ''} ${options?.subtitle || ''} ${options?.subject || ''} ${options?.unit || ''}`))
   );
 
   const fetchedItems = await Promise.all(items.map(async (item, i) => {
@@ -516,6 +518,24 @@ export const generateMergedPDF = async (
     title: options?.title || `${typeLabel} Papers`,
     subtitle: options?.subtitle || ''
   });
+
+  if (
+    typeLabel === 'Question' &&
+    options?.level?.toLowerCase() === 'igcse' &&
+    options?.subject?.toLowerCase() === 'chemistry'
+  ) {
+    try {
+      const periodicTableUrl = new URL(PERIODIC_TABLE_URL, window.location.origin).href;
+      const response = await fetchWithTimeout(periodicTableUrl, 20000);
+      if (!response.ok) throw new Error(`Periodic table request failed: ${response.status}`);
+
+      const periodicTablePdf = await PDFDocument.load(await response.arrayBuffer());
+      const periodicTablePages = await mergedPdf.copyPages(periodicTablePdf, periodicTablePdf.getPageIndices());
+      periodicTablePages.forEach(page => mergedPdf.addPage(page));
+    } catch (error) {
+      console.warn('Failed to append periodic table to past-paper export:', error);
+    }
+  }
 
   const pdfBytes = await mergedPdf.save();
   return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });

@@ -10,7 +10,6 @@
 // bucket directly. The bucket is private; the Worker validates the headers
 // below and streams the object, with edge caching. See /worker-assets.
 const R2_BASE_URL = 'https://assets.learnmates.org';
-const R2_BUCKET_URL = (import.meta as any).env?.VITE_R2_BUCKET_URL || 'https://learnmates-cdn.r2.cloudflarestorage.com';
 
 // Shared secret the asset-worker checks (X-Asset-Key). Must match the
 // ASSET_SHARED_KEY secret set on the Worker via `wrangler secret put`.
@@ -359,40 +358,4 @@ export async function fetchR2AsBlobUrl(r2Url: string): Promise<string | null> {
   return null;
 }
 
-/**
- * Clear the R2 blob cache
- * Useful for cleanup
- */
-export function clearR2Cache(): void {
-  r2UrlCache.clear();
-  console.log('[R2 Utils] Cache cleared');
-}
 
-/**
- * Preload R2 URLs for a batch of files
- * Populates the cache with R2 URLs without checking existence
- * 
- * @param paths - Array of local file paths
- */
-export function preloadR2Urls(paths: string[]): void {
-  paths.forEach((path) => {
-    const r2Url = getR2Url(path);
-    // Just populating the cache with transformations, no existence checks
-  });
-  console.log(`[R2 Utils] Preloaded ${paths.length} R2 URLs`);
-}
-
-/**
- * Get diagnostic information about R2 configuration
- */
-export function getR2Config(): {
-  baseUrl: string;
-  bucketUrl: string;
-  enabled: boolean;
-} {
-  return {
-    baseUrl: R2_BASE_URL,
-    bucketUrl: R2_BUCKET_URL,
-    enabled: !!(import.meta as any).env?.VITE_R2_BUCKET_URL,
-  };
-}

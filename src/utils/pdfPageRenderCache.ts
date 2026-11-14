@@ -106,16 +106,3 @@ export function setCachedPageRender(key: string, entry: Omit<CacheEntry, 'at'>) 
   cachedBytes += entryBytes;
 }
 
-export function clearPdfPageRenderCache(pdfKey?: string) {
-  if (!pdfKey) {
-    cache.clear();
-    pageCounts.clear();
-    cachedBytes = 0;
-    return;
-  }
-  const prefix = `${pdfKey}|`;
-  for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) removeCachedRender(key);
-  }
-  pageCounts.delete(pdfKey);
-}

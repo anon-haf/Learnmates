@@ -50,9 +50,3 @@ export const dropdownPanel =
 export const dropdownItem =
   'w-full text-left px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2';
 
-// Checkbox with label wrapper - same height as other controls (h-9)
-export const checkboxWithLabel =
-  'inline-flex items-center gap-2 h-9 px-3 rounded-lg cursor-pointer ' +
-  'bg-white text-gray-700 border border-gray-300 ' +
-  'dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 ' +
-  'hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';

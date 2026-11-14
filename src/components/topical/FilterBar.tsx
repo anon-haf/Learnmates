@@ -248,7 +248,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200 dark:border-gray-700 overflow-hidden"
+          className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200 dark:border-gray-700"
         >
           {!hasSelectedTopics ? (
             <div className="text-sm text-gray-500 dark:text-gray-400 italic">

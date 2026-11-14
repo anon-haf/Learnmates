@@ -9,10 +9,12 @@ import type { VectorAction } from './pdfVectorAnnotationStorage';
 
 type HistoryEntry = {
   pageNumber: number;
-  imageData?: ImageData;
   vectorActionsBefore: VectorAction[];
   vectorActionsAfter: VectorAction[];
 };
+
+/** Maximum number of undo steps retained; oldest entries are dropped once exceeded. */
+const MAX_HISTORY = 50;
 
 export function usePdfAnnotationHistory() {
   const pastRef = useRef<HistoryEntry[]>([]);
@@ -134,7 +136,6 @@ export function usePdfAnnotationHistory() {
 
   const pushAction = useCallback((
     pageNumber: number,
-    beforeSnapshot: ImageData | null,
     vectorAction?: VectorAction,
     pdfPageWidthAtScale1?: number
   ) => {
@@ -193,7 +194,7 @@ export function usePdfAnnotationHistory() {
           actionsAfter = [...remainingActions, scaledAction];
         } else {
           actionsAfter = remainingActions;
-          if (actionsAfter.length === actionsBefore.length && !beforeSnapshot) {
+          if (actionsAfter.length === actionsBefore.length) {
             return;
           }
         }
@@ -202,13 +203,15 @@ export function usePdfAnnotationHistory() {
       }
       vectorActionsRef.current[pageNumber] = actionsAfter;
     }
-    if (!beforeSnapshot && !vectorAction) return;
+    if (!vectorAction) return;
     pastRef.current.push({
       pageNumber,
-      ...(beforeSnapshot ? { imageData: beforeSnapshot } : {}),
       vectorActionsBefore: actionsBefore,
       vectorActionsAfter: actionsAfter,
     });
+    if (pastRef.current.length > MAX_HISTORY) {
+      pastRef.current.shift();
+    }
     futureRef.current = [];
     dirtyPagesRef.current.add(pageNumber);
     setIsDirty(true);
@@ -253,6 +256,9 @@ export function usePdfAnnotationHistory() {
       vectorActionsBefore: actionsBefore,
       vectorActionsAfter: actionsAfter,
     });
+    if (pastRef.current.length > MAX_HISTORY) {
+      pastRef.current.shift();
+    }
     futureRef.current = [];
     vectorActionsRef.current[pageNumber] = actionsAfter;
     dirtyPagesRef.current.add(pageNumber);
@@ -301,6 +307,9 @@ export function usePdfAnnotationHistory() {
       vectorActionsBefore: actionsBefore,
       vectorActionsAfter: actionsAfter,
     });
+    if (pastRef.current.length > MAX_HISTORY) {
+      pastRef.current.shift();
+    }
     futureRef.current = [];
     vectorActionsRef.current[pageNumber] = actionsAfter;
     dirtyPagesRef.current.add(pageNumber);
@@ -351,78 +360,35 @@ export function usePdfAnnotationHistory() {
     );
   }, []);
 
-  const restoreSnapshot = useCallback((pageNumber: number, snapshot: ImageData) => {
-    const canvas = canvasMapRef.current.get(pageNumber);
-    if (!canvas) return null;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    if (
-      snapshot.width !== canvas.width ||
-      snapshot.height !== canvas.height
-    ) {
-      return null;
-    }
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
-  }, []);
-
-  const applySnapshot = useCallback((pageNumber: number, snapshot: ImageData) => {
-    const canvas = canvasMapRef.current.get(pageNumber);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    if (
-      snapshot.width !== canvas.width ||
-      snapshot.height !== canvas.height
-    ) {
-      return;
-    }
-    ctx.putImageData(snapshot, 0, 0);
-    dirtyPagesRef.current.add(pageNumber);
-  }, []);
-
   const undo = useCallback(() => {
     const entry = pastRef.current.pop();
     if (!entry) return;
 
-    if (entry.imageData) {
-      const current = restoreSnapshot(entry.pageNumber, entry.imageData);
-      if (current) {
-        futureRef.current.push({ ...entry, imageData: current });
-      }
-      applySnapshot(entry.pageNumber, entry.imageData);
-    } else {
-      futureRef.current.push(entry);
-      redrawFromVectors(entry.pageNumber, entry.vectorActionsBefore);
-    }
+    futureRef.current.push(entry);
+    redrawFromVectors(entry.pageNumber, entry.vectorActionsBefore);
+
     if (entry.vectorActionsBefore.length > 0) {
       vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsBefore;
     } else {
       delete vectorActionsRef.current[entry.pageNumber];
     }
     syncAvailability();
-  }, [applySnapshot, redrawFromVectors, restoreSnapshot, syncAvailability]);
+  }, [redrawFromVectors, syncAvailability]);
 
   const redo = useCallback(() => {
     const entry = futureRef.current.pop();
     if (!entry) return;
 
-    if (entry.imageData) {
-      const current = restoreSnapshot(entry.pageNumber, entry.imageData);
-      if (current) {
-        pastRef.current.push({ ...entry, imageData: current });
-      }
-      applySnapshot(entry.pageNumber, entry.imageData);
-    } else {
-      pastRef.current.push(entry);
-      redrawFromVectors(entry.pageNumber, entry.vectorActionsAfter);
-    }
+    pastRef.current.push(entry);
+    redrawFromVectors(entry.pageNumber, entry.vectorActionsAfter);
+
     if (entry.vectorActionsAfter.length > 0) {
       vectorActionsRef.current[entry.pageNumber] = entry.vectorActionsAfter;
     } else {
       delete vectorActionsRef.current[entry.pageNumber];
     }
     syncAvailability();
-  }, [applySnapshot, redrawFromVectors, restoreSnapshot, syncAvailability]);
+  }, [redrawFromVectors, syncAvailability]);
 
   const clearAll = useCallback(() => {
     canvasMapRef.current.forEach((canvas) => {

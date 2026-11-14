@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { Check, Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, PanelRight } from 'lucide-react';
+import { Check, Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, ChevronDown, PanelRight, Table } from 'lucide-react';
 import { useRouteBase, withBase } from '../utils/routeBase';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
@@ -19,6 +19,7 @@ import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { ShortcutKey } from '../components/ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import ExamCountdownTimer from '../components/ExamCountdownTimer';
+import { PERIODIC_TABLE_URL, PeriodicTablePopup } from '../components/PeriodicTablePopup';
 import { getExamTiming } from '../data/examTimings';
 
 interface PaperEntry {
@@ -122,7 +123,7 @@ const QuestionNumberJump: React.FC<{
       inputMode="numeric"
       value={value}
       onChange={event => onChange(event.target.value)}
-      className="w-14 rounded-md border border-gray-600 bg-gray-800 px-1.5 py-1 text-center text-sm text-gray-100 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      className="lm-number-input w-12 rounded-md border border-gray-600 bg-gray-800 px-1.5 py-1 text-center text-sm text-gray-100 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
       aria-label="Go to question number"
       title="Type a question number and press Enter"
     />
@@ -184,6 +185,7 @@ const PaperViewerPage: React.FC = () => {
   const shortcutPreferences = useShortcutPreferences();
   const base = useRouteBase();
   const { level, board, subject, year, paperKey, unit } = useParams<PaperViewerProps>();
+  const isIgcseChemistry = Boolean(level?.toLowerCase() === 'igcse' && subject?.toLowerCase().includes('chemistry'));
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -227,6 +229,7 @@ const PaperViewerPage: React.FC = () => {
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
+  const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
   const [largeViewPanelHeight, setLargeViewPanelHeight] = useState(40);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
@@ -584,7 +587,7 @@ const PaperViewerPage: React.FC = () => {
   const examTimerStorageKey = examTiming
     ? `past_paper_exam_timer_v1_${encodeURIComponent([level, board, subject, paperKey, unit, examTiming.componentCode].join('|'))}`
     : null;
-  const renderExamTimer = (largeView = false) => {
+  const renderExamTimer = () => {
     if (papers.length === 0) return null;
     if (!examTiming || !examTimerStorageKey) {
       return (
@@ -599,10 +602,26 @@ const PaperViewerPage: React.FC = () => {
         key={`${examTimerStorageKey}_${examTiming.durationSeconds}`}
         durationSeconds={examTiming.durationSeconds}
         storageKey={examTimerStorageKey}
-        largeView={largeView}
       />
     );
   };
+
+  const renderPeriodicTableButton = (largeView = false) => isIgcseChemistry && (
+    <button
+      type="button"
+      onClick={() => setShowPeriodicTablePopup(true)}
+      aria-haspopup="dialog"
+      title="Open the periodic table"
+      className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors ${largeView
+        ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+        : 'border-emerald-200 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:border-emerald-500/30 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50'
+        }`}
+    >
+      <Table className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="hidden sm:inline">Periodic Table</span>
+      <span className="sm:hidden">PT</span>
+    </button>
+  );
 
   const hasFullMarkScheme = papers.some(p => p.msUrl || p.mcqAnswer);
   const isCurrentQuestionCompleted = Boolean(currentPdf && completedQuestionPaths.has(currentPdf.pdfUrl));
@@ -653,25 +672,27 @@ const PaperViewerPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{paperDisplayName}</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">{papers.length} questions</p>
           </div>
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => setViewMode('full')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'full'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-            >
-              Full Paper
-            </button>
-            <button
-              onClick={() => setViewMode('single')}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'single'
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-            >
-              Individual Question
-            </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setViewMode('full')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'full'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+              >
+                Full Paper
+              </button>
+              <button
+                onClick={() => setViewMode('single')}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'single'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+              >
+                Individual Question
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -687,8 +708,8 @@ const PaperViewerPage: React.FC = () => {
         </div>
       ) : viewMode === 'single' && currentPdf ? (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg flex flex-col w-full border border-gray-200 dark:border-gray-700 relative">
-          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-wrap justify-between items-center gap-2">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="sticky top-0 z-10 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <div className="justify-self-start">
               <button
                 onClick={goToPrev}
                 disabled={questionIndex === 0}
@@ -697,15 +718,17 @@ const PaperViewerPage: React.FC = () => {
                 <span className="hidden sm:inline">Previous</span>
                 <span className="sm:hidden">Prev</span>
               </button>
-              {renderExamTimer()}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="justify-self-center">
               <QuestionNumberJump
                 value={questionJumpInput}
                 total={papers.length}
                 onChange={setQuestionJumpInput}
                 onSubmit={jumpToQuestion}
               />
+            </div>
+            <div className="flex items-center justify-self-end gap-2">
+              {renderExamTimer()}
               <button
                 onClick={goToNext}
                 disabled={questionIndex === papers.length - 1}
@@ -762,6 +785,7 @@ const PaperViewerPage: React.FC = () => {
                 )}
                 <div className="flex items-center gap-2">
                   <div ref={setExplainButtonTarget} className="contents" />
+                  {renderPeriodicTableButton()}
                   <button
                     type="button"
                     onClick={() => setShowLargeView(true)}
@@ -884,61 +908,76 @@ const PaperViewerPage: React.FC = () => {
                 <Maximize2 className="w-4 h-4" />
                 <span className="hidden sm:inline">Zoom</span>
               </button>
-              {fullPaperPdfUrl && (
-                <button
-                  onClick={async () => {
-                    const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Questions.pdf`;
-                    await commitDownloadAward({
-                      resourceId: `${paperKey}_questions`,
-                      resourceName: filename,
-                      resourceType: 'paper',
-                    });
-                    await logDownload({
-                      action: 'past_paper_download',
-                      url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
-                    });
-                    const a = document.createElement('a');
-                    a.href = fullPaperPdfUrl;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50"
-                  title="Download all question papers as merged PDF"
-                  disabled={isMerging}
-                >
-                  <Download className="w-3 h-3" />
-                  <span>All Questions PDF</span>
-                </button>
-              )}
-              {fullPaperMsUrl && (
-                <button
-                  onClick={async () => {
-                    const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Mark Scheme.pdf`;
-                    await commitDownloadAward({
-                      resourceId: `${paperKey}_markschemes`,
-                      resourceName: filename,
-                      resourceType: 'paper',
-                    });
-                    await logDownload({
-                      action: 'past_paper_download',
-                      url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
-                    });
-                    const a = document.createElement('a');
-                    a.href = fullPaperMsUrl;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }}
-                  className="flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 rounded-lg hover:bg-orange-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50"
-                  title="Download all mark schemes as merged PDF"
-                  disabled={isMergingMs}
-                >
-                  <Download className="w-3 h-3" />
-                  <span>All Mark Schemes PDF</span>
-                </button>
+              {(fullPaperPdfUrl || fullPaperMsUrl) && (
+                <details className="group relative">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 [&::-webkit-details-marker]:hidden">
+                    <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Export</span>
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <div className="absolute right-0 top-full z-30 mt-2 min-w-56 rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+                    {fullPaperPdfUrl && (
+                      <button
+                        type="button"
+                        onClick={async event => {
+                          event.currentTarget.closest('details')?.removeAttribute('open');
+                          const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Questions.pdf`;
+                          await commitDownloadAward({
+                            resourceId: `${paperKey}_questions`,
+                            resourceName: filename,
+                            resourceType: 'paper',
+                          });
+                          await logDownload({
+                            action: 'past_paper_download',
+                            url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
+                          });
+                          const a = document.createElement('a');
+                          a.href = fullPaperPdfUrl;
+                          a.download = filename;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-400 dark:hover:bg-gray-700"
+                        title="Download all question papers as merged PDF"
+                        disabled={isMerging}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        <span>Download Question Paper</span>
+                      </button>
+                    )}
+                    {fullPaperMsUrl && (
+                      <button
+                        type="button"
+                        onClick={async event => {
+                          event.currentTarget.closest('details')?.removeAttribute('open');
+                          const filename = `${unit ? `${unit} ` : ''}${paperDisplayName} - Mark Scheme.pdf`;
+                          await commitDownloadAward({
+                            resourceId: `${paperKey}_markschemes`,
+                            resourceName: filename,
+                            resourceType: 'paper',
+                          });
+                          await logDownload({
+                            action: 'past_paper_download',
+                            url: formatPaperOrTopicalUrl(board || '', level || '', subject || '', filename),
+                          });
+                          const a = document.createElement('a');
+                          a.href = fullPaperMsUrl;
+                          a.download = filename;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-orange-400 dark:hover:bg-gray-700"
+                        title="Download all mark schemes as merged PDF"
+                        disabled={isMergingMs}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        <span>Download Mark Scheme</span>
+                      </button>
+                    )}
+                  </div>
+                </details>
               )}
               {hasFullMarkScheme && (
                 <button
@@ -1064,7 +1103,7 @@ const PaperViewerPage: React.FC = () => {
               <h2 className="text-base sm:text-lg font-semibold text-gray-100 hidden sm:block truncate max-w-[200px] md:max-w-xs">
                 {paperDisplayName} {viewMode === 'single' && currentPdf ? `- Question ${currentPdf.questionNumber || questionIndex + 1}` : ''}
               </h2>
-              {renderExamTimer(true)}
+              {renderExamTimer()}
             </div>
 
             {viewMode === 'single' && (
@@ -1079,6 +1118,7 @@ const PaperViewerPage: React.FC = () => {
             )}
 
             <div className="col-start-2 row-start-1 ml-auto flex flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:row-start-1 sm:gap-4">
+              {renderPeriodicTableButton(true)}
               {viewMode === 'single' && currentPdf?.msUrl && !currentPdf?.mcqAnswer && (
                 <button
                   type="button"
@@ -1234,7 +1274,7 @@ const PaperViewerPage: React.FC = () => {
             {/* Non-MCQ overlay sidebar (single view only) */}
             {viewMode === 'single' && currentPdf && !currentPdf.mcqAnswer && (
               <div
-                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 backdrop-blur-sm border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${
+                className={`absolute right-0 top-0 bottom-0 w-full lg:w-96 bg-[#0a1628]/95 border-l border-[#1a2d47] flex flex-col px-5 py-6 gap-6 transition-transform duration-300 ease-in-out z-10 ${
                   nonMcqSidebarOpen ? 'translate-x-0' : 'translate-x-full'
                 }`}
               >
@@ -1335,8 +1375,6 @@ const PaperViewerPage: React.FC = () => {
 
                 <div className="hidden lg:block w-full h-px bg-gray-700/50 shrink-0" />
 
-                <div ref={setLargeViewExplainButtonTarget} className="shrink-0" />
-
                 {/* MCQ Checker - grows on small screens to fill 50% */}
                 <div className="shrink-0 flex flex-col flex-1 lg:flex-none lg:w-auto min-w-0">
                   <div className="flex flex-col gap-3 lg:gap-4">
@@ -1366,6 +1404,7 @@ const PaperViewerPage: React.FC = () => {
                       })}
                     </div>
                   </div>
+                  <div ref={setLargeViewExplainButtonTarget} className="mt-3 shrink-0 lg:order-first lg:mb-3 lg:mt-0" />
                 </div>
 
                 <div className="w-px h-auto lg:w-full lg:h-px bg-gray-700/50 shrink-0" />
@@ -1466,6 +1505,11 @@ const PaperViewerPage: React.FC = () => {
         document.body
       )}
 
+      <PeriodicTablePopup
+        open={showPeriodicTablePopup && isIgcseChemistry}
+        onClose={() => setShowPeriodicTablePopup(false)}
+        url={PERIODIC_TABLE_URL}
+      />
 
       <ReportModal
         isOpen={isReportModalOpen}
