@@ -471,6 +471,10 @@ export const curriculumData: Record<string, Curriculum> = {
           { id: 'P4-Math-T6', title: 'Integration (Advanced Methods)', description: 'Volume of revolution, integration by substitution & parts, partial fraction integration, separable differential equations, and parametric curve areas.', subject: 'Pure Mathematics', group: 'Pure 4' },
           { id: 'P4-Math-T7', title: 'Vectors', description: 'Vectors in 2D & 3D: magnitude, scalar product, equations of lines, and angles between vectors.', subject: 'Pure Mathematics', group: 'Pure 4' },
 
+          { id: 'Edexcel-P1-revision', title: 'Pure Mathematics 1 Revision (Edexcel)', description: 'Revision formula sheet for Edexcel Pure Mathematics 1.', subject: 'Pure Mathematics', color: 'from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800', group: 'Pure 1', tags: [{ name: 'Revision', color: 'bg-purple-600' }] },
+          { id: 'Edexcel-P2-revision', title: 'Pure Mathematics 2 Revision (Edexcel)', description: 'Revision formula sheet for Edexcel Pure Mathematics 2.', subject: 'Pure Mathematics', color: 'from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800', group: 'Pure 2', tags: [{ name: 'Revision', color: 'bg-purple-600' }] },
+          { id: 'Edexcel-P3-revision', title: 'Pure Mathematics 3 Revision (Edexcel)', description: 'Revision formula sheet for Edexcel Pure Mathematics 3.', subject: 'Pure Mathematics', color: 'from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800', group: 'Pure 3', tags: [{ name: 'Revision', color: 'bg-purple-600' }] },
+          { id: 'Edexcel-P4-revision', title: 'Pure Mathematics 4 Revision (Edexcel)', description: 'Revision formula sheet for Edexcel Pure Mathematics 4.', subject: 'Pure Mathematics', color: 'from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800', group: 'Pure 4', tags: [{ name: 'Revision', color: 'bg-purple-600' }] },
 
 
 
@@ -479,6 +483,47 @@ export const curriculumData: Record<string, Curriculum> = {
     }
   }
 };
+
+for (const curriculum of Object.values(curriculumData)) {
+  for (const [boardKey, board] of Object.entries(curriculum.boards)) {
+    const topicNumbers = new Map<string, number>();
+
+    for (const topic of board.topics) {
+      const tags = topic.tags ?? [];
+      const practicalTagIndex = tags.findIndex(tag => tag.name === 'Practical');
+      const isPractical = practicalTagIndex !== -1 || /practical/i.test(`${topic.id} ${topic.title}`);
+      if (isPractical) {
+        const practicalTag = { name: 'Practical', color: 'bg-green-600' };
+        topic.tags = practicalTagIndex === -1
+          ? [...tags, practicalTag]
+          : tags.map((tag, index) => index === practicalTagIndex ? practicalTag : tag);
+        continue;
+      }
+
+      const revisionTagIndex = tags.findIndex(tag => tag.name === 'Revision');
+      const isRevision = revisionTagIndex !== -1 || /revision/i.test(`${topic.id} ${topic.title}`);
+
+      if (isRevision) {
+        const revisionTag = { name: 'Revision', color: 'bg-purple-600' };
+        topic.tags = revisionTagIndex === -1
+          ? [...tags, revisionTag]
+          : tags.map((tag, index) => index === revisionTagIndex ? revisionTag : tag);
+        continue;
+      }
+
+      const numberingGroup = boardKey === 'edexcel' ? topic.group ?? topic.subject : topic.subject;
+      const counterKey = `${topic.subject}:${numberingGroup}`;
+      const topicNumber = (topicNumbers.get(counterKey) ?? 0) + 1;
+      topicNumbers.set(counterKey, topicNumber);
+
+      const topicTagIndex = tags.findIndex(tag => /^Topic \d+$/.test(tag.name));
+      const topicTag = { name: `Topic ${topicNumber}`, color: 'bg-orange-600' };
+      topic.tags = topicTagIndex === -1
+        ? [...tags, topicTag]
+        : tags.map((tag, index) => index === topicTagIndex ? topicTag : tag);
+    }
+  }
+}
 
 /**
  * Look up topic metadata by ID from curriculum data

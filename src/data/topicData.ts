@@ -189,6 +189,27 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   },
 
+  'Edexcel-P1-revision': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Pure 1 Unofficial Formula Sheet (@Flame)', url: '/documents/alevel/edexcel/Pure Mathematics/Pure 1/PURE 1 Unofficial Formula Sheet (@Flame).pdf' }],
+    quizzes: []
+  },
+  'Edexcel-P2-revision': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Pure 2 Unofficial Formula Sheet (@Flame)', url: '/documents/alevel/edexcel/Pure Mathematics/Pure 2/PURE 2 Unofficial Formula Sheet (@Flame).pdf' }],
+    quizzes: []
+  },
+  'Edexcel-P3-revision': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Pure 3 Unofficial Formula Sheet (@Flame)', url: '/documents/alevel/edexcel/Pure Mathematics/Pure 3/PURE 3 Unofficial Formula Sheet (@Flame).pdf' }],
+    quizzes: []
+  },
+  'Edexcel-P4-revision': {
+    videos: [],
+    resources: [{ id: 'r1', title: 'Pure 4 Unofficial Formula Sheet (@Flame)', url: '/documents/alevel/edexcel/Pure Mathematics/Pure 4/PURE 4 Unofficial Formula Sheet (@Flame).pdf' }],
+    quizzes: []
+  },
+
 
   "P1-CH1": {
     "videos": [], "resources": [{ "id": "r1", "title": "Quadratics Study Notes", "url": "/documents/alevel/cambridge/Math/P1/Quadratics Study Notes.pdf" }], "quizzes": []
@@ -1725,7 +1746,8 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
 
   'Physics-CH14': {
     videos: [],
-    resources: [{ id: 'r2', title: 'Temperature Notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/14-Temperature/14 Temperature.pdf' },
+    resources: [{ id: 'r3', title: 'Temperature Notes (HAF)', url: '/documents/alevel/cambridge/Physics/14-Temperature/Temperature (HAF).pdf' },
+    { id: 'r2', title: 'Temperature Notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/14-Temperature/14 Temperature.pdf' },
     { id: 'r1', title: 'Temperature Notes ', url: '/documents/alevel/cambridge/Physics/14-Temperature/Temperature.pdf' }],
     quizzes: []
   },
@@ -1735,7 +1757,7 @@ const topicDataRaw: Record<string, TopicDataRawEntry> = {
   'Physics-CH15': {
     videos: [],
     resources: [{ id: 'r3', title: 'Ideal gases notes (HAF)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal Gases (HAF).pdf' },
-      ,{ id: 'r2', title: 'Ideal gases notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
+      { id: 'r2', title: 'Ideal gases notes (Yuhao Yang)', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/15 Ideal gases.pdf' },
     { id: 'r1', title: 'Ideal gases notes ', url: '/documents/alevel/cambridge/Physics/15-Ideal gases/Ideal gases.pdf' }],
     quizzes: []
   },
