@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, useLocation } from 'react-rout
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { Check, Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, ChevronDown, PanelRight, Table } from 'lucide-react';
+import { Check, Download, Flag, Maximize2, X, ChevronLeft, ChevronRight, ChevronDown, PanelRight, Table, FileText } from 'lucide-react';
 import { useRouteBase, withBase } from '../utils/routeBase';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import { resolveFromR2, getAssetAuthHeaders } from '../utils/r2Utils';
@@ -19,7 +19,8 @@ import { useShortcutPreferences } from '../hooks/useShortcutPreferences';
 import { ShortcutKey } from '../components/ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import ExamCountdownTimer from '../components/ExamCountdownTimer';
-import { PERIODIC_TABLE_URL, PeriodicTablePopup } from '../components/PeriodicTablePopup';
+import { ReferencePopup } from '../components/ReferencePopup';
+import { PERIODIC_TABLE_URL, isCambridgeAlevelPhysics, getAlevelPhysicsDataSheetUrl, shouldAppendPeriodicTable } from '../utils/referenceSheets';
 import { getExamTiming } from '../data/examTimings';
 
 interface PaperEntry {
@@ -185,7 +186,8 @@ const PaperViewerPage: React.FC = () => {
   const shortcutPreferences = useShortcutPreferences();
   const base = useRouteBase();
   const { level, board, subject, year, paperKey, unit } = useParams<PaperViewerProps>();
-  const isIgcseChemistry = Boolean(level?.toLowerCase() === 'igcse' && subject?.toLowerCase().includes('chemistry'));
+  const showPeriodicTable = shouldAppendPeriodicTable(level, board, subject);
+  const isAlevelPhysics = isCambridgeAlevelPhysics(level, board, subject);
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -230,6 +232,7 @@ const PaperViewerPage: React.FC = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showLargeView, setShowLargeView] = useState(false);
   const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
+  const [showDataSheetPopup, setShowDataSheetPopup] = useState(false);
   const [largeViewPanelHeight, setLargeViewPanelHeight] = useState(40);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [liveMcqCheckEnabled, setLiveMcqCheckEnabled] = useState(true);
@@ -606,7 +609,7 @@ const PaperViewerPage: React.FC = () => {
     );
   };
 
-  const renderPeriodicTableButton = (largeView = false) => isIgcseChemistry && (
+  const renderPeriodicTableButton = (largeView = false) => showPeriodicTable && (
     <button
       type="button"
       onClick={() => setShowPeriodicTablePopup(true)}
@@ -620,6 +623,23 @@ const PaperViewerPage: React.FC = () => {
       <Table className="h-3.5 w-3.5" aria-hidden="true" />
       <span className="hidden sm:inline">Periodic Table</span>
       <span className="sm:hidden">PT</span>
+    </button>
+  );
+
+  const renderDataSheetButton = (largeView = false) => isAlevelPhysics && (
+    <button
+      type="button"
+      onClick={() => setShowDataSheetPopup(true)}
+      aria-haspopup="dialog"
+      title="Open the physics data sheet"
+      className={`inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors ${largeView
+        ? 'border-sky-500/30 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
+        : 'border-sky-200 bg-sky-100 text-sky-700 hover:bg-sky-200 dark:border-sky-500/30 dark:bg-sky-900/30 dark:text-sky-400 dark:hover:bg-sky-900/50'
+        }`}
+    >
+      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="hidden sm:inline">Data Sheet</span>
+      <span className="sm:hidden">DS</span>
     </button>
   );
 
@@ -786,6 +806,7 @@ const PaperViewerPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div ref={setExplainButtonTarget} className="contents" />
                   {renderPeriodicTableButton()}
+                  {renderDataSheetButton()}
                   <button
                     type="button"
                     onClick={() => setShowLargeView(true)}
@@ -1119,6 +1140,7 @@ const PaperViewerPage: React.FC = () => {
 
             <div className="col-start-2 row-start-1 ml-auto flex flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:row-start-1 sm:gap-4">
               {renderPeriodicTableButton(true)}
+              {renderDataSheetButton(true)}
               {viewMode === 'single' && currentPdf?.msUrl && !currentPdf?.mcqAnswer && (
                 <button
                   type="button"
@@ -1505,10 +1527,19 @@ const PaperViewerPage: React.FC = () => {
         document.body
       )}
 
-      <PeriodicTablePopup
-        open={showPeriodicTablePopup && isIgcseChemistry}
+      <ReferencePopup
+        open={showPeriodicTablePopup && showPeriodicTable}
         onClose={() => setShowPeriodicTablePopup(false)}
         url={PERIODIC_TABLE_URL}
+        title="Periodic Table"
+        rotate={90}
+      />
+
+      <ReferencePopup
+        open={showDataSheetPopup && isAlevelPhysics}
+        onClose={() => setShowDataSheetPopup(false)}
+        url={getAlevelPhysicsDataSheetUrl(unit)}
+        title="Data Sheet"
       />
 
       <ReportModal

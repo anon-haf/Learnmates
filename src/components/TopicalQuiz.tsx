@@ -15,7 +15,8 @@ import { ShortcutKey } from './ui/ShortcutKey';
 import { formatShortcut, getAriaShortcut, matchesShortcut } from '../utils/shortcutPreferences';
 import NibrasAnimatedMark from './NibrasAnimatedMark';
 import NibrasUsageIndicator from './NibrasUsageIndicator';
-import { PERIODIC_TABLE_URL, PeriodicTablePopup } from './PeriodicTablePopup';
+import { ReferencePopup } from './ReferencePopup';
+import { PERIODIC_TABLE_URL, getAlevelPhysicsDataSheetUrl } from '../utils/referenceSheets';
 import { useAuth } from '../context/AuthContext';
 import { useNibrasUsage } from '../hooks/useNibrasUsage';
 import NibrasIcon from '../assets/logos/nibras.svg?react';
@@ -148,6 +149,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   const [explanationSheetOpen, setExplanationSheetOpen] = useState(false);
   const [explanationSheetMinimized, setExplanationSheetMinimized] = useState(false);
   const [showPeriodicTablePopup, setShowPeriodicTablePopup] = useState(false);
+  const [showDataSheetPopup, setShowDataSheetPopup] = useState(false);
   const [nonMcqSidebarOpen, setNonMcqSidebarOpen] = useState(true);
   const [annotations, setAnnotations] = useState<Map<string, string>>(new Map());
   const [mcqSelections, setMcqSelections] = useState<Record<number, string>>({});
@@ -235,9 +237,9 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
   );
 
   const renderTimerControl = () => (
-    <div className="inline-flex h-9 w-fit max-w-full flex-none items-center gap-1 rounded-full border border-gray-300 bg-gray-100 px-2.5 text-gray-800 dark:border-[#3b465b] dark:bg-[#1b2230] dark:text-gray-100">
-      <Timer className="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
-      <span className="relative top-[2px] inline-flex h-full min-w-0 items-center whitespace-nowrap font-mono text-base font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
+    <div className="inline-flex h-8 w-fit max-w-full flex-none items-center gap-1 rounded-full border border-gray-300 bg-gray-100 px-2 text-gray-800 dark:border-[#3b465b] dark:bg-[#1b2230] dark:text-gray-100">
+      <Timer className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-300" aria-hidden="true" />
+      <span className="relative top-px inline-flex h-full min-w-0 items-center whitespace-nowrap font-mono text-sm font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100" aria-label={`Elapsed time ${formatTimerDuration(displayedTimerMs)}`}>
         {formatTimerDuration(displayedTimerMs)}
       </span>
       <div className="flex items-center gap-0.5">
@@ -935,7 +937,9 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
 
   const validCurrentQuestion = Math.min(currentQuestion, Math.max(0, questions.length - 1));
   const currentQ = questionsWithMarkSchemes[validCurrentQuestion];
-  const isIgcseChemistry = Boolean(currentQ && getTopicalAiSubject(currentQ) === 'IG_Chem');
+  const aiSubject = currentQ ? getTopicalAiSubject(currentQ) : null;
+  const showPeriodicTable = aiSubject === 'IG_Chem' || aiSubject === 'A_Chem';
+  const isAlevelPhysics = aiSubject === 'A_Phy';
   const currentQuestionIsMcq = currentQ && (currentQ.isMcq ?? Boolean(currentQ.mcqAnswer));
   const currentQuestionMarkSchemeUrl = currentQ && !currentQuestionIsMcq
     ? currentQ.markScheme || deriveMarkSchemeUrl(currentQ.questionContent)
@@ -1658,7 +1662,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   : 'text-gray-200 hover:bg-gray-700'
                   }`}
               >
-                Question
+                <span className="hidden sm:inline">Question</span>
+                <span className="sm:hidden">Q</span>
               </button>
               {Boolean(currentQ.markScheme && !currentQ.mcqAnswer) && (
                 <button
@@ -1674,13 +1679,14 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                     : 'text-gray-200 hover:bg-gray-700'
                     }`}
                 >
-                    Mark Scheme <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
+                    <span className="hidden sm:inline">Mark Scheme</span>
+                    <span className="sm:hidden">MS</span> <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              {isIgcseChemistry && (
+              {showPeriodicTable && (
                 <button
                   type="button"
                   onClick={() => setShowPeriodicTablePopup(true)}
@@ -1691,6 +1697,20 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <Table className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Periodic Table</span>
                   <span className="sm:hidden">PT</span>
+                </button>
+              )}
+
+              {isAlevelPhysics && (
+                <button
+                  type="button"
+                  onClick={() => setShowDataSheetPopup(true)}
+                  aria-haspopup="dialog"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-colors bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:hover:bg-sky-900/50"
+                  title="Open the physics data sheet"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Data Sheet</span>
+                  <span className="sm:hidden">DS</span>
                 </button>
               )}
 
@@ -1811,10 +1831,18 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
       )}
       {renderExplanationSheet()}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} question={currentQ} />
-      <PeriodicTablePopup
-        open={showPeriodicTablePopup && isIgcseChemistry}
+      <ReferencePopup
+        open={showPeriodicTablePopup && showPeriodicTable}
         onClose={() => setShowPeriodicTablePopup(false)}
         url={PERIODIC_TABLE_URL}
+        title="Periodic Table"
+        rotate={90}
+      />
+      <ReferencePopup
+        open={showDataSheetPopup && isAlevelPhysics}
+        onClose={() => setShowDataSheetPopup(false)}
+        url={getAlevelPhysicsDataSheetUrl(currentQ?.unit)}
+        title="Data Sheet"
       />
       {showLargeView && createPortal(
         <div className="fixed inset-0 z-[100] h-[100dvh] overflow-hidden overscroll-none bg-[#0d1520] flex flex-col">
@@ -1838,7 +1866,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
 
             <div className="col-start-2 row-start-1 ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:row-start-1 sm:gap-4">
-              {isIgcseChemistry && (
+              {showPeriodicTable && (
                 <button
                   type="button"
                   onClick={() => setShowPeriodicTablePopup(true)}
@@ -1848,6 +1876,19 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                   <Table className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">Periodic Table</span>
                   <span className="sm:hidden">PT</span>
+                </button>
+              )}
+
+              {isAlevelPhysics && (
+                <button
+                  type="button"
+                  onClick={() => setShowDataSheetPopup(true)}
+                  title="Open the physics data sheet"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-colors border bg-sky-500/15 text-sky-300 border-sky-500/30 hover:bg-sky-500/25"
+                >
+                  <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Data Sheet</span>
+                  <span className="sm:hidden">DS</span>
                 </button>
               )}
               {Boolean(currentQ.markScheme) && !currentQ.mcqAnswer && (

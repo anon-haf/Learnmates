@@ -1369,17 +1369,19 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             <ChevronLeft className={toolbarIconSize} />
           </button>
 
-          <div className="flex items-center bg-gray-700/80 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded text-xs sm:text-sm">
-            <input
-              type="number"
-              min="1"
-              max={numPages}
-              value={currentPage}
-              onChange={e => goToPage(Number(e.target.value))}
-              className="bg-transparent text-gray-100 w-8 sm:w-10 text-center outline-none tabular-nums"
-            />
-            <span className="text-gray-500">/{numPages || '—'}</span>
-          </div>
+          {mode === 'modal' && (
+            <div className="flex items-center bg-gray-700/80 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded text-xs sm:text-sm">
+              <input
+                type="number"
+                min="1"
+                max={numPages}
+                value={currentPage}
+                onChange={e => goToPage(Number(e.target.value))}
+                className="bg-transparent text-gray-100 w-8 sm:w-10 text-center outline-none tabular-nums"
+              />
+              <span className="text-gray-500">/{numPages || '—'}</span>
+            </div>
+          )}
 
           <button
             onClick={() => goToPage(currentPage + 1)}

@@ -2,8 +2,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { resolveFromR2, getAssetAuthHeaders, fetchR2AsBlob } from './r2Utils';
 import { isEdexcelIALPureMathOrMechanics } from './topicalHelpers';
 import { embedVisiblePage } from './pdfContentCrop';
-
-const PERIODIC_TABLE_URL = '/documents/Periodic table.pdf';
+import { PERIODIC_TABLE_URL, isCambridgeAlevelPhysics, getAlevelPhysicsDataSheetUrl, shouldAppendPeriodicTable, insertReferencePagesAsA4, addReferencePagesAsA4 } from './referenceSheets';
 
 export interface MergeItem {
   id: string; // Used to identify the question number
@@ -513,6 +512,21 @@ export const generateMergedPDF = async (
 
   console.log(`[PDF Merge] Final PDF has ${mergedPdf.getPageCount()} pages`);
 
+  // Cambridge A-Level Physics question papers get the relevant data sheet (AS/A2)
+  // as the very first page. Each sheet page is placed on its own full A4 page.
+  if (typeLabel === 'Question' && isCambridgeAlevelPhysics(options?.level, options?.board, options?.subject)) {
+    try {
+      const dataSheetUrl = new URL(getAlevelPhysicsDataSheetUrl(options?.unit), window.location.origin).href;
+      const response = await fetchWithTimeout(dataSheetUrl, 20000);
+      if (!response.ok) throw new Error(`Physics data sheet request failed: ${response.status}`);
+
+      const dataSheetPdf = await PDFDocument.load(await response.arrayBuffer());
+      await insertReferencePagesAsA4(mergedPdf, dataSheetPdf, 0);
+    } catch (error) {
+      console.warn('Failed to prepend physics data sheet to past-paper export:', error);
+    }
+  }
+
   // Add footers (fonts already embedded earlier)
   await addHeadersAndFooters(mergedPdf, boldFont, regularFont, {
     title: options?.title || `${typeLabel} Papers`,
@@ -521,8 +535,7 @@ export const generateMergedPDF = async (
 
   if (
     typeLabel === 'Question' &&
-    options?.level?.toLowerCase() === 'igcse' &&
-    options?.subject?.toLowerCase() === 'chemistry'
+    shouldAppendPeriodicTable(options?.level, options?.board, options?.subject)
   ) {
     try {
       const periodicTableUrl = new URL(PERIODIC_TABLE_URL, window.location.origin).href;
@@ -530,8 +543,7 @@ export const generateMergedPDF = async (
       if (!response.ok) throw new Error(`Periodic table request failed: ${response.status}`);
 
       const periodicTablePdf = await PDFDocument.load(await response.arrayBuffer());
-      const periodicTablePages = await mergedPdf.copyPages(periodicTablePdf, periodicTablePdf.getPageIndices());
-      periodicTablePages.forEach(page => mergedPdf.addPage(page));
+      await addReferencePagesAsA4(mergedPdf, periodicTablePdf);
     } catch (error) {
       console.warn('Failed to append periodic table to past-paper export:', error);
     }

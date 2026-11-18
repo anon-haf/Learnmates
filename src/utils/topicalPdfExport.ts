@@ -5,6 +5,7 @@ import { fetchR2AsBlobUrl, resolveFromR2, getAssetAuthHeaders } from '../utils/r
 import { commitDownloadAward, logDownload, formatPaperOrTopicalUrl } from './awardDownloadXP';
 import { topicalConfigs } from '../pages/topicalpagesdata';
 import { embedVisiblePage } from './pdfContentCrop';
+import { PERIODIC_TABLE_URL, isCambridgeAlevelPhysics, getAlevelPhysicsDataSheetUrls, shouldAppendPeriodicTable, addReferencePagesAsA4, insertReferencePagesAsA4 } from './referenceSheets';
 
 export type ExportType = 'questions' | 'markschemes';
 
@@ -651,50 +652,45 @@ export const mergeTopicalPDFs = async (
   const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
   const regularFont = await mergedPdf.embedFont(StandardFonts.Helvetica);
 
-  // IGCSE Chemistry question papers get the periodic table appended at the very
-  // end (as-is, original size/orientation) so students always have it on hand.
-  const isIgcseChemistry =
-    levelBoardSubject.level.toLowerCase() === 'igcse' &&
-    levelBoardSubject.subject.toLowerCase() === 'chemistry';
-
+  // IGCSE Chemistry and Cambridge A-Level Chemistry question papers get the
+  // periodic table appended at the very end, each sheet page on its own A4 page.
   const appendPeriodicTable = async () => {
-    if (type !== 'questions' || !isIgcseChemistry) return;
+    if (type !== 'questions' || !shouldAppendPeriodicTable(levelBoardSubject.level, levelBoardSubject.board, levelBoardSubject.subject)) return;
     try {
-      const periodicTableUrl = new URL('/documents/Periodic table.pdf', window.location.origin).href;
+      const periodicTableUrl = new URL(PERIODIC_TABLE_URL, window.location.origin).href;
       const buffer = await fetchFileAsArrayBuffer(periodicTableUrl);
       if (!buffer) {
         console.warn('Periodic table PDF could not be fetched for export');
         return;
       }
       const sourcePdf = await PDFDocument.load(buffer);
-      const copiedPages = await mergedPdf.copyPages(sourcePdf, sourcePdf.getPageIndices());
-      
-      const A4_WIDTH = 595.28;
-      const A4_HEIGHT = 841.89;
-
-      for (const page of copiedPages) {
-        const { width, height } = page.getSize();
-        
-        // Always create a fresh A4 page and embed the periodic table content to ensure
-        // it fits the A4 sheet perfectly (scaled and centered).
-        const newPage = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-        const embeddedPage = await mergedPdf.embedPage(page);
-        
-        const scale = Math.min(A4_WIDTH / width, A4_HEIGHT / height);
-        const drawWidth = width * scale;
-        const drawHeight = height * scale;
-        const xOffset = (A4_WIDTH - drawWidth) / 2;
-        const yOffset = (A4_HEIGHT - drawHeight) / 2;
-        
-        newPage.drawPage(embeddedPage, {
-          x: xOffset,
-          y: yOffset,
-          width: drawWidth,
-          height: drawHeight,
-        });
-      }
+      await addReferencePagesAsA4(mergedPdf, sourcePdf);
     } catch (error) {
       console.warn('Failed to append periodic table to export:', error);
+    }
+  };
+
+  // Cambridge A-Level Physics question papers get the AS/A2 data sheet(s) for the
+  // units present, inserted at the very beginning (right after the cover page),
+  // each sheet page on its own full A4 page.
+  const insertPhysicsDataSheets = async (insertIndex: number) => {
+    if (type !== 'questions' || !isCambridgeAlevelPhysics(levelBoardSubject.level, levelBoardSubject.board, levelBoardSubject.subject)) return;
+    const urls = getAlevelPhysicsDataSheetUrls(questions.map(q => q.unit));
+    let at = insertIndex;
+    for (const url of urls) {
+      try {
+        const buffer = await fetchFileAsArrayBuffer(new URL(url, window.location.origin).href);
+        if (!buffer) {
+          console.warn('Physics data sheet PDF could not be fetched for export');
+          continue;
+        }
+        const sourcePdf = await PDFDocument.load(buffer);
+        const before = mergedPdf.getPageCount();
+        await insertReferencePagesAsA4(mergedPdf, sourcePdf, at);
+        at += mergedPdf.getPageCount() - before;
+      } catch (error) {
+        console.warn('Failed to insert physics data sheet into export:', error);
+      }
     }
   };
 
@@ -703,6 +699,9 @@ export const mergeTopicalPDFs = async (
   } catch (error) {
     console.warn('Failed to create cover page:', error);
   }
+
+  // Number of cover pages produced — the data sheets go immediately after them.
+  const coverPageCount = mergedPdf.getPageCount();
 
   interface FetchTask {
     questionIndex: number;
@@ -971,6 +970,7 @@ export const mergeTopicalPDFs = async (
       }
     }
     await appendPeriodicTable();
+    await insertPhysicsDataSheets(coverPageCount);
     const pdfBytes = await mergedPdf.save();
     return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
   }
@@ -1187,6 +1187,7 @@ export const mergeTopicalPDFs = async (
   }
 
   await appendPeriodicTable();
+  await insertPhysicsDataSheets(coverPageCount);
   const pdfBytes = await mergedPdf.save();
   return new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
 };
