@@ -427,6 +427,8 @@ export function applyStoredAnnotation(
         }
       };
       img.onload = () => {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         applyVectors();
         done();

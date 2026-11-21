@@ -52,6 +52,8 @@ interface PdfDrawablePageProps {
   penSize?: number;
   eraserSize?: number;
   annotationTextSize?: number;
+  /** When false, skip the text layer. PDF pixels are unchanged. */
+  showTextLayer?: boolean;
   onTextActionSelect?: (pageNumber: number, actionIndex: number | null, action: VectorAction | null, isEditing?: boolean) => void;
   onTextActionUpdate?: (pageNumber: number, actionIndex: number, action: VectorAction, pdfPageWidthAtScale1: number) => void;
   onTextActionDelete?: (pageNumber: number, actionIndex: number, pdfPageWidthAtScale1: number) => void;
@@ -77,6 +79,26 @@ function shouldAnnotateWithPointer(
 }
 
 type Point = { x: number; y: number };
+
+/**
+ * Squared minimum distance (in canvas pixels) a new sample must travel before
+ * it is accepted. Points closer than this are treated as hand jitter and
+ * dropped, which keeps slow strokes from picking up rough edges.
+ */
+const FREEHAND_MIN_DISTANCE_SQ = 1;
+
+/**
+ * Low-pass factor applied to slow, careful movement (1 = follow exactly).
+ * Values below 1 damp jitter; the filter relaxes back to 1 as soon as the
+ * pointer moves fast enough that smoothing would cause visible trailing.
+ */
+const FREEHAND_SMOOTHING = 0.5;
+
+/**
+ * Squared per-sample travel (in canvas pixels) above which smoothing is
+ * skipped entirely, so fast strokes track the pointer instead of lagging.
+ */
+const FREEHAND_SMOOTHING_CUTOFF_SQ = 400;
 
 type CanvasMetrics = {
   left: number;
@@ -124,8 +146,7 @@ function applyFreehandStyle(
   canvas: HTMLCanvasElement,
   pdfPageWidthAtScale1: number
 ) {
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  configureInkContext(ctx);
   if (tool === 'pen') {
     ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = color;
@@ -144,47 +165,100 @@ function applyFreehandStyle(
   }
 }
 
+function configureInkContext(ctx: CanvasRenderingContext2D) {
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+/** One continuous stroke so anti-aliased edges are not painted twice. */
+function strokeSmoothPolyline(ctx: CanvasRenderingContext2D, points: Point[]) {
+  if (points.length < 2) return;
+  ctx.beginPath();
+  if (points.length === 2) {
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+  } else {
+    // Start at the first sample (not the first midpoint) so the committed
+    // stroke covers the same span as the live preview, which also begins here.
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 2; i < points.length; i++) {
+      const previous = points[i - 1];
+      const current = points[i];
+      ctx.quadraticCurveTo(
+        previous.x,
+        previous.y,
+        (previous.x + current.x) / 2,
+        (previous.y + current.y) / 2
+      );
+    }
+    const last = points[points.length - 1];
+    ctx.lineTo(last.x, last.y);
+  }
+  ctx.stroke();
+}
+
+/**
+ * Appends only the smooth segments for points added since `fromPointCount`.
+ * Redrawing the whole stroke every frame made each flush progressively more
+ * expensive, so long strokes lagged behind the pointer. Appending keeps each
+ * frame proportional to the newly added points instead.
+ */
 function appendSmoothSegments(
   ctx: CanvasRenderingContext2D,
   points: Point[],
   fromPointCount: number
 ) {
-  if (points.length < 3) return fromPointCount;
-
-  let startIndex = Math.max(2, fromPointCount);
-  if (fromPointCount < 2) {
-    startIndex = 2;
-  }
+  const total = points.length;
+  if (total < 2 || total <= fromPointCount) return fromPointCount;
 
   ctx.beginPath();
-  let drew = false;
-
-  for (let i = startIndex; i < points.length; i++) {
-    const p0 = points[i - 2];
-    const p1 = points[i - 1];
-    const p2 = points[i];
-    const mid1 = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 };
-    const mid2 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-
-    if (!drew) {
-      ctx.moveTo(mid1.x, mid1.y);
-      drew = true;
-    }
-    ctx.quadraticCurveTo(p1.x, p1.y, mid2.x, mid2.y);
+  if (fromPointCount < 2) {
+    ctx.moveTo(points[0].x, points[0].y);
+  } else {
+    const before = points[fromPointCount - 2];
+    const previous = points[fromPointCount - 1];
+    ctx.moveTo((before.x + previous.x) / 2, (before.y + previous.y) / 2);
   }
-
-  if (drew) {
-    ctx.stroke();
+  for (let i = Math.max(2, fromPointCount); i < total; i++) {
+    const previous = points[i - 1];
+    const current = points[i];
+    ctx.quadraticCurveTo(
+      previous.x,
+      previous.y,
+      (previous.x + current.x) / 2,
+      (previous.y + current.y) / 2
+    );
   }
-
-  return points.length;
+  // Reach the newest sample so the preview tip keeps up with the pointer.
+  const tip = points[total - 1];
+  ctx.lineTo(tip.x, tip.y);
+  ctx.stroke();
+  return total;
 }
 
-function drawSmoothCap(ctx: CanvasRenderingContext2D, p0: Point, p1: Point) {
-  ctx.beginPath();
-  ctx.moveTo(p0.x, p0.y);
-  ctx.lineTo(p1.x, p1.y);
-  ctx.stroke();
+/**
+ * Safety ceiling for the annotation raster. Ordinarily the overlay buffer
+ * matches the PDF canvas pixel-for-pixel so strokes stay as sharp as the page;
+ * the cap only kicks in for pathologically large pages to avoid exhausting
+ * memory.
+ */
+const ANNOTATION_MAX_EDGE = 8192;
+
+function annotationBufferSize(sourceWidth: number, sourceHeight: number) {
+  const edge = Math.max(sourceWidth, sourceHeight);
+  if (edge <= ANNOTATION_MAX_EDGE) {
+    return {
+      width: Math.max(1, Math.round(sourceWidth)),
+      height: Math.max(1, Math.round(sourceHeight)),
+    };
+  }
+  const scale = ANNOTATION_MAX_EDGE / edge;
+  return {
+    width: Math.max(1, Math.round(sourceWidth * scale)),
+    height: Math.max(1, Math.round(sourceHeight * scale)),
+  };
 }
 
 function drawDot(
@@ -217,10 +291,6 @@ function isFreehandTool(tool: DrawTool): tool is 'pen' | 'eraser' {
   return tool === 'pen' || tool === 'eraser';
 }
 
-function captureSnapshot(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-
 function drawShape(
   ctx: CanvasRenderingContext2D,
   tool: DrawTool,
@@ -240,8 +310,7 @@ function drawShape(
     canvas.width,
     pdfPageWidthAtScale1
   );
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  configureInkContext(ctx);
 
   if (tool === 'line') {
     ctx.beginPath();
@@ -290,6 +359,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   penSize = 2,
   eraserSize = 20,
   annotationTextSize = 12,
+  showTextLayer,
   onTextActionSelect,
   onTextActionUpdate,
   onTextActionDelete,
@@ -303,16 +373,17 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement>(null);
+  const liveCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const liveCtxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const isDrawing = useRef(false);
   const didModify = useRef(false);
   const lastPoint = useRef<Point | null>(null);
   const strokePoints = useRef<Point[]>([]);
-  const renderedPointCount = useRef(0);
+  const liveRenderedPointCount = useRef(0);
   const activePointerId = useRef<number | null>(null);
   const shapeStart = useRef<Point | null>(null);
-  const beforeAction = useRef<ImageData | null>(null);
   const canvasMetrics = useRef<CanvasMetrics | null>(null);
   const pendingFrame = useRef<number | null>(null);
   const eraserPreviewFrame = useRef<number | null>(null);
@@ -448,13 +519,8 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   useEffect(() => {
     setPageHeight(pageWidth * A4_ASPECT);
     drawCtxRef.current = null;
+    liveCtxRef.current = null;
     appliedRestoreKeyRef.current = null;
-    const drawCanvas = drawCanvasRef.current;
-    if (drawCanvas?.width && drawCanvas.height) {
-      const aspect = drawCanvas.height / drawCanvas.width;
-      drawCanvas.style.width = `${displayWidth}px`;
-      drawCanvas.style.height = `${displayWidth * aspect}px`;
-    }
     const cached = pageRenderCacheKey
       ? getCachedPageRender(pageRenderCacheKey)
       : undefined;
@@ -472,10 +538,26 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
   const getDrawContext = useCallback((canvas: HTMLCanvasElement) => {
     if (!drawCtxRef.current) {
-      drawCtxRef.current = canvas.getContext('2d');
+      drawCtxRef.current = canvas.getContext('2d', { alpha: true });
+      if (drawCtxRef.current) configureInkContext(drawCtxRef.current);
     }
     return drawCtxRef.current;
   }, []);
+
+  const getLiveContext = useCallback((canvas: HTMLCanvasElement) => {
+    if (!liveCtxRef.current) {
+      liveCtxRef.current = canvas.getContext('2d', { alpha: true });
+      if (liveCtxRef.current) configureInkContext(liveCtxRef.current);
+    }
+    return liveCtxRef.current;
+  }, []);
+
+  const clearLiveCanvas = useCallback(() => {
+    const live = liveCanvasRef.current;
+    const ctx = live ? getLiveContext(live) : null;
+    if (!live || !ctx) return;
+    ctx.clearRect(0, 0, live.width, live.height);
+  }, [getLiveContext]);
 
   const pdfPageWidthAtScale1 = useCallback(
     () => pdfPageWidthScale1Ref.current,
@@ -485,33 +567,47 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   const syncOverlayToPdfCanvas = useCallback(() => {
     const container = containerRef.current;
     const overlay = drawCanvasRef.current;
-    if (!container || !overlay) return;
+    if (!container || !overlay || isDrawing.current) return;
 
     const pdfCanvas = container.querySelector(
       'canvas.react-pdf__Page__canvas'
     ) as HTMLCanvasElement | null;
-    const pageEl = container.querySelector('.react-pdf__Page') as HTMLElement | null;
-    if (!pdfCanvas || !pageEl) return;
+    if (!pdfCanvas) return;
 
     const aspect =
       pdfCanvas.width && pdfCanvas.height
         ? pdfCanvas.height / pdfCanvas.width
         : A4_ASPECT;
-    const layoutHeight =
-      pdfCanvas.clientHeight || displayWidth * aspect;
     onPageAspectMeasured?.(pageNumber, aspect);
-
-    if (overlay.width !== pdfCanvas.width || overlay.height !== pdfCanvas.height) {
-      overlay.width = pdfCanvas.width;
-      overlay.height = pdfCanvas.height;
-      drawCtxRef.current = null;
-    }
-    overlay.style.top = `${pageEl.offsetTop}px`;
-    overlay.style.left = `${pageEl.offsetLeft}px`;
-    overlay.style.width = pdfCanvas.style.width || `${pdfCanvas.clientWidth || displayWidth}px`;
-    overlay.style.height =
-      pdfCanvas.style.height || `${pdfCanvas.clientHeight || layoutHeight}px`;
     setPageHeight(pageWidth * aspect);
+
+    const cssWidth = pdfCanvas.clientWidth || displayWidth;
+    const cssHeight = pdfCanvas.clientHeight || cssWidth * aspect;
+    // Match the PDF canvas raster so the vector strokes we re-draw are not
+    // upscaled into a blurry overlay.
+    const buffer = annotationBufferSize(pdfCanvas.width, pdfCanvas.height);
+    const syncCanvas = (canvas: HTMLCanvasElement) => {
+      let resized = false;
+      if (canvas.width !== buffer.width || canvas.height !== buffer.height) {
+        canvas.width = buffer.width;
+        canvas.height = buffer.height;
+        resized = true;
+      }
+      canvas.style.top = `${pdfCanvas.offsetTop}px`;
+      canvas.style.left = `${pdfCanvas.offsetLeft}px`;
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+      return resized;
+    };
+
+    if (syncCanvas(overlay)) {
+      drawCtxRef.current = null;
+      appliedRestoreKeyRef.current = null;
+    }
+    const live = liveCanvasRef.current;
+    if (live && syncCanvas(live)) {
+      liveCtxRef.current = null;
+    }
   }, [displayWidth, onPageAspectMeasured, pageNumber, pageWidth]);
 
   const applyRestoredAnnotationToOverlay = useCallback(async () => {
@@ -601,7 +697,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     if (!rendered) return;
     syncOverlayToPdfCanvas();
     void applyRestoredAnnotationToOverlay();
-  }, [rendered, restoredAnnotation, syncOverlayToPdfCanvas, applyRestoredAnnotationToOverlay]);
+  }, [rendered, drawingEnabled, restoredAnnotation, syncOverlayToPdfCanvas, applyRestoredAnnotationToOverlay]);
 
   useEffect(() => {
     if (!rendered) return;
@@ -617,7 +713,6 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       vectorAction,
       pdfPageWidthAtScale1()
     );
-    beforeAction.current = null;
     didModify.current = false;
   }, [pageNumber, pdfPageWidthAtScale1]);
 
@@ -770,35 +865,48 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     }
   }, []);
 
-  const flushFreehandPoints = useCallback(() => {
-    pendingFrame.current = null;
-
-    const canvas = drawCanvasRef.current;
-    const ctx = canvas ? getDrawContext(canvas) : null;
+  const paintLiveFreehand = useCallback(() => {
+    const live = liveCanvasRef.current;
+    const ctx = live ? getLiveContext(live) : null;
     const tool = drawToolRef.current;
-    if (!canvas || !ctx || !isDrawing.current || !isFreehandTool(tool)) return;
-    if (tool === 'eraser') return;
+    if (!live || !ctx || !isDrawing.current || tool !== 'pen') return;
 
     const points = strokePoints.current;
-    if (points.length < 3) return;
+    if (points.length === 0) return;
 
     applyFreehandStyle(
       ctx,
-      tool,
+      'pen',
       penColorRef.current,
       penSizeRef.current,
       eraserSizeRef.current,
-      canvas,
+      live,
       pdfPageWidthAtScale1()
     );
-    renderedPointCount.current = appendSmoothSegments(ctx, points, renderedPointCount.current);
-
-    if (tool === 'eraser') {
-      ctx.globalCompositeOperation = 'source-over';
+    if (points.length === 1) {
+      drawDot(
+        ctx,
+        points[0],
+        penSizeRef.current,
+        penColorRef.current,
+        live,
+        pdfPageWidthAtScale1()
+      );
+      liveRenderedPointCount.current = 1;
+    } else {
+      liveRenderedPointCount.current = appendSmoothSegments(
+        ctx,
+        points,
+        liveRenderedPointCount.current
+      );
     }
-
     didModify.current = true;
-  }, [getDrawContext]);
+  }, [getLiveContext, pdfPageWidthAtScale1]);
+
+  const flushFreehandPoints = useCallback(() => {
+    pendingFrame.current = null;
+    paintLiveFreehand();
+  }, [paintLiveFreehand]);
 
   const scheduleFreehandFlush = useCallback(() => {
     if (pendingFrame.current !== null) return;
@@ -806,12 +914,12 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
   }, [flushFreehandPoints]);
 
   const renderShapePreview = useCallback((point: Point) => {
-    const canvas = drawCanvasRef.current;
-    const ctx = canvas ? getDrawContext(canvas) : null;
+    const live = liveCanvasRef.current;
+    const ctx = live ? getLiveContext(live) : null;
     const tool = drawToolRef.current;
-    if (!canvas || !ctx || !shapeStart.current || !beforeAction.current || !isShapeTool(tool)) return;
+    if (!live || !ctx || !shapeStart.current || !isShapeTool(tool)) return;
 
-    ctx.putImageData(beforeAction.current, 0, 0);
+    ctx.clearRect(0, 0, live.width, live.height);
     drawShape(
       ctx,
       tool,
@@ -821,12 +929,12 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       point.y,
       penColorRef.current,
       penSizeRef.current,
-      canvas,
+      live,
       pdfPageWidthAtScale1()
     );
     lastPoint.current = point;
     didModify.current = true;
-  }, [getDrawContext, pdfPageWidthAtScale1]);
+  }, [getLiveContext, pdfPageWidthAtScale1]);
 
   const scheduleShapePreview = useCallback((point: Point) => {
     pendingShapePoint.current = point;
@@ -864,60 +972,20 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     );
 
     if (points.length === 1) {
-      if (tool === 'pen') {
-        drawDot(
-          ctx,
-          points[0],
-          penSizeRef.current,
-          penColorRef.current,
-          canvas,
-          pdfPageWidthAtScale1()
-        );
-      }
-      didModify.current = true;
-      return;
-    }
-
-    if (points.length === 2) {
-      applyFreehandStyle(
+      drawDot(
         ctx,
-        tool,
-        penColorRef.current,
+        points[0],
         penSizeRef.current,
-        eraserSizeRef.current,
+        penColorRef.current,
         canvas,
         pdfPageWidthAtScale1()
       );
-      drawSmoothCap(ctx, points[0], points[1]);
-      didModify.current = true;
-      return;
+    } else {
+      strokeSmoothPolyline(ctx, points);
     }
-
-    flushFreehandPoints();
-
-    const pPrev = points[points.length - 2];
-    const pLast = points[points.length - 1];
-    applyFreehandStyle(
-      ctx,
-      tool,
-      penColorRef.current,
-      penSizeRef.current,
-      eraserSizeRef.current,
-      canvas,
-      pdfPageWidthAtScale1()
-    );
-    drawSmoothCap(
-      ctx,
-      { x: (pPrev.x + pLast.x) / 2, y: (pPrev.y + pLast.y) / 2 },
-      pLast
-    );
-
-    if (tool === 'eraser') {
-      ctx.globalCompositeOperation = 'source-over';
-    }
-
+    clearLiveCanvas();
     didModify.current = true;
-  }, [flushFreehandPoints, pdfPageWidthAtScale1]);
+  }, [clearLiveCanvas, pdfPageWidthAtScale1]);
 
   const finishDrawing = useCallback(() => {
     if (!isDrawing.current) return;
@@ -930,7 +998,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       shapePreviewFrame.current = null;
     }
     if (pendingShapePoint.current) {
-      renderShapePreview(pendingShapePoint.current);
+      lastPoint.current = pendingShapePoint.current;
       pendingShapePoint.current = null;
     }
 
@@ -939,9 +1007,6 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     const tool = drawToolRef.current;
 
     if (canvas && ctx && isShapeTool(tool) && shapeStart.current && lastPoint.current) {
-      if (beforeAction.current) {
-        ctx.putImageData(beforeAction.current, 0, 0);
-      }
       drawShape(
         ctx,
         tool,
@@ -954,6 +1019,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
         canvas,
         pdfPageWidthAtScale1()
       );
+      clearLiveCanvas();
       didModify.current = true;
     } else if (canvas && ctx && (tool === 'pen' || tool === 'eraser')) {
       finishFreehandStroke(ctx);
@@ -1045,12 +1111,11 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     activePointerId.current = null;
     lastPoint.current = null;
     strokePoints.current = [];
-    renderedPointCount.current = 0;
     shapeStart.current = null;
     canvasMetrics.current = null;
     onDrawingActiveChangeRef.current?.(pageNumber, false);
     commitAction(vectorAction);
-  }, [cancelEraserPreview, cancelPendingFrame, commitAction, finishFreehandStroke, getDrawContext, pageNumber, pdfPageWidthAtScale1, renderShapePreview]);
+  }, [cancelEraserPreview, cancelPendingFrame, clearLiveCanvas, commitAction, finishFreehandStroke, getDrawContext, pageNumber, pdfPageWidthAtScale1]);
 
   const renderLiveVectorErase = useCallback(() => {
     const canvas = drawCanvasRef.current;
@@ -1106,10 +1171,20 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     });
   }, [renderLiveVectorErase]);
 
-  const addFreehandPoint = useCallback((point: Point) => {
+  const addFreehandPoint = useCallback((rawPoint: Point) => {
     const points = strokePoints.current;
     const last = points[points.length - 1];
-    if (last && last.x === point.x && last.y === point.y) return;
+    let point = rawPoint;
+    if (last) {
+      const dx = rawPoint.x - last.x;
+      const dy = rawPoint.y - last.y;
+      const distanceSq = dx * dx + dy * dy;
+      if (distanceSq < FREEHAND_MIN_DISTANCE_SQ) return;
+      // Smooth slow movement to kill jitter, but follow fast strokes exactly.
+      const alpha =
+        distanceSq >= FREEHAND_SMOOTHING_CUTOFF_SQ ? 1 : FREEHAND_SMOOTHING;
+      point = { x: last.x + dx * alpha, y: last.y + dy * alpha };
+    }
 
     points.push(point);
     lastPoint.current = point;
@@ -1140,12 +1215,8 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       }
     }
 
-    if (points.length >= 3) {
-      if (tool !== 'eraser') {
-        scheduleFreehandFlush();
-      }
-    } else {
-      didModify.current = points.length > 0;
+    if (tool === 'pen') {
+      scheduleFreehandFlush();
     }
   }, [getDrawContext, pdfPageWidthAtScale1, scheduleEraserPreview, scheduleFreehandFlush]);
 
@@ -1260,22 +1331,14 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
       isDrawing.current = true;
       didModify.current = false;
-      renderedPointCount.current = 0;
       onDrawingActiveChangeRef.current?.(pageNumber, true);
 
-      const ctx = getDrawContext(canvas);
       const tool = drawToolRef.current;
-      // Snapshot the page only for shape tools, where it is used to restore the
-      // canvas before each live preview frame. Freehand eraser redraws from vectors.
-      if (ctx && isShapeTool(tool)) {
-        beforeAction.current = captureSnapshot(ctx, canvas);
-      } else {
-        beforeAction.current = null;
-      }
-
       const point = getCanvasCoordsFromClient(clientX, clientY, canvasMetrics.current);
       lastPoint.current = point;
       strokePoints.current = [point];
+      liveRenderedPointCount.current = 0;
+      clearLiveCanvas();
 
       if (isShapeTool(tool)) {
         shapeStart.current = point;
@@ -1400,8 +1463,9 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     };
 
     if (window.PointerEvent) {
+      const moveEvent = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
       canvas.addEventListener('pointerdown', handlePointerDown);
-      canvas.addEventListener('pointermove', handlePointerMove);
+      canvas.addEventListener(moveEvent, handlePointerMove as EventListener);
       canvas.addEventListener('pointerup', handlePointerUp);
       canvas.addEventListener('pointercancel', handlePointerUp);
     } else {
@@ -1412,8 +1476,9 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
 
     return () => {
       if (window.PointerEvent) {
+        const moveEvent = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
         canvas.removeEventListener('pointerdown', handlePointerDown);
-        canvas.removeEventListener('pointermove', handlePointerMove);
+        canvas.removeEventListener(moveEvent, handlePointerMove as EventListener);
         canvas.removeEventListener('pointerup', handlePointerUp);
         canvas.removeEventListener('pointercancel', handlePointerUp);
       } else {
@@ -1432,6 +1497,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
     addFreehandPoint,
     cancelEraserPreview,
     cancelPendingFrame,
+    clearLiveCanvas,
     drawingEnabled,
     finishDrawing,
     getDrawContext,
@@ -1458,14 +1524,13 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       isDrawing.current = false;
       lastPoint.current = null;
       strokePoints.current = [];
-      renderedPointCount.current = 0;
       activePointerId.current = null;
       shapeStart.current = null;
-      beforeAction.current = null;
       canvasMetrics.current = null;
+      clearLiveCanvas();
       didModify.current = false;
     }
-  }, [cancelEraserPreview, cancelPendingFrame, drawingEnabled, pageNumber]);
+  }, [cancelEraserPreview, cancelPendingFrame, clearLiveCanvas, drawingEnabled, pageNumber]);
 
   useEffect(() => {
     if (!drawingEnabled || drawTool !== 'text') {
@@ -1493,7 +1558,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
       <div
         ref={containerRef}
         className={`pdf-viewer-page relative origin-top-left rounded ${
-          rendered ? 'bg-white' : 'bg-gray-200 dark:bg-gray-800'
+          rendered || mode === 'inline' ? 'bg-white' : 'bg-gray-200 dark:bg-gray-800'
         }`}
         style={{
           transform: `scale(calc(var(--pdf-zoom, 1) / ${renderZoomFactor}))`,
@@ -1501,7 +1566,7 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
           width: displayWidth,
         }}
       >
-        {!rendered && (
+        {!rendered && mode !== 'inline' && (
           <div className="absolute inset-0 z-10 flex items-stretch pointer-events-none">
             <div
               className="w-full aspect-[210/297] pdf-skeleton-loader"
@@ -1515,16 +1580,21 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
           width={displayWidth}
           devicePixelRatio={outputDevicePixelRatio}
           renderMode="canvas"
-          renderTextLayer={mode !== 'inline' && !drawingEnabled}
+          renderTextLayer={mode !== 'inline' && !drawingEnabled && showTextLayer !== false}
           renderAnnotationLayer={false}
           loading={
-            <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
+            mode === 'inline' ? (
+              <div className="w-full aspect-[210/297] bg-white" aria-hidden="true" />
+            ) : (
+              <div className="w-full aspect-[210/297] pdf-skeleton-loader" aria-hidden="true" />
+            )
           }
           onRenderSuccess={handleRenderSuccess}
           onRenderError={(error) => console.error('PDF page render failed:', error)}
         />
 
-        {pagePreview?.pdfKey === pdfCacheKey &&
+        {pagePreview &&
+          pagePreview.pdfKey === pdfCacheKey &&
           pagePreview.src &&
           (mode === 'inline'
             ? rendered
@@ -1716,6 +1786,13 @@ const PdfDrawablePageInner: React.FC<PdfDrawablePageProps> = ({
                   ? 'pan-x pan-y pinch-zoom'
                   : 'none',
             }}
+          />
+        )}
+
+        {hasRenderedPdf && (
+          <canvas
+            ref={liveCanvasRef}
+            className={`pointer-events-none absolute z-20 ${invertActive ? 'invert hue-rotate-180' : ''}`}
           />
         )}
       </div>

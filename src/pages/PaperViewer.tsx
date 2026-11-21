@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -380,6 +380,52 @@ const PaperViewerPage: React.FC = () => {
   useEffect(() => {
     loadPaperQuestions();
   }, [loadPaperQuestions]);
+
+  // ── Deep-link support ───────────────────────────────────────────────────────
+  // A shared URL with ?q=<n> opens the individual-question view on that question.
+  const appliedQuestionParam = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (loading || papers.length === 0) return;
+    const qParam = searchParams.get('q');
+    if (!qParam || appliedQuestionParam.current === qParam) return;
+
+    const requestedNumber = Number(qParam);
+    if (!Number.isInteger(requestedNumber) || requestedNumber < 1) return;
+
+    const matchingIndex = papers.findIndex(paper => paper.questionNumber === requestedNumber);
+    const targetIndex = matchingIndex >= 0 ? matchingIndex : requestedNumber - 1;
+    if (targetIndex < 0 || targetIndex >= papers.length) return;
+
+    const targetPaper = papers[targetIndex];
+    appliedQuestionParam.current = qParam;
+    setViewMode('single');
+    setQuestionIndex(targetIndex);
+    setCurrentPdf(targetPaper);
+    setQuestionJumpInput(String(targetPaper.questionNumber || targetIndex + 1));
+    setSelectedOption(null);
+    setIsAnswerChecked(false);
+  }, [loading, papers, searchParams]);
+
+  // Keep ?q=<n> in sync with the question currently being viewed so the link is shareable.
+  useEffect(() => {
+    if (loading || papers.length === 0) return;
+    const qParam = searchParams.get('q');
+    // Don't strip a pending ?q= that the restore effect above hasn't applied yet.
+    if (viewMode === 'full' && qParam && appliedQuestionParam.current !== qParam) return;
+
+    const desired = viewMode === 'single' && currentPdf
+      ? String(currentPdf.questionNumber || questionIndex + 1)
+      : null;
+    if (desired === (qParam ?? null)) return;
+
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (desired) next.set('q', desired);
+      else next.delete('q');
+      return next;
+    }, { replace: true });
+  }, [viewMode, currentPdf, questionIndex, loading, papers.length, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (viewMode === 'full' && !fullPaperPdfUrl && !isMerging && papers.length > 0) {
@@ -789,7 +835,7 @@ const PaperViewerPage: React.FC = () => {
                   <ShortcutKey className="ml-0.5">{formatShortcut(shortcutPreferences.markComplete)}</ShortcutKey>
                 </button>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {currentPdf.msUrl && (
                   <button
                     onClick={toggleCurrentMarkScheme}
@@ -800,7 +846,8 @@ const PaperViewerPage: React.FC = () => {
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                   >
-                    {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
+                    <span className="hidden sm:inline">{markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'}</span>
+                    <span className="sm:hidden">MS</span> <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                   </button>
                 )}
                 <div className="flex items-center gap-2">
@@ -1014,9 +1061,17 @@ const PaperViewerPage: React.FC = () => {
                   {isMergingMs ? (
                     <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                   ) : null}
-                  {papers.some(p => p.mcqAnswer)
-                    ? `${mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker`
-                    : `${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Schemes`}
+                  {papers.some(p => p.mcqAnswer) ? (
+                    <>
+                      <span className="hidden sm:inline">{mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker</span>
+                      <span className="sm:hidden">MCQ</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">{markSchemeOpenFull ? 'Hide' : 'Show'} Mark Schemes</span>
+                      <span className="sm:hidden">MS</span>
+                    </>
+                  )}
                   <ShortcutKey>{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
@@ -1152,7 +1207,8 @@ const PaperViewerPage: React.FC = () => {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
+                  <span className="hidden sm:inline">{markSchemeOpen ? 'Hide Mark Scheme' : 'Show Mark Scheme'}</span>
+                  <span className="sm:hidden">MS</span> <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
               {viewMode === 'full' && hasFullMarkScheme && (
@@ -1166,9 +1222,17 @@ const PaperViewerPage: React.FC = () => {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {papers.some(p => p.mcqAnswer)
-                    ? `${mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker`
-                    : `${markSchemeOpenFull ? 'Hide' : 'Show'} Mark Scheme`}
+                  {papers.some(p => p.mcqAnswer) ? (
+                    <>
+                      <span className="hidden sm:inline">{mcqPanelOpenFull ? 'Hide' : 'Show'} MCQ Checker</span>
+                      <span className="sm:hidden">MCQ</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hidden sm:inline">{markSchemeOpenFull ? 'Hide' : 'Show'} Mark Scheme</span>
+                      <span className="sm:hidden">MS</span>
+                    </>
+                  )}
                   <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}

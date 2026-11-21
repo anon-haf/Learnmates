@@ -131,6 +131,15 @@ const MemoizedPdfDrawablePage = React.memo(
   }
 );
 
+// Inline viewers show a plain white page area while loading instead of the
+// shimmering document skeleton.
+const PdfInlineLoadingPlaceholder: React.FC = () => (
+  <div className="flex flex-col items-center gap-3 w-full" aria-hidden="true">
+    <div className="w-full max-w-3xl aspect-[210/297] rounded bg-white" />
+    <div className="w-full max-w-3xl aspect-[210/297] rounded bg-white" />
+  </div>
+);
+
 const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   mode = 'modal',
   savedAnnotation,
@@ -299,6 +308,10 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
   const isZoomingRef = useRef(false);
   const zoomEndTimeoutRef = useRef<number | null>(null);
   const engagementRecordedRef = useRef({ opened: false, read: false, downloaded: false });
+  // The rendered annotation we last handed to onSaveAnnotation. Auto-save pushes
+  // it back up as the `savedAnnotation` prop; that echo must not be mistaken for
+  // an external change (which would reload and wipe the undo/redo history).
+  const selfSavedAnnotationRef = useRef<string | null>(null);
   const [mountedPages, setMountedPages] = useState<Set<number>>(() => new Set([1]));
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [thumbnailWidth, setThumbnailWidth] = useState(100);
@@ -547,6 +560,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     let cancelled = false;
 
     const loadStoredAnnotations = async () => {
+      // Skip the echo of our own auto-save; reloading here resets the history.
+      if (savedAnnotation && savedAnnotation === selfSavedAnnotationRef.current) {
+        return;
+      }
+
       if (readOnly) {
         setStoredPages({});
         resetAnnotationHistory();
@@ -992,6 +1010,7 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
     if (onSaveAnnotation) {
       const page1 = pages[1];
       if (!page1) {
+        selfSavedAnnotationRef.current = '';
         onSaveAnnotation('');
       } else {
         const canvas = document.createElement('canvas');
@@ -1000,7 +1019,9 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('Could not render saved PDF annotations');
         await applyStoredAnnotation(ctx, canvas, page1);
-        onSaveAnnotation(canvas.toDataURL('image/png'));
+        const dataUrl = canvas.toDataURL('image/png');
+        selfSavedAnnotationRef.current = dataUrl;
+        onSaveAnnotation(dataUrl);
       }
     }
   }, [exportAll, markSaved, pdfUrl, mode, onSaveAnnotation]);
@@ -1360,14 +1381,16 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
         </div>
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          <button
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className={`${iconBtn} ${iconBtnIdle} disabled:opacity-50`}
-            title="Previous page"
-          >
-            <ChevronLeft className={toolbarIconSize} />
-          </button>
+          {mode === 'modal' && (
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className={`${iconBtn} ${iconBtnIdle} disabled:opacity-50`}
+              title="Previous page"
+            >
+              <ChevronLeft className={toolbarIconSize} />
+            </button>
+          )}
 
           {mode === 'modal' && (
             <div className="flex items-center bg-gray-700/80 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded text-xs sm:text-sm">
@@ -1383,14 +1406,16 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
             </div>
           )}
 
-          <button
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= numPages}
-            className={`${iconBtn} ${iconBtnIdle} disabled:opacity-50`}
-            title="Next page"
-          >
-            <ChevronRight className={toolbarIconSize} />
-          </button>
+          {mode === 'modal' && (
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= numPages}
+              className={`${iconBtn} ${iconBtnIdle} disabled:opacity-50`}
+              title="Next page"
+            >
+              <ChevronRight className={toolbarIconSize} />
+            </button>
+          )}
 
           {mode === 'modal' && <><div className="w-px h-6 sm:h-7 bg-gray-700 mx-0.5 hidden sm:block" />
 
@@ -1717,7 +1742,11 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
           data-pdf-scroll-container="true"
         >
           {!pdfFile ? (
-            <PdfDocumentSkeleton pageCount={2} />
+            mode === 'inline' ? (
+              <PdfInlineLoadingPlaceholder />
+            ) : (
+              <PdfDocumentSkeleton pageCount={2} />
+            )
           ) : (
 
             <div style={{ width: `max(100%, calc(${pageWidth}px * var(--pdf-zoom, 1)))` }} className="flex flex-col items-center">
@@ -1725,7 +1754,13 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                 file={pdfFile}
                 options={documentOptions}
                 onLoadSuccess={onDocumentLoadSuccess}
-                loading={<PdfDocumentSkeleton pageCount={2} />}
+                loading={
+                  mode === 'inline' ? (
+                    <PdfInlineLoadingPlaceholder />
+                  ) : (
+                    <PdfDocumentSkeleton pageCount={2} />
+                  )
+                }
                 error={<div className="text-red-400 p-8 text-center">Failed to load PDF</div>}
                 onLoadError={(error) => console.error('PDF Load Error:', error)}
                 className={`flex flex-col ${readOnly ? 'gap-0' : 'gap-[calc(12px*var(--pdf-zoom,1))]'} ${invertColors ? 'invert hue-rotate-180' : ''}`}
@@ -1772,7 +1807,9 @@ const UniversalDocumentViewer: React.FC<UniversalDocumentViewerProps> = ({
                             />
                           ) : (
                             <div
-                              className="mx-auto scroll-mt-4 rounded bg-gray-200/40 dark:bg-gray-800/40"
+                              className={`mx-auto scroll-mt-4 rounded ${
+                                mode === 'inline' ? 'bg-white' : 'bg-gray-200/40 dark:bg-gray-800/40'
+                              }`}
                               style={{
                                 width: `calc(${pageWidth}px * var(--pdf-zoom, 1))`,
                                 height: `calc(${pageWidth * (pageAspectRatiosRef.current[pageNum] || A4_ASPECT)}px * var(--pdf-zoom, 1))`,

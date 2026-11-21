@@ -15,6 +15,7 @@ import { PdfViewerBasePath } from '../utils/pdfViewerPaths';
 import { DoneItem, isDoneItem, videoDoneUrl } from '../utils/doneItems';
 import { useEngagement } from '../context/EngagementContext';
 import { useRouteBase, withBase } from '../utils/routeBase';
+import { getSubjectPaths, getTopicalSelectionQuery, hasTopicalsForSubject } from '../utils/favoriteSubjects';
 import { Card, Badge, Button } from '@/components/ui';
 
 
@@ -229,6 +230,24 @@ const TopicPage: React.FC = () => {
   const topicSlug = topic ? getTopicSlug({ title: topic.title, group: topic.group }) : '';
   const canonicalPath = topic ? curriculumPath(routeType, routeBoard, encodeURIComponent(topic.subject || ''), topicSlug) : '';
 
+  const topicalBoard = routeBoard === 'cambridge' || routeBoard === 'edexcel' ? routeBoard : null;
+  const topicalSubject = topic?.subject || '';
+  const showTopicalGenerator = Boolean(
+    topicalBoard &&
+    topicalSubject &&
+    quizzes.length > 0 &&
+    hasTopicalsForSubject({ subject: topicalSubject, level: routeType, board: topicalBoard })
+  );
+  const topicalGeneratorPath = topicalBoard
+    ? getSubjectPaths({ subject: topicalSubject, level: routeType, board: topicalBoard }, base).topicals
+    : '';
+  const topicalSelectionQuery = showTopicalGenerator && topicalBoard && topic
+    ? getTopicalSelectionQuery({ subject: topicalSubject, level: routeType, board: topicalBoard }, topic.title)
+    : null;
+  const topicalGeneratorTo = topicalSelectionQuery
+    ? `${topicalGeneratorPath}?topics=${encodeURIComponent(topicalSelectionQuery)}`
+    : topicalGeneratorPath;
+
   const [pageMeta, setPageMeta] = useState<any | null>(null);
   useEffect(() => {
     let mounted = true;
@@ -437,7 +456,30 @@ const TopicPage: React.FC = () => {
         )}
 
         {activeTab === 'quiz' && (
-          <Quiz quizzes={quizzes} />
+          <div className="space-y-6">
+            {showTopicalGenerator && (
+              <Card
+                variant="elevated"
+                padding="lg"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20"
+              >
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-neutral-900 dark:text-white">
+                    Try out our Topical Question Generator
+                  </h3>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-300">
+                    Practise exam-style questions on {topic.subject} by topic.
+                  </p>
+                </div>
+                <Button asChild variant="primary" className="shrink-0">
+                  <Link to={topicalGeneratorTo}>
+                    Topical Question Generator
+                  </Link>
+                </Button>
+              </Card>
+            )}
+            <Quiz quizzes={quizzes} />
+          </div>
         )}
       </motion.div>
     </motion.div>

@@ -1652,7 +1652,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
             </div>
           )}
           {/* External Question / Mark Scheme toggle + Annotate */}
-          <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-2">
             <div className="inline-flex rounded-lg bg-gray-800/60 p-1">
               <button
                 type="button"
@@ -1685,7 +1685,7 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {showPeriodicTable && (
                 <button
                   type="button"
@@ -1902,7 +1902,8 @@ const TopicalQuiz: React.FC<QuizComponentProps> = (props) => {
                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
-                  {showMarkScheme ? 'Hide Mark Scheme' : 'Show Mark Scheme'} <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
+                  <span className="hidden sm:inline">{showMarkScheme ? 'Hide Mark Scheme' : 'Show Mark Scheme'}</span>
+                  <span className="sm:hidden">MS</span> <ShortcutKey className="ml-1">{formatShortcut(shortcutPreferences.toggleMarkScheme)}</ShortcutKey>
                 </button>
               )}
               {!currentQ.mcqAnswer && (

@@ -55,17 +55,33 @@ export const PdfSidebarPageThumb: React.FC<PdfSidebarPageThumbProps> = ({
         });
     };
 
+    const scheduleLoad = () => {
+      if (cancelled || loadStartedRef.current) return;
+      if (typeof window.requestIdleCallback === 'function') {
+        const idleId = window.requestIdleCallback(() => loadThumbnail(), {
+          timeout: eager ? 600 : 1600,
+        });
+        return () => window.cancelIdleCallback(idleId);
+      }
+      const timeoutId = window.setTimeout(loadThumbnail, eager ? 350 : 700);
+      return () => window.clearTimeout(timeoutId);
+    };
+
     if (eager) {
-      loadThumbnail();
+      const cancelScheduled = scheduleLoad();
       return () => {
         cancelled = true;
+        cancelScheduled?.();
       };
     }
 
+    let cancelScheduled: (() => void) | undefined;
+
     if (typeof IntersectionObserver === 'undefined') {
-      loadThumbnail();
+      cancelScheduled = scheduleLoad();
       return () => {
         cancelled = true;
+        cancelScheduled?.();
       };
     }
 
@@ -74,7 +90,7 @@ export const PdfSidebarPageThumb: React.FC<PdfSidebarPageThumbProps> = ({
       (entries) => {
         const isVisible = entries.some((entry) => entry.isIntersecting);
         if (!isVisible || cancelled) return;
-        loadThumbnail();
+        cancelScheduled = scheduleLoad();
         observer.disconnect();
       },
       {
@@ -88,6 +104,7 @@ export const PdfSidebarPageThumb: React.FC<PdfSidebarPageThumbProps> = ({
 
     return () => {
       cancelled = true;
+      cancelScheduled?.();
       observer.disconnect();
     };
   }, [pdfDoc, pageNumber, thumbnailWidth, cacheKey, scrollRoot, eager]);

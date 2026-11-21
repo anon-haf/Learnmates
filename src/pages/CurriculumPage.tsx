@@ -17,6 +17,7 @@ import {
 import { filterCountableTopics, isRevisionTopic } from '../utils/subjectProgressGroups';
 import { useEngagement } from '../context/EngagementContext';
 import { useRouteBase, withBase } from '../utils/routeBase';
+import { getSubjectPaths, hasTopicalsForSubject } from '../utils/favoriteSubjects';
 import { Card, Badge, Button } from '@/components/ui';
 
 
@@ -42,6 +43,12 @@ const CurriculumPage: React.FC = () => {
   const selectedSubjectCode = selectedSubject && selectedBoard
     ? getSubjectQualificationCode(selectedLevel, selectedBoard, selectedSubject)
     : null;
+  const subjectPaths = selectedSubject && selectedBoard
+    ? getSubjectPaths({ subject: selectedSubject, level: selectedLevel, board: selectedBoard }, base)
+    : null;
+  const showTopicalLinks = selectedSubject && selectedBoard
+    ? hasTopicalsForSubject({ subject: selectedSubject, level: selectedLevel, board: selectedBoard })
+    : false;
   const curriculum = curriculumData[selectedLevel as keyof typeof curriculumData];
   const navigate = useNavigate();
 
@@ -264,6 +271,16 @@ const CurriculumPage: React.FC = () => {
           {curriculum.description}
         </p>
         <div className="mt-4 text-lg text-neutral-700 dark:text-neutral-300">Board: <span className="font-semibold">{selectedBoard}</span></div>
+        {showTopicalLinks && subjectPaths && (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Button asChild variant="secondary">
+              <Link to={subjectPaths.topicals}>Topical</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link to={subjectPaths.pastpapers}>Past papers</Link>
+            </Button>
+          </div>
+        )}
         {subjectProgress.total > 0 && (
           <div className="mt-6 max-w-md mx-auto">
             <div className="flex justify-between text-sm text-neutral-600 dark:text-neutral-300 mb-2">

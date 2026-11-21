@@ -16,25 +16,18 @@ export function pdfStrokeWidthInCanvasPixels(
   return sizeInPdfUnits * (canvasWidthPx / pdfPageWidthAtScale1);
 }
 
-/** Baseline density; narrower pages increase DPR to preserve raster detail. */
+/** Fallback density used only when the display width is unavailable. */
 export const PDF_OUTPUT_DEVICE_PIXEL_RATIO = 2;
 
-// Narrow (e.g. side-by-side mark scheme) panels previously oversampled up to a
-// 1280px-wide / 5x-DPR canvas, which inflated memory and annotation cost. 1024px
-// still stays >= 2x the panel width while cutting that overhead.
-const PDF_MIN_RENDER_WIDTH_PX = 1024;
-const PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO = 3;
+// Every page is rasterised to this fixed pixel width no matter the device or the
+// on-screen container size. Because the canvas buffer = displayWidth * DPR, we
+// derive the DPR from the target width, so phones, tablets and laptops all get
+// the exact same resolution instead of a per-screen one.
+export const PDF_TARGET_RENDER_WIDTH_PX = 2048;
 
 export function getPdfOutputDevicePixelRatio(displayWidth: number): number {
   if (!Number.isFinite(displayWidth) || displayWidth <= 0) {
     return PDF_OUTPUT_DEVICE_PIXEL_RATIO;
   }
-
-  return Math.max(
-    PDF_OUTPUT_DEVICE_PIXEL_RATIO,
-    Math.min(
-      PDF_MAX_OUTPUT_DEVICE_PIXEL_RATIO,
-      PDF_MIN_RENDER_WIDTH_PX / displayWidth
-    )
-  );
+  return PDF_TARGET_RENDER_WIDTH_PX / displayWidth;
 }
